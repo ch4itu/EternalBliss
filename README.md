@@ -5,10 +5,10 @@
 Eternal Bliss is a **fully on-chain P2P RPG** built natively on the Algorand blockchain.  
 Everything — your hero, stats, battles, progress, economy, maps, and even chat — is stored and executed directly on-chain.
 
-No servers.  
+**No servers.  
 No external databases.  
 No hidden sync layers.  
-The blockchain itself is the game engine and source of truth.
+The blockchain itself is the game engine and source of truth.**
 
 Unlike many blockchain games that have **sunsetted** and erased all player progress and assets, Eternal Bliss is designed so that **nothing can vanish**. Heroes, items, maps, and stories remain permanent on Algorand — independent of developers or companies.
 
