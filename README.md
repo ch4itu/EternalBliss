@@ -107,7 +107,7 @@ Eternal Bliss is a **prototype demo for hackathons**.
 
 1. Clone this repository.  
 2. Open `index.html` in your browser.  
-3. Connect via mnemonic/private key (demo input) or MyAlgo.  
+3. Connect via mnemonic/private key (demo input).  
 4. Play, explore, battle — offline or online.  
 5. Sync progress to Algorand TestNet when ready.  
 6. Use `mapmaker.html` to design or extend maps and plug them into the main game.  
