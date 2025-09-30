@@ -56,7 +56,7 @@ Eternal Bliss demonstrates that decentralized games can be **fun, fair, permanen
 - **Frontend**: `index.html`, `styles.css`, `script.js`  
   - Browser-only client.  
   - No external dependencies (no APIs, CDNs, or servers).  
-  - **The full code bundle (HTML/CSS/JS) is stored on-chain** and can be accessed by referencing a transaction ID.  
+  - **The full code bundle (HTML/CSS/JS) is stored on-chain** and can be accessed by referencing a transaction ID (via Algorand note field or ARC-69/ARC-3 style storage).  
 - **Smart Contract**: `algorand-rpg-smart-contract.py`  
   - Written in PyTeal.  
   - Manages hero creation, battles, XP/gold formulas, inventory, and NFT minting.  
