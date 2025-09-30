@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EternalBliss - Algorand On-Chain RPG</title>
+    <script src="https://cdn.jsdelivr.net/npm/algosdk@2.7.0/dist/browser/algosdk.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+    <script src="script.js"></script>
+</head>
+<!-- ADD THIS TO YOUR algorand-rpg-html.html FILE -->
+
+<!-- 1. ADD THE CSS (put this in your <head> section) -->
+<style>
+/* Map Importer Plugin Styles */
+.map-importer-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    font-family: 'Courier New', monospace;
+}
+
+.map-importer-modal {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    border: 4px solid #3d5a80;
+    border-radius: 16px;
+    padding: 28px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 16px 32px rgba(0,0,0,0.8);
+    color: white;
+}
+
+.importer-header {
+    text-align: center;
+    margin-bottom: 24px;
+    color: #fbbf24;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.import-method-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.import-tab {
+    flex: 1;
+    padding: 12px;
+    background: rgba(0,0,0,0.3);
+    border: 2px solid #3d5a80;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+    font-size: 12px;
+    color: white;
+}
+
+.import-tab:hover {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.import-tab.active {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+}
+
+.import-section {
+    display: none;
+    margin-bottom: 20px;
+}
+
+.import-section.active {
+    display: block;
+}
+
+.json-textarea {
+    width: 100%;
+    height: 200px;
+    background: rgba(0,0,0,0.5);
+    border: 2px solid #3d5a80;
+    border-radius: 8px;
+    color: white;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    padding: 12px;
+    resize: vertical;
+    margin-bottom: 12px;
+}
+
+.file-input {
+    width: 100%;
+    padding: 12px;
+    background: rgba(0,0,0,0.3);
+    border: 2px dashed #3d5a80;
+    border-radius: 8px;
+    color: white;
+    text-align: center;
+    cursor: pointer;
+    margin-bottom: 12px;
+}
+
+.file-input input {
+    display: none;
+}
+
+.preset-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.preset-card {
+    background: rgba(0,0,0,0.3);
+    border: 2px solid #3d5a80;
+    border-radius: 8px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.preset-card:hover {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.preset-title {
+    font-weight: bold;
+    margin-bottom: 4px;
+    color: #fbbf24;
+}
+
+.preset-desc {
+    font-size: 11px;
+    opacity: 0.8;
+}
+
+.import-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.import-btn {
+    flex: 1;
+    padding: 12px;
+    border: 3px solid;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    background: none;
+    color: inherit;
+}
+
+.import-btn-success {
+    background: linear-gradient(135deg, #059669 0%, #10b981 50%, #059669 100%);
+    border-color: #065f46;
+    color: white;
+}
+
+.import-btn-danger {
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 50%, #dc2626 100%);
+    border-color: #991b1b;
+    color: white;
+}
+
+.import-status {
+    margin-top: 12px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    text-align: center;
+    display: none;
+}
+
+.status-success {
+    background: rgba(16, 185, 129, 0.2);
+    border: 1px solid #10b981;
+    color: #10b981;
+}
+
+.status-error {
+    background: rgba(220, 38, 38, 0.2);
+    border: 1px solid #dc2626;
+    color: #ef4444;
+}
+
+.trigger-button {
+    position: fixed;
+    bottom: 20px;
+    right: 80px;
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, #059669 0%, #10b981 50%, #059669 100%);
+    border: 3px solid #065f46;
+    border-radius: 50%;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    z-index: 1900;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+.trigger-button:hover {
+    transform: translateY(-3px) scale(1.1);
+}
+</style>
+
+<!-- 2. ADD THE HTML (put this right before </body>) -->
+
+<!-- Map Importer Button -->
+<div class="trigger-button" id="mapImporterTrigger" title="Import New Map">
+    🗺️
+</div>
+
+<!-- Map Importer Modal -->
+<div class="map-importer-overlay" id="mapImporterOverlay">
+    <div class="map-importer-modal">
+        <div class="importer-header">
+            🗺️ EternalBliss Map Importer
+        </div>
+
+        <!-- Import Method Tabs -->
+        <div class="import-method-tabs">
+            <div class="import-tab active" data-tab="json">JSON Data</div>
+            <div class="import-tab" data-tab="presets">Quick Presets</div>
+        </div>
+
+        <!-- JSON Import Section -->
+        <div class="import-section active" id="jsonSection">
+            <h4>Paste JSON Map Data</h4>
+            <textarea class="json-textarea" id="jsonInput" placeholder="Paste your generated map JSON data here..."></textarea>
+            <button class="btn btn-primary" onclick="validateJsonMap()">🔍 Validate JSON</button>
+        </div>
+
+        <!-- Presets Section -->
+        <div class="import-section" id="presetsSection">
+            <h4>Quick Load Presets</h4>
+            <div class="preset-grid">
+                <div class="preset-card" onclick="loadPresetMap('starter_village')">
+                    <div class="preset-title">🏘️ Starter Village</div>
+                    <div class="preset-desc">Small beginner-friendly map</div>
+                </div>
+                <div class="preset-card" onclick="loadPresetMap('large_city')">
+                    <div class="preset-title">🏙️ Large City</div>
+                    <div class="preset-desc">Expansive urban map</div>
+                </div>
+                <div class="preset-card" onclick="loadPresetMap('dungeon')">
+                    <div class="preset-title">⚔️ Dungeon</div>
+                    <div class="preset-desc">Dangerous cave system</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Import Actions -->
+        <div class="import-actions">
+            <button class="import-btn import-btn-success" id="importButton" onclick="importMap()" disabled>
+                ✅ Import Map
+            </button>
+            <button class="import-btn import-btn-danger" onclick="closeImporter()">
+                ❌ Cancel
+            </button>
+        </div>
+
+        <!-- Status Message -->
+        <div class="import-status" id="importStatus"></div>
+    </div>
+</div>
+
+<!-- 3. ADD THE JAVASCRIPT (put this right before </body>, after the HTML above) -->
+<script>
+// Map Importer Plugin JavaScript
+let currentMapData = null;
+
+function initMapImporter() {
+    document.getElementById('mapImporterTrigger').addEventListener('click', openImporter);
+    
+    document.querySelectorAll('.import-tab').forEach(tab => {
+        tab.addEventListener('click', switchTab);
+    });
+
+    document.getElementById('mapImporterOverlay').addEventListener('click', function(e) {
+        if (e.target === this) closeImporter();
+    });
+}
+
+function openImporter() {
+    document.getElementById('mapImporterOverlay').style.display = 'flex';
+    clearImporterState();
+}
+
+function closeImporter() {
+    document.getElementById('mapImporterOverlay').style.display = 'none';
+}
+
+function switchTab(e) {
+    const tabName = e.target.dataset.tab;
+    
+    document.querySelectorAll('.import-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    e.target.classList.add('active');
+
+    document.querySelectorAll('.import-section').forEach(section => {
+        section.classList.remove('active');
+    });
+    document.getElementById(tabName + 'Section').classList.add('active');
+    
+    clearImporterState();
+}
+
+function clearImporterState() {
+    currentMapData = null;
+    document.getElementById('importButton').disabled = true;
+    document.getElementById('importStatus').style.display = 'none';
+}
+
+function validateJsonMap() {
+    const jsonText = document.getElementById('jsonInput').value.trim();
+    
+    if (!jsonText) {
+        showStatus('Please enter JSON data', 'error');
+        return false;
+    }
+
+    try {
+        const mapData = JSON.parse(jsonText);
+        
+        // Basic validation
+        if (!mapData.terrain || !mapData.width || !mapData.height) {
+            throw new Error('Missing required fields (terrain, width, height)');
+        }
+        
+        currentMapData = mapData;
+        document.getElementById('importButton').disabled = false;
+        showStatus('✅ Map validation successful!', 'success');
+        return true;
+    } catch (error) {
+        showStatus('❌ Invalid JSON: ' + error.message, 'error');
+        return false;
+    }
+}
+
+function loadPresetMap(presetName) {
+    const presets = {
+        starter_village: {
+            name: "Starter Village",
+            width: 30,
+            height: 25,
+            terrain: generateSimpleGrid(30, 25, 'village'),
+            buildings: [
+                {x: 12, y: 10, type: 'inn', name: 'Village Inn', class: 'building house inn'},
+                {x: 15, y: 12, type: 'shop', name: 'General Store', class: 'building house shop'}
+            ],
+            npcs: [
+                {x: 13, y: 11, name: 'Innkeeper', class: 'npc npc-villager', dialogue: 'Welcome to our village!'}
+            ],
+            enemies: [
+                {x: 5, y: 5, name: 'Slime', class: 'enemy-spawn enemy-goblin', hp: 25, maxHp: 25, attack: 6, xpReward: 15, goldReward: 10}
+            ],
+            items: [
+                {x: 20, y: 15, type: 'gold', value: 30}
+            ]
+        },
+        large_city: {
+            name: "Algorand City",
+            width: 50,
+            height: 40,
+            terrain: generateSimpleGrid(50, 40, 'city'),
+            buildings: [
+                {x: 20, y: 15, type: 'castle', name: 'City Hall', class: 'building castle'},
+                {x: 15, y: 20, type: 'shop', name: 'ALGO Market', class: 'building house shop'},
+                {x: 25, y: 18, type: 'inn', name: 'Grand Hotel', class: 'building house inn'}
+            ],
+            npcs: [
+                {x: 21, y: 16, name: 'Mayor', class: 'npc npc-elder', dialogue: 'Welcome to our great city!'}
+            ],
+            enemies: [
+                {x: 40, y: 30, name: 'City Thief', class: 'enemy-spawn enemy-wolf', hp: 45, maxHp: 45, attack: 12, xpReward: 30, goldReward: 20}
+            ],
+            items: [
+                {x: 35, y: 25, type: 'gold', value: 75}
+            ]
+        },
+        dungeon: {
+            name: "Dragon's Lair",
+            width: 35,
+            height: 30,
+            terrain: generateSimpleGrid(35, 30, 'dungeon'),
+            buildings: [
+                {x: 17, y: 25, type: 'castle', name: 'Dragon Lair', class: 'building castle'}
+            ],
+            npcs: [],
+            enemies: [
+                {x: 10, y: 15, name: 'Cave Troll', class: 'enemy-spawn enemy-dragon', hp: 80, maxHp: 80, attack: 20, xpReward: 60, goldReward: 40},
+                {x: 17, y: 26, name: 'Ancient Dragon', class: 'enemy-spawn enemy-dragon', hp: 150, maxHp: 150, attack: 35, xpReward: 100, goldReward: 100}
+            ],
+            items: [
+                {x: 18, y: 27, type: 'gold', value: 500}
+            ]
+        }
+    };
+    
+    currentMapData = presets[presetName];
+    document.getElementById('importButton').disabled = false;
+    showStatus(`Loaded ${presetName.replace('_', ' ')} preset!`, 'success');
+}
+
+function generateSimpleGrid(width, height, type) {
+    const grid = [];
+    for (let y = 0; y < height; y++) {
+        grid[y] = [];
+        for (let x = 0; x < width; x++) {
+            if (type === 'village') {
+                grid[y][x] = Math.random() < 0.2 ? 'forest' : 'grass';
+            } else if (type === 'city') {
+                grid[y][x] = (x % 8 === 0 || y % 8 === 0) ? 'road' : 'grass';
+            } else if (type === 'dungeon') {
+                grid[y][x] = Math.random() < 0.4 ? 'mountain' : 'grass';
+            }
+        }
+    }
+    return grid;
+}
+
+function importMap() {
+    if (!currentMapData) {
+        showStatus('No valid map data to import', 'error');
+        return;
+    }
+
+    try {
+        // Update game world
+        gameState.world.width = currentMapData.width;
+        gameState.world.height = currentMapData.height;
+        
+        worldMap = currentMapData.terrain;
+        buildings = currentMapData.buildings || [];
+        npcs = currentMapData.npcs || [];
+        enemies = currentMapData.enemies || [];
+        items = currentMapData.items || [];
+        
+        // Reset player position to center
+        gameState.player.x = Math.floor(currentMapData.width / 2);
+        gameState.player.y = Math.floor(currentMapData.height / 2);
+        
+        // Re-render everything
+        renderWorld();
+        initializeMinimap();
+        centerCameraOnPlayer();
+        checkLocation();
+        updateUI();
+        
+        showStatus('🎉 Map imported successfully!', 'success');
+        showFloatingText('New map loaded!', 
+            gameState.player.x * 32 + 16, 
+            gameState.player.y * 32 - 40, 
+            '#10b981'
+        );
+        
+        setTimeout(closeImporter, 2000);
+        
+    } catch (error) {
+        showStatus('Import failed: ' + error.message, 'error');
+        console.error('Map import error:', error);
+    }
+}
+
+function showStatus(message, type) {
+    const statusEl = document.getElementById('importStatus');
+    statusEl.textContent = message;
+    statusEl.className = `import-status status-${type}`;
+    statusEl.style.display = 'block';
+}
+
+// Initialize when page loads
+window.addEventListener('load', initMapImporter);
+
+console.log('🗺️ Map Importer Plugin Ready!');
+</script>
+<body>
+    <div class="game-container">
+        <div class="left-panel">
+            <div class="wallet-section">
+                <h3>🔗 Algorand Wallet</h3>
+                <div class="wallet-methods">
+                    <div class="wallet-method active" onclick="setWalletMethod('mnemonic')" id="mnemonicMethod">
+                        Mnemonic Phrase
+                    </div>
+                    <div class="wallet-method" onclick="setWalletMethod('myalgo')" id="myalgoMethod">
+                        MyAlgo Wallet
+                    </div>
+                </div>
+                <div id="walletInputSection">
+                    <textarea class="wallet-input" id="walletInput" placeholder="Enter your 25-word Algorand mnemonic phrase..." rows="3"></textarea>
+                    <button class="btn btn-primary" onclick="connectWallet()" style="width: 100%; margin-top: 8px;">
+                        🔗 Connect to Algorand
+                    </button>
+                </div>
+                <div id="walletConnected" style="display: none;">
+                    <div style="font-size: 11px; margin-bottom: 6px;"><strong>Connected:</strong></div>
+                    <div style="font-size: 10px; font-family: monospace; word-break: break-all;" id="connectedAddress"></div>
+                    <div style="font-size: 10px; margin-top: 4px; color: #10b981;">Algorand Mainnet</div>
+                    <div style="font-size: 10px; margin-top: 4px;">Balance: <span id="algoBalance">0</span> ALGO</div>
+                    <button class="btn btn-danger" onclick="disconnectWallet()" style="width: 100%; margin-top: 8px; font-size: 10px;">
+                        Disconnect
+                    </button>
+                </div>
+            </div>
+
+            <div class="character-info">
+                <h3>⚔️ Hero Stats</h3>
+                <div style="margin: 12px 0;">
+                    <div style="margin-bottom: 8px;">
+                        <strong>Level:</strong> <span id="playerLevel">1</span>
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        <strong>Location:</strong> <span id="currentLocation">Starter Village</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 4px; font-size: 12px; color: #ef4444;">❤️ Health</div>
+                    <div class="stat-bar">
+                        <div class="stat-fill hp-fill" id="playerHpBar" style="width: 100%"></div>
+                    </div>
+                    <div style="font-size: 11px; margin-bottom: 8px;">
+                        <span id="playerHp">100</span>/<span id="playerMaxHp">100</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 4px; font-size: 12px; color: #3b82f6;">💧 Mana</div>
+                    <div class="stat-bar">
+                        <div class="stat-fill mp-fill" id="playerMpBar" style="width: 100%"></div>
+                    </div>
+                    <div style="font-size: 11px; margin-bottom: 8px;">
+                        <span id="playerMp">50</span>/<span id="playerMaxMp">50</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 4px; font-size: 12px; color: #fbbf24;">⭐ Experience</div>
+                    <div class="stat-bar">
+                        <div class="stat-fill xp-fill" id="playerXpBar" style="width: 0%"></div>
+                    </div>
+                    <div style="font-size: 11px;">
+                        <span id="playerXp">0</span>/<span id="playerXpNext">100</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="inventory">
+                <h3>🎒 Inventory</h3>
+                <div class="inventory-item">
+                    <span><span class="item-icon">💰</span>Gold</span>
+                    <span id="goldAmount">100</span>
+                </div>
+                <div class="inventory-item">
+                    <span><span class="item-icon">🧪</span>Health Potions</span>
+                    <span id="healthPotions">3</span>
+                </div>
+                <div class="inventory-item">
+                    <span><span class="item-icon">🔮</span>Mana Potions</span>
+                    <span id="manaPotions">2</span>
+                </div>
+                <div class="inventory-item">
+                    <span><span class="item-icon">🗝️</span>Keys</span>
+                    <span id="keyCount">0</span>
+                </div>
+            </div>
+
+            <div class="multiplayer-section">
+                <h3>👥 Multiplayer</h3>
+                
+                <div>
+                    <p><strong>Online Players: <span id="onlineCount">1</span></strong></p>
+                    <div class="online-players" id="onlinePlayersList">
+                        <div class="player-item">You are here</div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <h4>💬 World Chat</h4>
+                    <div style="height: 120px; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 8px; margin: 10px 0; font-size: 0.8em;" id="chatMessages"></div>
+                    
+                    <div style="display: flex; gap: 5px;">
+                        <input type="text" id="chatInput" placeholder="Type message..." style="flex: 1; padding: 8px;" maxlength="100">
+                        <button class="btn btn-primary" id="sendChatBtn">Send</button>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 16px; display: grid; gap: 8px;">
+                <button class="btn btn-success" onclick="syncWithAlgorand()" style="width: 100%;" id="syncButton">
+                    🔄 Sync from Algorand
+                </button>
+                <button class="btn btn-primary" onclick="saveToAlgorand()" style="width: 100%;" id="saveButton" disabled>
+                    💾 Save to Algorand
+                </button>
+                <button class="btn btn-warning" onclick="createPlayerNFT()" style="width: 100%; display: none;" id="nftButton">
+                    🎨 Mint Player NFT
+                </button>
+            </div>
+        </div>
+
+        <div class="main-game">
+            <div class="connection-status disconnected" id="connectionStatus">
+                ⚡ Disconnected
+            </div>
+            
+            <div class="location-info">
+                <div style="font-size: 16px; font-weight: bold;" id="locationName">🏘️ Starter Village</div>
+                <div class="desktop-controls-hint" style="font-size: 11px; opacity: 0.8; margin-top: 4px;">WASD/Arrows: Move | Space: Interact</div>
+            </div>
+
+            <div class="minimap">
+                <div style="padding: 8px; font-size: 12px; font-weight: bold; border-bottom: 2px solid #3d5a80;">
+                    🗺️ World Map
+                </div>
+                <div class="minimap-content" id="minimapContent"></div>
+            </div>
+
+            <div class="world-view" id="worldView">
+                <div class="world-grid" id="worldGrid">
+                </div>
+            </div>
+
+            <div class="ui-panel">
+                <div class="stat-block">
+                    <div style="font-size: 13px; margin-bottom: 8px; color: #fbbf24;">⚔️ COMBAT STATS</div>
+                    <div style="font-size: 12px; margin-bottom: 3px;">
+                        <span style="color: #ef4444;">ATK:</span> <span id="attackStat">15</span>
+                    </div>
+                    <div style="font-size: 12px; margin-bottom: 3px;">
+                        <span style="color: #3b82f6;">DEF:</span> <span id="defenseStat">10</span>
+                    </div>
+                    <div style="font-size: 12px;">
+                        <span style="color: #8b5cf6;">MAG:</span> <span id="magicStat">20</span>
+                    </div>
+                </div>
+
+                <div class="stat-block">
+                    <div style="font-size: 13px; margin-bottom: 8px; color: #10b981;">🎯 PROGRESS</div>
+                    <div style="font-size: 11px; margin-bottom: 3px;" id="quickInfo1">Enemies Defeated: 0</div>
+                    <div style="font-size: 11px; margin-bottom: 3px;" id="quickInfo2">Treasures Found: 0</div>
+                    <div style="font-size: 11px;" id="quickInfo3">Position: (4, 3)</div>
+                </div>
+
+                <div class="controls">
+                    <div></div>
+                    <div class="control-btn" onclick="movePlayer(0, -1)" title="Move Up">↑</div>
+                    <div></div>
+                    <div class="control-btn" onclick="movePlayer(-1, 0)" title="Move Left">←</div>
+                    <div class="control-btn interact" onclick="interact()" title="Interact">⚡</div>
+                    <div class="control-btn" onclick="movePlayer(1, 0)" title="Move Right">→</div>
+                    <div></div>
+                    <div class="control-btn" onclick="movePlayer(0, 1)" title="Move Down">↓</div>
+                    <div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Interaction Modal -->
+    <div class="modal" id="interactionModal">
+        <div class="modal-content">
+            <h3 id="modalTitle">Building Name</h3>
+            <div id="modalContent">Content goes here</div>
+            <div style="margin-top: 24px;">
+                <button class="btn btn-primary" onclick="closeModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Battle Modal -->
+    <div class="modal battle-modal" id="battleModal">
+        <div class="modal-content">
+            <h3 style="font-size: 24px; margin-bottom: 16px;">⚔️ BATTLE COMMENCED!</h3>
+            <div class="battle-arena">
+                <div class="battle-character battle-player">🧙‍♂️</div>
+                <div style="font-size: 40px; animation: battle-lightning 1s ease-in-out infinite;">⚡</div>
+                <div class="battle-character battle-enemy" id="battleEnemy">🐉</div>
+            </div>
+            
+            <div style="margin-bottom: 16px;">
+                <div style="font-size: 16px; margin-bottom: 8px;">
+                    🎯 <span id="enemyName">Dragon</span>
+                </div>
+                <div class="stat-bar" style="margin: 0 auto; width: 60%;">
+                    <div class="stat-fill hp-fill" id="enemyHpBar" style="width: 100%"></div>
+                </div>
+                <div style="font-size: 12px; margin-top: 4px;">
+                    HP: <span id="enemyHp">80</span>/<span id="enemyMaxHp">80</span>
+                </div>
+            </div>
+
+            <div class="battle-actions">
+                <button class="btn btn-primary" onclick="battleAction('attack')">⚔️ Attack</button>
+                <button class="btn btn-primary" onclick="battleAction('magic')">✨ Magic</button>
+                <button class="btn btn-success" onclick="battleAction('heal')">💚 Heal</button>
+                <button class="btn btn-primary" onclick="battleAction('flee')">🏃 Flee</button>
+            </div>
+
+            <div class="battle-log" id="battleLog"></div>
+        </div>
+    </div>
+
+    <!-- Mobile Controls -->
+    <div id="mobile-controls">
+        <button data-dir="up" class="ctl-btn up">▲</button>
+        <button data-dir="left" class="ctl-btn left">◀</button>
+        <button data-dir="down" class="ctl-btn down">▼</button>
+        <button data-dir="right" class="ctl-btn right">▶</button>
+    </div>
+
+    <!-- Transaction Status Modal -->
+    <div class="modal" id="txModal" style="display: none;">
+        <div class="modal-content" style="max-width: 400px;">
+            <h3>🔄 Transaction Status</h3>
+            <div id="txStatus" style="margin: 20px 0; text-align: center;">
+                <div class="loading-spinner"></div>
+                <p style="margin-top: 15px;">Processing transaction...</p>
+            </div>
+            <div id="txResult" style="display: none;">
+                <p id="txMessage"></p>
+                <div style="margin-top: 15px;">
+                    <a id="txLink" href="#" target="_blank" style="color: #10b981;">View on AlgoExplorer</a>
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="closeTxModal()" style="margin-top: 20px; width: 100%;">Close</button>
+        </div>
+    </div>
+</body>
+</html>

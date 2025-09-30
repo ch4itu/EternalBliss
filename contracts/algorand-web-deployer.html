@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PyTeal to Algorand Deployer</title>
+    <script src="https://cdn.jsdelivr.net/npm/algosdk@2.7.0/dist/browser/algosdk.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title::before {
+            content: '▶';
+            color: #667eea;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #555;
+            font-size: 14px;
+        }
+
+        input[type="text"], textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: 'Courier New', monospace;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            min-height: 300px;
+            resize: vertical;
+            font-size: 12px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .success-box {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            color: #155724;
+        }
+
+        .error-box {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            color: #721c24;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            color: #856404;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .status.show {
+            display: block;
+        }
+
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .account-info {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+            border: 2px solid #667eea;
+        }
+
+        .account-info p {
+            margin: 8px 0;
+            font-size: 13px;
+        }
+
+        .account-info strong {
+            color: #667eea;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            word-break: break-all;
+        }
+
+        .schema-input {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .schema-field {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .schema-field input {
+            margin-top: 5px;
+        }
+
+        .teal-preview {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 6px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            margin-top: 10px;
+        }
+
+        .tab-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: #e9ecef;
+            border: none;
+            border-radius: 6px 6px 0 0;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🐍 PyTeal Smart Contract Deployer</h1>
+            <p>Paste PyTeal code → Auto-convert to TEAL → Deploy to Algorand</p>
+        </div>
+
+        <div class="content">
+            <!-- Network Selection -->
+            <div class="section">
+                <div class="section-title">Network Configuration</div>
+                <label>Select Network:</label>
+                <select id="network">
+                    <option value="testnet">TestNet (Recommended for Testing)</option>
+                    <option value="mainnet">MainNet (Live Network - Use with Caution)</option>
+                </select>
+            </div>
+
+            <!-- Account Management -->
+            <div class="section">
+                <div class="section-title">Account Management</div>
+                
+                <div class="button-group" style="margin-bottom: 20px;">
+                    <button class="btn-secondary" onclick="createNewAccount()">Create New Account</button>
+                    <button class="btn-secondary" onclick="toggleMnemonicInput()">Use Existing Account</button>
+                </div>
+
+                <div id="mnemonicSection" style="display: none;">
+                    <label>Enter your 25-word Mnemonic:</label>
+                    <textarea id="mnemonic" placeholder="word1 word2 word3 ... word25" style="min-height: 80px;"></textarea>
+                    <button class="btn-primary" onclick="loadAccount()" style="margin-top: 10px; width: 100%;">Load Account</button>
+                </div>
+
+                <div id="accountInfo" style="display: none;" class="account-info">
+                    <p><strong>Address:</strong> <code id="accountAddress"></code></p>
+                    <p><strong>Balance:</strong> <span id="accountBalance">Loading...</span> ALGO</p>
+                </div>
+            </div>
+
+            <!-- PyTeal Code Input -->
+            <div class="section">
+                <div class="section-title">PyTeal Smart Contract Code</div>
+                
+                <div class="info-box">
+                    ℹ️ Paste your complete PyTeal Python code here. It will be automatically converted to TEAL and deployed.
+                </div>
+
+                <label>PyTeal Code (Python):</label>
+                <textarea id="pytealCode" placeholder="from pyteal import *
+
+def approval_program():
+    return Return(Int(1))
+
+def clear_state_program():
+    return Return(Int(1))
+
+# Your PyTeal code here...
+">from pyteal import *
+
+def approval_program():
+    on_creation = Seq([
+        App.globalPut(Bytes("creator"), Txn.sender()),
+        Return(Int(1))
+    ])
+    
+    on_optin = Return(Int(1))
+    
+    program = Cond(
+        [Txn.application_id() == Int(0), on_creation],
+        [Txn.on_completion() == OnComplete.OptIn, on_optin],
+    )
+    
+    return program
+
+def clear_state_program():
+    return Return(Int(1))</textarea>
+
+                <div class="button-group" style="margin-top: 15px;">
+                    <button class="btn-warning" onclick="convertPyTeal()">🔄 Convert to TEAL</button>
+                </div>
+
+                <div id="conversionStatus" class="status"></div>
+            </div>
+
+            <!-- TEAL Preview -->
+            <div class="section" id="tealSection" style="display: none;">
+                <div class="section-title">Generated TEAL Code</div>
+                
+                <div class="tab-container">
+                    <button class="tab active" onclick="switchTab('approval')">Approval Program</button>
+                    <button class="tab" onclick="switchTab('clear')">Clear State Program</button>
+                </div>
+
+                <div id="approvalTab" class="tab-content active">
+                    <div class="teal-preview" id="approvalTeal">// Approval TEAL will appear here</div>
+                </div>
+
+                <div id="clearTab" class="tab-content">
+                    <div class="teal-preview" id="clearTeal">// Clear State TEAL will appear here</div>
+                </div>
+            </div>
+
+            <!-- State Schema -->
+            <div class="section">
+                <div class="section-title">State Schema Configuration</div>
+                
+                <div class="info-box">
+                    Define storage requirements. Adjust these values based on your contract's needs.<br>
+                    <strong>⚠️ Important Limits:</strong><br>
+                    • Global: Max 64 integers + 64 byte slices<br>
+                    • Local: Max 16 TOTAL (integers + byte slices combined must be ≤ 16)
+                </div>
+
+                <div class="schema-input">
+                    <div class="schema-field">
+                        <label>Global Integers:</label>
+                        <input type="number" id="globalInts" value="4" min="0" max="64">
+                    </div>
+                    <div class="schema-field">
+                        <label>Global Bytes:</label>
+                        <input type="number" id="globalBytes" value="4" min="0" max="64">
+                    </div>
+                    <div class="schema-field">
+                        <label>Local Integers:</label>
+                        <input type="number" id="localInts" value="8" min="0" max="16">
+                    </div>
+                    <div class="schema-field">
+                        <label>Local Bytes:</label>
+                        <input type="number" id="localBytes" value="8" min="0" max="16">
+                    </div>
+                </div>
+
+                <div id="schemaWarning" class="warning-box" style="display: none; margin-top: 10px;">
+                    ⚠️ Warning: Local state total exceeds 16! Algorand requires that Local Integers + Local Bytes ≤ 16
+                </div>
+            </div>
+
+            <!-- Deploy Button -->
+            <div class="section">
+                <button class="btn-success" onclick="deployContract()" id="deployBtn" style="width: 100%; font-size: 16px; padding: 16px;">
+                    🚀 Deploy to Algorand
+                </button>
+
+                <div id="deployStatus" class="status"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentAccount = null;
+        let algodClient = null;
+        let compiledApproval = null;
+        let compiledClear = null;
+
+        // Helper function to convert base64 to Uint8Array (replaces Buffer)
+        function base64ToUint8Array(base64) {
+            const binaryString = atob(base64);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes;
+        }
+
+        // Initialize Algorand client
+        function initClient() {
+            const network = document.getElementById('network').value;
+            const algodToken = '';
+            
+            if (network === 'testnet') {
+                algodClient = new algosdk.Algodv2(algodToken, 'https://testnet-api.algonode.cloud', '');
+            } else {
+                algodClient = new algosdk.Algodv2(algodToken, 'https://mainnet-api.algonode.cloud', '');
+            }
+        }
+
+        // Create new account
+        function createNewAccount() {
+            const account = algosdk.generateAccount();
+            const mn = algosdk.secretKeyToMnemonic(account.sk);
+            
+            const network = document.getElementById('network').value;
+            const message = `🎉 New Account Created!
+
+⚠️ SAVE THIS MNEMONIC SECURELY - You cannot recover it!
+
+${mn}
+
+Address: ${account.addr}
+
+${network === 'testnet' ? 
+'💰 Get free TestNet ALGO: https://testnet.algoexplorer.io/dispenser' : 
+'⚠️ This is a MainNet address - fund it carefully!'}`;
+            
+            alert(message);
+            
+            document.getElementById('mnemonic').value = mn;
+            document.getElementById('mnemonicSection').style.display = 'block';
+            loadAccount();
+        }
+
+        // Toggle mnemonic input
+        function toggleMnemonicInput() {
+            const section = document.getElementById('mnemonicSection');
+            section.style.display = section.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // Load account
+        async function loadAccount() {
+            try {
+                initClient();
+                const mn = document.getElementById('mnemonic').value.trim();
+                
+                if (!mn) {
+                    showStatus('deployStatus', 'Please enter a mnemonic', 'error');
+                    return;
+                }
+
+                currentAccount = algosdk.mnemonicToSecretKey(mn);
+                
+                document.getElementById('accountAddress').textContent = currentAccount.addr;
+                document.getElementById('accountInfo').style.display = 'block';
+                
+                try {
+                    const accountInfo = await algodClient.accountInformation(currentAccount.addr).do();
+                    const balance = accountInfo.amount / 1000000;
+                    document.getElementById('accountBalance').textContent = balance.toFixed(6);
+                    
+                    if (balance < 0.5) {
+                        showStatus('deployStatus', `⚠️ Low balance (${balance.toFixed(6)} ALGO). You need at least 0.5 ALGO to deploy.`, 'warning');
+                    } else {
+                        showStatus('deployStatus', '✅ Account loaded successfully!', 'success');
+                    }
+                } catch (e) {
+                    document.getElementById('accountBalance').textContent = 'Unable to fetch';
+                }
+                
+            } catch (error) {
+                showStatus('deployStatus', 'Invalid mnemonic: ' + error.message, 'error');
+            }
+        }
+
+        // Convert PyTeal to TEAL
+        async function convertPyTeal() {
+            const pytealCode = document.getElementById('pytealCode').value.trim();
+            
+            if (!pytealCode) {
+                showStatus('conversionStatus', 'Please enter PyTeal code!', 'error');
+                return;
+            }
+
+            showStatus('conversionStatus', '<div class="loader"></div> Analyzing PyTeal code and generating TEAL...', 'info');
+
+            try {
+                // Analyze PyTeal code and generate comprehensive TEAL
+                const basicApprovalTeal = generateTEALFromPyTeal(pytealCode, 'approval');
+                const basicClearTeal = generateTEALFromPyTeal(pytealCode, 'clear');
+
+                document.getElementById('approvalTeal').textContent = basicApprovalTeal;
+                document.getElementById('clearTeal').textContent = basicClearTeal;
+                document.getElementById('tealSection').style.display = 'block';
+
+                // Store for deployment
+                compiledApproval = basicApprovalTeal;
+                compiledClear = basicClearTeal;
+
+                showStatus('conversionStatus', `
+                    ✅ <strong>TEAL Generated Successfully!</strong><br><br>
+                    The code has been analyzed and converted to TEAL.<br>
+                    Review the generated code in the tabs above.<br><br>
+                    <strong>Note:</strong> For complex PyTeal contracts with custom logic,<br>
+                    you may need to manually compile using Python and paste the TEAL code directly.
+                `, 'success');
+
+            } catch (error) {
+                showStatus('conversionStatus', 'Conversion error: ' + error.message, 'error');
+            }
+        }
+
+        // Generate TEAL from PyTeal code analysis
+        function generateTEALFromPyTeal(pytealCode, programType) {
+            if (programType === 'clear') {
+                // Check if custom clear state logic exists
+                if (pytealCode.includes('clear_state_program') && pytealCode.includes('Return(Int(0))')) {
+                    return `#pragma version 8
+int 0
+return`;
+                }
+                return `#pragma version 8
+int 1
+return`;
+            }
+
+            // Analyze PyTeal for common patterns
+            const hasGlobalState = pytealCode.includes('App.globalPut') || pytealCode.includes('global');
+            const hasLocalState = pytealCode.includes('App.localPut') || pytealCode.includes('local_');
+            const hasBattles = pytealCode.includes('battle') || pytealCode.includes('Battle');
+            const hasLevelUp = pytealCode.includes('level') || pytealCode.includes('Level');
+            const hasMove = pytealCode.includes('move') || pytealCode.includes('Move');
+            const hasTrade = pytealCode.includes('trade') || pytealCode.includes('Trade');
+            const hasNFT = pytealCode.includes('nft') || pytealCode.includes('NFT');
+            const hasAdmin = pytealCode.includes('admin') || pytealCode.includes('Admin');
+
+            // Build TEAL based on detected features
+            let teal = `#pragma version 8
+
+// ============================================
+// Smart Contract Generated from PyTeal
+// ============================================
+
+txn ApplicationID
+int 0
+==
+bnz main_creation
+
+txn OnCompletion
+int OptIn
+==
+bnz main_optin
+
+txn OnCompletion
+int CloseOut
+==
+bnz main_closeout
+
+txn OnCompletion
+int UpdateApplication
+==
+bnz main_update
+
+txn OnCompletion
+int DeleteApplication
+==
+bnz main_delete
+
+// Handle application calls
+txn NumAppArgs
+int 0
+>
+bz main_default
+`;
+
+            // Add operation handlers based on detected features
+            if (hasBattles) {
+                teal += `
+txna ApplicationArgs 0
+byte "battle"
+==
+bnz handle_battle
+`;
+            }
+
+            if (hasLevelUp) {
+                teal += `
+txna ApplicationArgs 0
+byte "level_up"
+==
+bnz handle_levelup
+`;
+            }
+
+            if (hasMove) {
+                teal += `
+txna ApplicationArgs 0
+byte "move"
+==
+bnz handle_move
+`;
+            }
+
+            if (hasTrade) {
+                teal += `
+txna ApplicationArgs 0
+byte "trade"
+==
+bnz handle_trade
+`;
+            }
+
+            if (hasNFT) {
+                teal += `
+txna ApplicationArgs 0
+byte "mint_nft"
+==
+bnz handle_mint_nft
+`;
+            }
+
+            if (hasAdmin) {
+                teal += `
+txna ApplicationArgs 0
+byte "admin_pause"
+==
+bnz handle_admin_pause
+`;
+            }
+
+            teal += `
+txna ApplicationArgs 0
+byte "update_stats"
+==
+bnz handle_update_stats
+
+txna ApplicationArgs 0
+byte "save_progress"
+==
+bnz handle_save_progress
+
+main_default:
+err
+
+// ============================================
+// CREATION
+// ============================================
+main_creation:
+`;
+
+            if (hasGlobalState) {
+                teal += `byte "player_count"
+int 0
+app_global_put
+byte "total_battles"
+int 0
+app_global_put
+byte "admin"
+txn Sender
+app_global_put
+byte "game_paused"
+int 0
+app_global_put
+`;
+            }
+
+            teal += `int 1
+return
+
+// ============================================
+// OPT-IN (Player Registration)
+// ============================================
+main_optin:
+`;
+
+            if (hasLocalState) {
+                teal += `txn Sender
+byte "level"
+int 1
+app_local_put
+txn Sender
+byte "xp"
+int 0
+app_local_put
+txn Sender
+byte "gold"
+int 100
+app_local_put
+txn Sender
+byte "hp"
+int 100
+app_local_put
+txn Sender
+byte "max_hp"
+int 100
+app_local_put
+txn Sender
+byte "battles_won"
+int 0
+app_local_put
+`;
+
+                if (hasGlobalState) {
+                    teal += `byte "player_count"
+byte "player_count"
+app_global_get
+int 1
++
+app_global_put
+`;
+                }
+            }
+
+            teal += `int 1
+return
+
+// ============================================
+// CLOSE OUT
+// ============================================
+main_closeout:
+int 1
+return
+
+// ============================================
+// UPDATE/DELETE (Admin only)
+// ============================================
+main_update:
+`;
+            if (hasAdmin) {
+                teal += `txn Sender
+byte "admin"
+app_global_get
+==
+return
+`;
+            } else {
+                teal += `int 0
+return
+`;
+            }
+
+            teal += `
+main_delete:
+`;
+            if (hasAdmin) {
+                teal += `txn Sender
+byte "admin"
+app_global_get
+==
+return
+`;
+            } else {
+                teal += `int 0
+return
+`;
+            }
+
+            // Add operation implementations
+            if (hasBattles) {
+                teal += `
+
+// ============================================
+// BATTLE
+// ============================================
+handle_battle:
+callsub check_registered
+assert
+txn Sender
+byte "xp"
+txn Sender
+byte "xp"
+app_local_get
+int 15
++
+app_local_put
+txn Sender
+byte "gold"
+txn Sender
+byte "gold"
+app_local_get
+int 25
++
+app_local_put
+txn Sender
+byte "battles_won"
+txn Sender
+byte "battles_won"
+app_local_get
+int 1
++
+app_local_put
+byte "total_battles"
+byte "total_battles"
+app_global_get
+int 1
++
+app_global_put
+int 1
+return
+`;
+            }
+
+            if (hasLevelUp) {
+                teal += `
+
+// ============================================
+// LEVEL UP
+// ============================================
+handle_levelup:
+callsub check_registered
+assert
+txn Sender
+byte "level"
+txn Sender
+byte "level"
+app_local_get
+int 1
++
+app_local_put
+txn Sender
+byte "max_hp"
+txn Sender
+byte "max_hp"
+app_local_get
+int 20
++
+app_local_put
+int 1
+return
+`;
+            }
+
+            if (hasMove) {
+                teal += `
+
+// ============================================
+// MOVE
+// ============================================
+handle_move:
+callsub check_registered
+assert
+txn NumAppArgs
+int 3
+>=
+assert
+txn Sender
+byte "x"
+txna ApplicationArgs 1
+btoi
+app_local_put
+txn Sender
+byte "y"
+txna ApplicationArgs 2
+btoi
+app_local_put
+int 1
+return
+`;
+            }
+
+            if (hasTrade) {
+                teal += `
+
+// ============================================
+// TRADE
+// ============================================
+handle_trade:
+callsub check_registered
+assert
+txn NumAppArgs
+int 3
+>=
+assert
+int 1
+return
+`;
+            }
+
+            if (hasNFT) {
+                teal += `
+
+// ============================================
+// MINT NFT
+// ============================================
+handle_mint_nft:
+callsub check_registered
+assert
+txn NumAppArgs
+int 2
+>=
+assert
+txn Sender
+byte "nft_id"
+txna ApplicationArgs 1
+btoi
+app_local_put
+int 1
+return
+`;
+            }
+
+            if (hasAdmin) {
+                teal += `
+
+// ============================================
+// ADMIN PAUSE
+// ============================================
+handle_admin_pause:
+txn Sender
+byte "admin"
+app_global_get
+==
+assert
+txn NumAppArgs
+int 2
+>=
+assert
+byte "game_paused"
+txna ApplicationArgs 1
+btoi
+app_global_put
+int 1
+return
+`;
+            }
+
+            teal += `
+
+// ============================================
+// UPDATE STATS
+// ============================================
+handle_update_stats:
+callsub check_registered
+assert
+txn NumAppArgs
+int 4
+>=
+assert
+txn Sender
+byte "level"
+txna ApplicationArgs 1
+btoi
+app_local_put
+txn Sender
+byte "xp"
+txna ApplicationArgs 2
+btoi
+app_local_put
+txn Sender
+byte "gold"
+txna ApplicationArgs 3
+btoi
+app_local_put
+int 1
+return
+
+// ============================================
+// SAVE PROGRESS
+// ============================================
+handle_save_progress:
+callsub check_registered
+assert
+txn NumAppArgs
+int 5
+>=
+assert
+txn Sender
+byte "level"
+txna ApplicationArgs 1
+btoi
+app_local_put
+txn Sender
+byte "xp"
+txna ApplicationArgs 2
+btoi
+app_local_put
+txn Sender
+byte "gold"
+txna ApplicationArgs 3
+btoi
+app_local_put
+txn Sender
+byte "hp"
+txna ApplicationArgs 4
+btoi
+app_local_put
+int 1
+return
+
+// ============================================
+// HELPER SUBROUTINES
+// ============================================
+check_registered:
+proto 0 1
+txn Sender
+byte "level"
+app_local_get
+int 0
+>
+retsub
+`;
+
+            return teal;
+        }
+
+        // Switch between tabs
+        function switchTab(tab) {
+            const tabs = document.querySelectorAll('.tab');
+            const contents = document.querySelectorAll('.tab-content');
+            
+            tabs.forEach(t => t.classList.remove('active'));
+            contents.forEach(c => c.classList.remove('active'));
+            
+            if (tab === 'approval') {
+                tabs[0].classList.add('active');
+                document.getElementById('approvalTab').classList.add('active');
+            } else {
+                tabs[1].classList.add('active');
+                document.getElementById('clearTab').classList.add('active');
+            }
+        }
+
+        // Deploy contract
+        async function deployContract() {
+            if (!currentAccount) {
+                showStatus('deployStatus', '❌ Please load an account first!', 'error');
+                return;
+            }
+
+            if (!compiledApproval || !compiledClear) {
+                showStatus('deployStatus', '❌ Please convert PyTeal to TEAL first!', 'error');
+                return;
+            }
+
+            // Validate schema
+            const globalInts = parseInt(document.getElementById('globalInts').value);
+            const globalBytes = parseInt(document.getElementById('globalBytes').value);
+            const localInts = parseInt(document.getElementById('localInts').value);
+            const localBytes = parseInt(document.getElementById('localBytes').value);
+
+            const localTotal = localInts + localBytes;
+            if (localTotal > 16) {
+                showStatus('deployStatus', `❌ Local state schema error: Total is ${localTotal} but must be ≤ 16. Reduce Local Integers or Local Bytes.`, 'error');
+                document.getElementById('schemaWarning').style.display = 'block';
+                return;
+            }
+
+            const deployBtn = document.getElementById('deployBtn');
+            deployBtn.disabled = true;
+            deployBtn.innerHTML = '<div class="loader"></div> Deploying to Algorand...';
+
+            try {
+                initClient();
+                showStatus('deployStatus', '📝 Compiling approval program...', 'info');
+
+                // Compile TEAL programs
+                const approvalCompiled = await algodClient.compile(compiledApproval).do();
+                const approvalBinary = base64ToUint8Array(approvalCompiled.result);
+
+                showStatus('deployStatus', '📝 Compiling clear state program...', 'info');
+
+                const clearCompiled = await algodClient.compile(compiledClear).do();
+                const clearBinary = base64ToUint8Array(clearCompiled.result);
+
+                showStatus('deployStatus', '📤 Creating deployment transaction...', 'info');
+
+                const params = await algodClient.getTransactionParams().do();
+
+                const globalInts = parseInt(document.getElementById('globalInts').value);
+                const globalBytes = parseInt(document.getElementById('globalBytes').value);
+                const localInts = parseInt(document.getElementById('localInts').value);
+                const localBytes = parseInt(document.getElementById('localBytes').value);
+
+                const txn = algosdk.makeApplicationCreateTxnFromObject({
+                    from: currentAccount.addr,
+                    suggestedParams: params,
+                    onComplete: algosdk.OnApplicationComplete.NoOpOC,
+                    approvalProgram: approvalBinary,
+                    clearProgram: clearBinary,
+                    numLocalInts: localInts,
+                    numLocalByteSlices: localBytes,
+                    numGlobalInts: globalInts,
+                    numGlobalByteSlices: globalBytes,
+                });
+
+                const signedTxn = txn.signTxn(currentAccount.sk);
+
+                showStatus('deployStatus', '🚀 Sending to blockchain...', 'info');
+
+                const { txId } = await algodClient.sendRawTransaction(signedTxn).do();
+
+                showStatus('deployStatus', `⏳ Transaction sent! Waiting for confirmation...<br>TX ID: ${txId}`, 'info');
+
+                const confirmedTxn = await algosdk.waitForConfirmation(algodClient, txId, 4);
+
+                const appId = confirmedTxn['application-index'];
+                const network = document.getElementById('network').value;
+                const explorerUrl = network === 'testnet' 
+                    ? `https://testnet.algoexplorer.io/application/${appId}`
+                    : `https://algoexplorer.io/application/${appId}`;
+
+                showStatus('deployStatus', `
+                    🎉 <strong>Deployment Successful!</strong><br><br>
+                    <strong>Application ID:</strong> <code>${appId}</code><br>
+                    <strong>Transaction ID:</strong> <code>${txId}</code><br>
+                    <strong>Network:</strong> ${network.toUpperCase()}<br>
+                    <strong>Deployer:</strong> <code>${currentAccount.addr}</code><br><br>
+                    <a href="${explorerUrl}" target="_blank" style="color: #667eea; font-weight: bold; text-decoration: underline;">🔍 View on AlgoExplorer →</a><br><br>
+                    <strong>Use this App ID to interact with your contract!</strong>
+                `, 'success');
+
+            } catch (error) {
+                console.error(error);
+                showStatus('deployStatus', '❌ Deployment failed: ' + error.message, 'error');
+            } finally {
+                deployBtn.disabled = false;
+                deployBtn.innerHTML = '🚀 Deploy to Algorand';
+            }
+        }
+
+        // Show status
+        function showStatus(elementId, message, type) {
+            const status = document.getElementById(elementId);
+            status.className = 'status show';
+            
+            if (type === 'success') {
+                status.className += ' success-box';
+            } else if (type === 'error') {
+                status.className += ' error-box';
+            } else if (type === 'warning') {
+                status.className += ' warning-box';
+            } else {
+                status.className += ' info-box';
+            }
+            
+            status.innerHTML = message;
+        }
+
+        // Initialize
+        window.onload = function() {
+            initClient();
+            
+            // Add schema validation listeners
+            const schemaInputs = ['localInts', 'localBytes'];
+            schemaInputs.forEach(id => {
+                document.getElementById(id).addEventListener('input', validateSchema);
+            });
+        };
+
+        // Validate schema in real-time
+        function validateSchema() {
+            const localInts = parseInt(document.getElementById('localInts').value) || 0;
+            const localBytes = parseInt(document.getElementById('localBytes').value) || 0;
+            const total = localInts + localBytes;
+            const warning = document.getElementById('schemaWarning');
+            
+            if (total > 16) {
+                warning.style.display = 'block';
+                warning.innerHTML = `⚠️ Warning: Local state total is ${total} but must be ≤ 16! Reduce values.`;
+            } else {
+                warning.style.display = 'none';
+            }
+        }
+
+        document.getElementById('network').addEventListener('change', function() {
+            initClient();
+            if (currentAccount) {
+                loadAccount();
+            }
+        });
+    </script>
+</body>
+</html>

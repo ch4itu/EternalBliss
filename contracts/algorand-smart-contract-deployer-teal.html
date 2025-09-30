@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Algorand TestNet • TEAL Deploy + Interact</title>
+  <script src="https://unpkg.com/algosdk@2.7.0/dist/browser/algosdk.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .section { margin-bottom: 20px; }
+    .section h2 { font-size: 1.2em; }
+    label { display: inline-block; width: 150px; }
+    input, textarea, button { margin: 5px; }
+    textarea { width: 400px; height: 100px; }
+    #activityLog { border: 1px solid #ccc; padding: 10px; height: 200px; overflow-y: scroll; }
+    .success { color: green; }
+    .error { color: red; }
+  </style>
+</head>
+<body>
+  <h1>Algorand TestNet • TEAL Deploy + Interact (Working Version)</h1>
+  <div class="section">
+    <h2>1) Network & Wallet</h2>
+    <div>
+      <label>Algod URL</label>
+      <input type="text" id="algodUrl" value="https://testnet-api.algonode.cloud" /><br>
+      <label>API Token (optional)</label>
+      <input type="text" id="apiToken" placeholder="Optional for public nodes" /><br>
+      <label>Header Name (optional)</label>
+      <input type="text" id="headerName" placeholder="Optional" /><br>
+    </div>
+    <div>
+      <input type="checkbox" id="useGeneratedAccount" checked />
+      <label for="useGeneratedAccount">Use Generated Account (skip mnemonic)</label>
+      <button onclick="generateAccount()">Generate + Show Mnemonic</button>
+    </div>
+    <div>
+      <label>Your 25-word Algorand mnemonic</label>
+      <textarea id="mnemonic" placeholder="Enter 25-word mnemonic or generate one"></textarea><br>
+      <button onclick="checkMnemonic()">Check Mnemonic</button>
+      <button onclick="selfPayTest()">Self-pay Test</button>
+    </div>
+    <div>
+      <label>Derived Address</label>
+      <input type="text" id="derivedAddress" readonly /><br>
+      <label>Balance (microAlgos)</label>
+      <input type="text" id="balance" readonly />
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>2) TEAL Programs</h2>
+    <div>
+      <label>Approval Program (TEAL)</label>
+      <textarea id="approvalProgram">#pragma version 8
+txn ApplicationID
+int 0
+==
+bnz create
+txn OnCompletion
+int OptIn
+==
+bnz optin
+int 1
+return
+
+create:
+int 1
+return
+
+optin:
+int 1
+return</textarea><br>
+      <label>Clear Program (TEAL)</label>
+      <textarea id="clearProgram">#pragma version 8
+int 1
+return</textarea><br>
+      <label>Local schema: uints</label>
+      <input type="number" id="localUints" value="10" min="0" /><br>
+      <label>Local schema: bytes</label>
+      <input type="number" id="localBytes" value="6" min="0" /><br>
+      <label>Global schema: uints</label>
+      <input type="number" id="globalUints" value="8" min="0" /><br>
+      <label>Global schema: bytes</label>
+      <input type="number" id="globalBytes" value="8" min="0" /><br>
+      <button onclick="compileTeal()">Compile TEAL (via Algod)</button>
+      <button onclick="deployApp()">Deploy App</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>3) Interact (basic)</h2>
+    <div>
+      <label>App ID</label>
+      <input type="number" id="appId" /><br>
+      <input type="checkbox" id="useLastDeployed" checked />
+      <label for="useLastDeployed">Use last deployed</label>
+    </div>
+    <div>
+      <button onclick="optIn()">Opt-In</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Activity Log</h2>
+    <div id="activityLog"></div>
+  </div>
+
+  <script>
+    let account = null;
+    let lastAppId = null;
+
+    function log(message, isError = false) {
+      const logDiv = document.getElementById('activityLog');
+      const className = isError ? 'error' : 'success';
+      logDiv.innerHTML += `<div class="${className}">• ${message}</div>`;
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    function getAlgodClient() {
+      const url = document.getElementById('algodUrl').value;
+      const token = document.getElementById('apiToken').value || '';
+      const headerName = document.getElementById('headerName').value || '';
+      const tokenObj = headerName ? { [headerName]: token } : token;
+      return new algosdk.Algodv2(tokenObj, url, '');
+    }
+
+    // Browser-compatible base64 to Uint8Array conversion
+    function base64ToUint8Array(base64) {
+      const binaryString = atob(base64);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return bytes;
+    }
+
+    async function generateAccount() {
+      try {
+        account = algosdk.generateAccount();
+        const mnemonic = algosdk.secretKeyToMnemonic(account.sk);
+        document.getElementById('mnemonic').value = mnemonic;
+        document.getElementById('derivedAddress').value = account.addr;
+        log(`Generated account: ${account.addr}`);
+        await updateBalance();
+      } catch (error) {
+        log(`Error generating account: ${error.message}`, true);
+      }
+    }
+
+    async function checkMnemonic() {
+      try {
+        const mnemonic = document.getElementById('mnemonic').value.trim();
+        if (!mnemonic) throw new Error('Mnemonic is empty');
+        account = algosdk.mnemonicToSecretKey(mnemonic);
+        document.getElementById('derivedAddress').value = account.addr;
+        log(`Address validated: ${account.addr}, length=${account.addr.length}`);
+        await updateBalance();
+      } catch (error) {
+        log(`Invalid mnemonic: ${error.message}`, true);
+      }
+    }
+
+    async function updateBalance() {
+      try {
+        const client = getAlgodClient();
+        if (!account?.addr) throw new Error('No account address available');
+        const accountInfo = await client.accountInformation(account.addr).do();
+        document.getElementById('balance').value = accountInfo.amount;
+        log(`Balance: ${accountInfo.amount} microAlgos`);
+      } catch (error) {
+        log(`Error fetching balance: ${error.message}`, true);
+      }
+    }
+
+    async function selfPayTest() {
+      try {
+        if (!account?.addr) throw new Error('Address must not be null or undefined');
+        const client = getAlgodClient();
+        const params = await client.getTransactionParams().do();
+        const txn = {
+          from: account.addr,
+          to: account.addr,
+          amount: 0,
+          ...params,
+        };
+        const signedTxn = algosdk.signTransaction(txn, account.sk);
+        const { txId } = await client.sendRawTransaction(signedTxn.blob).do();
+        log(`Self-pay test succeeded: Transaction ID ${txId}`);
+        await updateBalance();
+      } catch (error) {
+        log(`Self-pay failed: ${error.message}`, true);
+      }
+    }
+
+    async function compileTeal() {
+      try {
+        const client = getAlgodClient();
+        const approvalProgram = document.getElementById('approvalProgram').value;
+        const clearProgram = document.getElementById('clearProgram').value;
+
+        log('Compiling approval TEAL...');
+        const approvalResult = await client.compile(approvalProgram).do();
+        log(`Approval hash: ${approvalResult.hash}`);
+
+        log('Compiling clear TEAL...');
+        const clearResult = await client.compile(clearProgram).do();
+        log(`Clear hash: ${clearResult.hash}`);
+      } catch (error) {
+        log(`TEAL compilation failed: ${error.message}`, true);
+      }
+    }
+
+    async function deployApp() {
+      try {
+        if (!account?.addr) throw new Error('Address must not be null or undefined');
+        const client = getAlgodClient();
+        const params = await client.getTransactionParams().do();
+        const approvalProgram = document.getElementById('approvalProgram').value;
+        const clearProgram = document.getElementById('clearProgram').value;
+        const localUints = parseInt(document.getElementById('localUints').value) || 0;
+        const localBytes = parseInt(document.getElementById('localBytes').value) || 0;
+        const globalUints = parseInt(document.getElementById('globalUints').value) || 0;
+        const globalBytes = parseInt(document.getElementById('globalBytes').value) || 0;
+
+        log('Compiling TEAL programs for deployment...');
+        const approvalCompiled = await client.compile(approvalProgram).do();
+        const clearCompiled = await client.compile(clearProgram).do();
+
+        // Convert base64 to Uint8Array using browser-compatible method
+        const approvalBytes = base64ToUint8Array(approvalCompiled.result);
+        const clearBytes = base64ToUint8Array(clearCompiled.result);
+
+        log('Creating application transaction...');
+        const txn = algosdk.makeApplicationCreateTxn(
+          account.addr,
+          params,
+          algosdk.OnApplicationComplete.NoOpOC,
+          approvalBytes,
+          clearBytes,
+          localUints,
+          localBytes,
+          globalUints,
+          globalBytes
+        );
+
+        log('Signing and submitting transaction...');
+        const signedTxn = algosdk.signTransaction(txn, account.sk);
+        const { txId } = await client.sendRawTransaction(signedTxn.blob).do();
+        
+        log(`Transaction submitted: ${txId}. Waiting for confirmation...`);
+        const result = await algosdk.waitForConfirmation(client, txId, 4);
+        
+        lastAppId = result['application-index'];
+        document.getElementById('appId').value = lastAppId;
+        log(`✅ App deployed successfully! App ID: ${lastAppId}, Transaction ID: ${txId}`);
+        
+        await updateBalance();
+      } catch (error) {
+        log(`Deploy failed: ${error.message}`, true);
+        console.error('Full deploy error:', error);
+      }
+    }
+
+    async function optIn() {
+      try {
+        if (!account?.addr) throw new Error('Address must not be null or undefined');
+        const appId = document.getElementById('useLastDeployed').checked
+          ? lastAppId
+          : parseInt(document.getElementById('appId').value);
+        if (!appId) throw new Error('App ID is required');
+        
+        const client = getAlgodClient();
+        const params = await client.getTransactionParams().do();
+        
+        log(`Creating opt-in transaction for App ID ${appId}...`);
+        const txn = algosdk.makeApplicationOptInTxn(account.addr, params, appId);
+        const signedTxn = algosdk.signTransaction(txn, account.sk);
+        const { txId } = await client.sendRawTransaction(signedTxn.blob).do();
+        
+        log(`Opt-in transaction submitted: ${txId}. Waiting for confirmation...`);
+        await algosdk.waitForConfirmation(client, txId, 4);
+        
+        log(`✅ Opt-in succeeded! App ID: ${appId}, Transaction ID: ${txId}`);
+        await updateBalance();
+      } catch (error) {
+        log(`Opt-in failed: ${error.message}`, true);
+      }
+    }
+
+    // Initialize with a generated account
+    window.onload = generateAccount;
+  </script>
+</body>
+</html>

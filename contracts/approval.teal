@@ -1,0 +1,266 @@
+#pragma version 8
+
+txn ApplicationID
+int 0
+==
+bnz main_create
+
+// Handle different operations
+txn OnCompletion
+int OptIn
+==
+bnz main_optin
+
+txn OnCompletion
+int CloseOut
+==
+bnz main_closeout
+
+txn OnCompletion
+int UpdateApplication
+==
+bnz main_update
+
+txn OnCompletion
+int DeleteApplication
+==
+bnz main_delete
+
+// Application calls with arguments
+txna ApplicationArgs 0
+byte "battle"
+==
+bnz main_battle
+
+txna ApplicationArgs 0
+byte "level_up"
+==
+bnz main_levelup
+
+txna ApplicationArgs 0
+byte "move"
+==
+bnz main_move
+
+txna ApplicationArgs 0
+byte "admin_pause"
+==
+bnz main_admin_pause
+
+err
+
+main_create:
+// Initialize global state
+byte "total_players"
+int 0
+app_global_put
+byte "total_battles"
+int 0
+app_global_put
+byte "admin"
+txn Sender
+app_global_put
+byte "game_paused"
+int 0
+app_global_put
+int 1
+return
+
+main_optin:
+// Player registration - only 6 local storage slots used
+txn Sender
+byte "level"
+int 1
+app_local_put
+txn Sender
+byte "xp"
+int 0
+app_local_put
+txn Sender
+byte "gold"
+int 100
+app_local_put
+txn Sender
+byte "hp"
+int 100
+app_local_put
+txn Sender
+byte "battles_won"
+int 0
+app_local_put
+txn Sender
+byte "x_pos"
+int 0
+app_local_put
+
+// Update global player count
+byte "total_players"
+byte "total_players"
+app_global_get
+int 1
++
+app_global_put
+int 1
+return
+
+main_closeout:
+int 1
+return
+
+main_update:
+// Only admin can update
+txn Sender
+byte "admin"
+app_global_get
+==
+return
+
+main_delete:
+// Only admin can delete
+txn Sender
+byte "admin"
+app_global_get
+==
+return
+
+main_battle:
+// Check if player is registered
+callsub check_player_registered
+assert
+
+// Check if game is not paused
+byte "game_paused"
+app_global_get
+int 0
+==
+assert
+
+// Simple battle logic - gain XP and gold
+txn Sender
+byte "xp"
+txn Sender
+byte "xp"
+app_local_get
+int 10
++
+app_local_put
+
+txn Sender
+byte "gold"
+txn Sender
+byte "gold"
+app_local_get
+int 25
++
+app_local_put
+
+txn Sender
+byte "battles_won"
+txn Sender
+byte "battles_won"
+app_local_get
+int 1
++
+app_local_put
+
+// Update global battle count
+byte "total_battles"
+byte "total_battles"
+app_global_get
+int 1
++
+app_global_put
+
+int 1
+return
+
+main_levelup:
+// Check if player is registered
+callsub check_player_registered
+assert
+
+// Check if player has enough XP (100 XP per level)
+txn Sender
+byte "xp"
+app_local_get
+txn Sender
+byte "level"
+app_local_get
+int 100
+*
+>=
+assert
+
+// Level up
+txn Sender
+byte "level"
+txn Sender
+byte "level"
+app_local_get
+int 1
++
+app_local_put
+
+// Increase HP
+txn Sender
+byte "hp"
+txn Sender
+byte "hp"
+app_local_get
+int 20
++
+app_local_put
+
+int 1
+return
+
+main_move:
+// Check if player is registered
+callsub check_player_registered
+assert
+
+// Simple movement - just update x position
+txn NumAppArgs
+int 2
+>=
+assert
+
+txn Sender
+byte "x_pos"
+txna ApplicationArgs 1
+btoi
+app_local_put
+
+int 1
+return
+
+main_admin_pause:
+// Only admin can pause/unpause
+txn Sender
+byte "admin"
+app_global_get
+==
+assert
+
+txn NumAppArgs
+int 2
+>=
+assert
+
+byte "game_paused"
+txna ApplicationArgs 1
+btoi
+app_global_put
+
+int 1
+return
+
+// Subroutine to check if player is registered
+check_player_registered:
+proto 0 1
+txn Sender
+byte "level"
+app_local_get
+int 0
+>
+retsub

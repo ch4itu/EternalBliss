@@ -1,0 +1,888 @@
+/* EternalBliss Map Maker - CSS Styles */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Courier New', monospace;
+    background: #000;
+    color: #fff;
+    overflow: hidden;
+    height: 100vh;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+}
+
+.mapmaker-container {
+    display: flex;
+    height: 100vh;
+    background: #000;
+}
+
+.left-panel {
+    width: 300px;
+    background: #1a1a2e;
+    border-right: 4px solid #3d5a80;
+    padding: 16px;
+    overflow-y: auto;
+    box-shadow: inset -4px 0 8px rgba(0,0,0,0.5);
+}
+
+.right-panel {
+    width: 280px;
+    background: #1a1a2e;
+    border-left: 4px solid #3d5a80;
+    padding: 16px;
+    overflow-y: auto;
+    box-shadow: inset 4px 0 8px rgba(0,0,0,0.5);
+}
+
+.main-canvas {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    background: #000;
+}
+
+.canvas-view {
+    flex: 1;
+    position: relative;
+    background: #2d5016;
+    overflow: hidden;
+    cursor: crosshair;
+}
+
+.canvas-grid {
+    position: absolute;
+    transition: transform 0.1s ease;
+}
+
+.tile {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    background-size: 32px 32px;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.tile:hover {
+    border: 2px solid #fbbf24;
+    z-index: 10;
+}
+
+.grass {
+    background: 
+        radial-gradient(circle at 8px 8px, #4a7c59 2px, transparent 2px),
+        radial-gradient(circle at 24px 16px, #4a7c59 1px, transparent 1px),
+        radial-gradient(circle at 16px 24px, #4a7c59 1px, transparent 1px),
+        linear-gradient(45deg, #3d6b47 25%, transparent 25%),
+        linear-gradient(-45deg, #3d6b47 25%, transparent 25%),
+        #2d5016;
+    background-size: 16px 16px, 16px 16px, 16px 16px, 8px 8px, 8px 8px, 32px 32px;
+}
+
+.water {
+    background: 
+        repeating-linear-gradient(
+            0deg,
+            #1e40af 0px,
+            #1e40af 2px,
+            #2563eb 2px,
+            #2563eb 4px,
+            #3b82f6 4px,
+            #3b82f6 6px,
+            #2563eb 6px,
+            #2563eb 8px
+        );
+    animation: water-flow 2s linear infinite;
+}
+
+@keyframes water-flow {
+    0% { background-position: 0 0; }
+    100% { background-position: 0 -8px; }
+}
+
+.mountain {
+    background: 
+        conic-gradient(from 0deg at 50% 30%, #9ca3af 0deg, #6b7280 90deg, #4b5563 180deg, #374151 270deg),
+        linear-gradient(to bottom, #9ca3af 0%, #6b7280 50%, #4b5563 100%);
+    background-size: 32px 32px;
+}
+
+.forest {
+    background: 
+        radial-gradient(circle at 16px 8px, #166534 6px, transparent 6px),
+        radial-gradient(circle at 8px 20px, #15803d 4px, transparent 4px),
+        radial-gradient(circle at 24px 24px, #166534 5px, transparent 5px),
+        #0f2a0a;
+}
+
+.road {
+    background: 
+        repeating-linear-gradient(
+            90deg,
+            #8b5a2b 0px,
+            #8b5a2b 8px,
+            #a16207 8px,
+            #a16207 16px,
+            #8b5a2b 16px,
+            #8b5a2b 24px,
+            #a16207 24px,
+            #a16207 32px
+        );
+}
+
+.sand {
+    background: 
+        radial-gradient(circle at 6px 6px, #f59e0b 1px, transparent 1px),
+        radial-gradient(circle at 18px 14px, #f59e0b 1px, transparent 1px),
+        radial-gradient(circle at 26px 26px, #f59e0b 1px, transparent 1px),
+        radial-gradient(circle at 10px 22px, #f59e0b 1px, transparent 1px),
+        #eab308;
+    background-size: 16px 16px;
+}
+
+.building {
+    width: 64px;
+    height: 64px;
+    position: absolute;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.building:hover {
+    border: 2px solid #fbbf24;
+    transform: scale(1.05);
+}
+
+.house {
+    background: 
+        linear-gradient(to bottom, #92400e 0px, #92400e 16px, #7c2d12 16px, #7c2d12 48px, #451a03 48px, #451a03 64px),
+        linear-gradient(to right, transparent 16px, #451a03 16px, #451a03 48px, transparent 48px);
+}
+
+.house::before {
+    content: '';
+    position: absolute;
+    top: 0px;
+    left: 8px;
+    right: 8px;
+    height: 20px;
+    background: 
+        conic-gradient(from 0deg at 50% 100%, #dc2626 0deg, #b91c1c 60deg, #991b1b 120deg, #7f1d1d 180deg, #991b1b 240deg, #b91c1c 300deg);
+}
+
+.house::after {
+    content: '';
+    position: absolute;
+    top: 32px;
+    left: 24px;
+    width: 16px;
+    height: 20px;
+    background: #451a03;
+    border: 2px solid #1c0a00;
+}
+
+.shop {
+    background: 
+        linear-gradient(to bottom, #059669 0px, #059669 16px, #047857 16px, #047857 48px, #064e3b 48px, #064e3b 64px);
+}
+
+.shop::before {
+    content: '';
+    position: absolute;
+    top: 0px;
+    left: 4px;
+    right: 4px;
+    height: 20px;
+    background: 
+        repeating-linear-gradient(45deg, #dc2626 0px, #dc2626 4px, #fbbf24 4px, #fbbf24 8px);
+}
+
+.shop::after {
+    content: '🪙';
+    position: absolute;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 20px;
+}
+
+.inn {
+    background: 
+        linear-gradient(to bottom, #7c3aed 0px, #7c3aed 16px, #6d28d9 16px, #6d28d9 48px, #4c1d95 48px, #4c1d95 64px);
+}
+
+.inn::before {
+    content: '';
+    position: absolute;
+    top: 0px;
+    left: 8px;
+    right: 8px;
+    height: 20px;
+    background: 
+        linear-gradient(to bottom, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+}
+
+.inn::after {
+    content: '🛏️';
+    position: absolute;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 18px;
+}
+
+.temple {
+    background: 
+        linear-gradient(to bottom, #fbbf24 0px, #fbbf24 16px, #f59e0b 16px, #f59e0b 48px, #d97706 48px, #d97706 64px);
+}
+
+.temple::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 16px solid transparent;
+    border-right: 16px solid transparent;
+    border-bottom: 24px solid #fbbf24;
+}
+
+.temple::after {
+    content: '🙏';
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 20px;
+    color: #fff;
+}
+
+.castle {
+    width: 96px;
+    height: 96px;
+    background: 
+        linear-gradient(to bottom, #6b7280 0px, #6b7280 24px, #4b5563 24px, #4b5563 72px, #374151 72px, #374151 96px);
+}
+
+.castle::before {
+    content: '';
+    position: absolute;
+    top: -16px;
+    left: 8px;
+    right: 8px;
+    height: 32px;
+    background: 
+        repeating-linear-gradient(0deg, #6b7280 0px, #6b7280 8px, #4b5563 8px, #4b5563 16px),
+        linear-gradient(to bottom, #6b7280 0%, #4b5563 100%);
+}
+
+.castle::after {
+    content: '👑';
+    position: absolute;
+    top: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 24px;
+}
+
+/* NPC and Enemy Avatars */
+.npc-avatar, .enemy-avatar {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 15;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    border: 2px solid;
+}
+
+.npc-avatar {
+    background: linear-gradient(135deg, #4a7c59, #3d6b47);
+    border-color: #5d936c;
+}
+
+.npc-avatar:hover {
+    transform: translateY(-4px) scale(1.1);
+    z-index: 20;
+    box-shadow: 0 8px 15px rgba(0,0,0,0.6);
+}
+
+.enemy-avatar {
+    background: linear-gradient(135deg, #dc2626, #991b1b);
+    border-color: #ef4444;
+    animation: enemyPulse 2s ease-in-out infinite;
+}
+
+.enemy-avatar:hover {
+    transform: translateY(-4px) scale(1.1);
+    z-index: 20;
+    box-shadow: 0 8px 15px rgba(0,0,0,0.6);
+}
+
+@keyframes enemyPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.section {
+    background: linear-gradient(135deg, #0f3460 0%, #1e40af 25%, #0f3460 100%);
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    border: 3px solid #3d5a80;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.terrain-palette, .object-palette, .npc-palette, .enemy-palette {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.npc-palette, .enemy-palette {
+    grid-template-columns: repeat(5, 1fr);
+}
+
+.palette-item {
+    width: 48px;
+    height: 48px;
+    border: 3px solid #3d5a80;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    background-size: 48px 48px;
+    image-rendering: pixelated;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.npc-item, .enemy-item {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #374151, #1f2937);
+    font-size: 16px;
+}
+
+.npc-item {
+    background: linear-gradient(135deg, #4a7c59, #3d6b47);
+}
+
+.enemy-item {
+    background: linear-gradient(135deg, #dc2626, #991b1b);
+}
+
+.palette-item:hover {
+    border-color: #fbbf24;
+    transform: scale(1.05);
+}
+
+.palette-item.active {
+    border-color: #10b981;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.5);
+}
+
+.palette-item.building-item {
+    width: 72px;
+    height: 72px;
+}
+
+.palette-item.castle-item {
+    width: 84px;
+    height: 84px;
+}
+
+.btn {
+    padding: 10px 18px;
+    border: 3px solid;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'Courier New', monospace;
+    text-transform: uppercase;
+    font-size: 12px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    background: none;
+    color: inherit;
+    width: 100%;
+    margin-bottom: 8px;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #1e40af 100%);
+    border-color: #3d5a80;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 50%, #3b82f6 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #059669 0%, #10b981 50%, #059669 100%);
+    border-color: #065f46;
+    color: white;
+}
+
+.btn-success:hover {
+    background: linear-gradient(135deg, #10b981 0%, #34d399 50%, #10b981 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 50%, #dc2626 100%);
+    border-color: #991b1b;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: linear-gradient(135deg, #ef4444 0%, #f87171 50%, #ef4444 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+}
+
+.input-group {
+    margin-bottom: 12px;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 12px;
+    color: #fbbf24;
+}
+
+.input-group input, .input-group select {
+    width: 100%;
+    padding: 8px 12px;
+    background: rgba(0,0,0,0.3);
+    border: 2px solid #3d5a80;
+    border-radius: 6px;
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+}
+
+.input-group input:focus, .input-group select:focus {
+    outline: none;
+    border-color: #10b981;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
+}
+
+.toolbar {
+    background: linear-gradient(to bottom, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    border-bottom: 4px solid #3d5a80;
+    padding: 12px 16px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    box-shadow: inset 0 -4px 8px rgba(0,0,0,0.5);
+}
+
+.tool-btn {
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #1e40af 100%);
+    border: 3px solid #3d5a80;
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+}
+
+.tool-btn:hover {
+    background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 50%, #3b82f6 100%);
+    transform: translateY(-1px);
+}
+
+.tool-btn.active {
+    background: linear-gradient(135deg, #059669 0%, #10b981 50%, #059669 100%);
+    border-color: #065f46;
+}
+
+.coordinates {
+    background: rgba(0,0,0,0.3);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    margin-left: auto;
+}
+
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    border: 4px solid #3d5a80;
+    border-radius: 16px;
+    padding: 28px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 16px 32px rgba(0,0,0,0.8);
+}
+
+.modal h3 {
+    margin-bottom: 20px;
+    color: #fbbf24;
+}
+
+.code-output {
+    background: #000;
+    border: 2px solid #3d5a80;
+    border-radius: 8px;
+    padding: 16px;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    color: #10b981;
+    max-height: 400px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.legend {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+}
+
+.legend-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1px solid #fff;
+}
+
+.minimap {
+    width: 100%;
+    height: 200px;
+    background: #2d5016;
+    border: 3px solid #3d5a80;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+    margin-top: 12px;
+}
+
+.minimap-content {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-origin: top left;
+}
+
+.brush-size {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.brush-btn {
+    width: 32px;
+    height: 32px;
+    border: 2px solid #3d5a80;
+    border-radius: 4px;
+    background: rgba(0,0,0,0.3);
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    transition: all 0.2s ease;
+}
+
+.brush-btn:hover {
+    border-color: #fbbf24;
+    background: rgba(251, 191, 36, 0.1);
+}
+
+.brush-btn.active {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.2);
+}
+
+.status {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    background: rgba(0,0,0,0.8);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 11px;
+    color: #10b981;
+    z-index: 100;
+    border: 1px solid #3d5a80;
+}
+
+/* Enhanced hover effects for NPCs and Enemies */
+.npc-item:hover {
+    background: linear-gradient(135deg, #5d936c, #4a7c59);
+}
+
+.enemy-item:hover {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+/* Edit modal animations */
+.edit-modal {
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* Character name overlays for placed entities */
+.character-name-overlay {
+    position: absolute;
+    top: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: bold;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 25;
+}
+
+.npc-avatar:hover .character-name-overlay,
+.enemy-avatar:hover .character-name-overlay {
+    opacity: 1;
+}
+
+/* Pulse animation for enemies */
+@keyframes enemyGlow {
+    0% { box-shadow: 0 4px 10px rgba(220, 38, 38, 0.4); }
+    100% { box-shadow: 0 4px 15px rgba(220, 38, 38, 0.8); }
+}
+
+.enemy-avatar {
+    animation: enemyPulse 2s ease-in-out infinite, enemyGlow 1s ease-in-out infinite alternate;
+}
+
+/* Responsive design */
+@media (max-width: 1200px) {
+    .left-panel, .right-panel {
+        width: 260px;
+    }
+}
+
+@media (max-width: 900px) {
+    .mapmaker-container {
+        flex-direction: column;
+    }
+    
+    .left-panel, .right-panel {
+        width: 100%;
+        height: 200px;
+        border: none;
+        border-bottom: 4px solid #3d5a80;
+    }
+    
+    .toolbar {
+        flex-wrap: wrap;
+    }
+    
+    .tool-btn {
+        font-size: 10px;
+        padding: 6px 12px;
+    }
+    
+    .npc-palette, .enemy-palette {
+        grid-template-columns: repeat(5, 1fr);
+        gap: 4px;
+    }
+    
+    .npc-item, .enemy-item {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 600px) {
+    .section {
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+    
+    .terrain-palette, .object-palette {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .npc-palette, .enemy-palette {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .palette-item {
+        width: 40px;
+        height: 40px;
+        font-size: 16px;
+    }
+    
+    .npc-item, .enemy-item {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+    }
+    
+    .toolbar {
+        padding: 8px;
+        gap: 6px;
+    }
+    
+    .tool-btn {
+        font-size: 9px;
+        padding: 4px 8px;
+    }
+}
+
+/* Accessibility improvements */
+.palette-item:focus,
+.tool-btn:focus,
+.btn:focus {
+    outline: 2px solid #fbbf24;
+    outline-offset: 2px;
+}
+
+/* Loading states */
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+/* Tooltip styles */
+[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    z-index: 1000;
+    margin-bottom: 5px;
+}
+
+/* Enhanced visual feedback */
+.tile.highlight {
+    border: 3px solid #fbbf24 !important;
+    z-index: 20;
+}
+
+.building.editing,
+.npc-avatar.editing,
+.enemy-avatar.editing {
+    border-color: #fbbf24 !important;
+    box-shadow: 0 0 20px rgba(251, 191, 36, 0.6) !important;
+    z-index: 30;
+}
+
+/* Area/Zone styling */
+.area-zone {
+    position: absolute;
+    pointer-events: none;
+    z-index: 1;
+    transition: all 0.3s ease;
+}
+
+.area-zone:hover {
+    opacity: 0.8;
+}
+
+.area-label {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+    pointer-events: auto;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.area-label:hover {
+    background: rgba(0, 0, 0, 0.9);
+    transform: scale(1.05);
+}
+
+/* Dark theme enhancements */
+h3 {
+    color: #fff;
+    border-bottom: 2px solid #3d5a80;
+    padding-bottom: 8px;
+    margin-bottom: 16px;
+    font-size: 1.2em;
+}
+
+/* Print styles */
+@media print {
+    .mapmaker-container {
+        display: none;
+    }
+}
