@@ -1,5 +1,7 @@
 # 🌟 Eternal Bliss – A Fully On-Chain P2P RPG on Algorand
 
+https://ch4itu.github.io/EternalBliss/
+
 ## 📖 Overview
 
 Eternal Bliss is a **fully on-chain P2P RPG** built natively on the Algorand blockchain.  
