@@ -89,7 +89,7 @@ Even if the original team steps away, the world of Eternal Bliss will **never su
 - ✅ Core smart contract deployed on TestNet.  
 - 🔨 Frontend enhancements (UI, animations, multiplayer polish) – SOON.  
 - 🛒 In-game marketplace (ASA-based trading) – SOON.  
-- 🌍 MainNet launch + community-driven expansion – SOON.  
+- 🌍 Mainnet launch + community-driven expansion – SOON.  
 
 ---
 
