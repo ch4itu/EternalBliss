@@ -24,7 +24,7 @@ let gameState = {
         targetY: 10,
         isMoving: false,
         address: null,
-        assetId: null // For player NFT
+        assetId: null
     },
     world: {
         width: 50,
@@ -62,16 +62,13 @@ let indexerClient = null;
 let account = null;
 let walletMethod = 'mnemonic';
 
-// Algorand Network Configuration (Testnet)
 const ALGOD_SERVER = 'https://testnet-api.algonode.cloud';
 const INDEXER_SERVER = 'https://testnet-idx.algonode.cloud';
 const ALGOD_PORT = '';
 const ALGOD_TOKEN = '';
 
-// Application ID for the smart contract (will be deployed separately)
-let APP_ID = 746639029; // Will be set when contract is deployed
+let APP_ID = 746639029;
 
-// Note field prefixes for data storage
 const NOTE_PREFIXES = {
     PLAYER_DATA: 'CHRPG:PLAYER:',
     CHAT_MESSAGE: 'CHRPG:CHAT:',
@@ -84,7 +81,6 @@ const NOTE_PREFIXES = {
 // BROWSER COMPATIBLE BUFFER UTILITIES
 // ============================================
 
-// Browser-compatible base64 decoding (replaces Buffer.from)
 function decodeBase64Note(base64String) {
     try {
         return atob(base64String);
@@ -94,12 +90,10 @@ function decodeBase64Note(base64String) {
     }
 }
 
-// Browser-compatible note prefix creation
 function createNotePrefix(prefix) {
     return new TextEncoder().encode(prefix);
 }
 
-// World data arrays
 let worldMap = [];
 let buildings = [];
 let npcs = [];
@@ -107,11 +101,9 @@ let enemies = [];
 let items = [];
 let otherPlayers = new Map();
 
-// Movement optimization variables
 let keyStates = {};
 let moveInterval = null;
 
-// Chat update interval
 let chatUpdateInterval = null;
 let playerUpdateInterval = null;
 
@@ -119,7 +111,6 @@ let playerUpdateInterval = null;
 // ALGORAND INITIALIZATION FUNCTIONS
 // ============================================
 
-// Initialize Algorand clients
 function initAlgorand() {
     try {
         algodClient = new algosdk.Algodv2(ALGOD_TOKEN, ALGOD_SERVER, ALGOD_PORT);
@@ -135,11 +126,9 @@ function initAlgorand() {
     }
 }
 
-// Set wallet connection method
 function setWalletMethod(method) {
     walletMethod = method;
     document.getElementById('mnemonicMethod').classList.toggle('active', method === 'mnemonic');
-    document.getElementById('myalgoMethod').classList.toggle('active', method === 'myalgo');
     
     const input = document.getElementById('walletInput');
     if (method === 'mnemonic') {
@@ -151,7 +140,6 @@ function setWalletMethod(method) {
     }
 }
 
-// Connect wallet function
 async function connectWallet() {
     if (walletMethod === 'mnemonic') {
         await connectWithMnemonic();
@@ -160,7 +148,6 @@ async function connectWallet() {
     }
 }
 
-// Connect using mnemonic phrase
 async function connectWithMnemonic() {
     const mnemonic = document.getElementById('walletInput').value.trim();
     
@@ -174,15 +161,12 @@ async function connectWithMnemonic() {
     }
 
     try {
-        // Validate and create account from mnemonic
         account = algosdk.mnemonicToSecretKey(mnemonic);
         gameState.player.address = account.addr;
         gameState.player.name = "Hero_" + account.addr.slice(-4);
 
-        // Get account balance
         await updateAccountBalance();
 
-        // Update UI
         document.getElementById('walletInputSection').style.display = 'none';
         document.getElementById('walletConnected').style.display = 'block';
         document.getElementById('connectedAddress').textContent = account.addr;
@@ -198,10 +182,8 @@ async function connectWithMnemonic() {
         );
         createParticleEffect(gameState.player.x * 32 + 16, gameState.player.y * 32, '#10b981');
         
-        // Start periodic updates
         startPeriodicUpdates();
         
-        // Initial sync
         setTimeout(async () => {
             await syncWithAlgorand();
         }, 1000);
@@ -216,27 +198,21 @@ async function connectWithMnemonic() {
     }
 }
 
-// Connect with MyAlgo wallet (browser extension)
 async function connectWithMyAlgo() {
     showFloatingText('MyAlgo integration coming soon!', 
         gameState.player.x * 32 + 16, 
         gameState.player.y * 32 - 40, 
         '#fbbf24'
     );
-    // MyAlgo Connect integration would go here
-    // This requires the MyAlgo Connect library which needs to be added
 }
 
-// Disconnect wallet
 function disconnectWallet() {
     account = null;
     gameState.player.address = null;
     
-    // Clear multiplayer data
     otherPlayers.clear();
     renderWorld();
     
-    // Stop periodic updates
     stopPeriodicUpdates();
     
     document.getElementById('walletInputSection').style.display = 'block';
@@ -254,13 +230,12 @@ function disconnectWallet() {
     );
 }
 
-// Update account balance
 async function updateAccountBalance() {
     if (!account || !algodClient) return;
     
     try {
         const accountInfo = await algodClient.accountInformation(account.addr).do();
-        const balance = accountInfo.amount / 1000000; // Convert microAlgos to Algos
+        const balance = accountInfo.amount / 1000000;
         document.getElementById('algoBalance').textContent = balance.toFixed(6);
     } catch (error) {
         console.error('Failed to get balance:', error);
@@ -271,7 +246,6 @@ async function updateAccountBalance() {
 // BLOCKCHAIN DATA FUNCTIONS
 // ============================================
 
-// Save player data to Algorand
 async function saveToAlgorand() {
     if (!account || !algodClient) {
         showFloatingText('No wallet connected', 
@@ -287,7 +261,6 @@ async function saveToAlgorand() {
     btn.innerHTML = '<div class="loading"></div> Saving...';
     
     try {
-        // Prepare player data
         const playerData = {
             name: gameState.player.name,
             level: gameState.player.level,
@@ -308,37 +281,29 @@ async function saveToAlgorand() {
             timestamp: Date.now()
         };
         
-        // Create note with player data
         const note = new TextEncoder().encode(
             NOTE_PREFIXES.PLAYER_DATA + JSON.stringify(playerData)
         );
         
-        // Get suggested params
         const params = await algodClient.getTransactionParams().do();
         
-        // Create transaction (0 ALGO to self with note)
         const txn = algosdk.makePaymentTxnWithSuggestedParams(
             account.addr,
             account.addr,
-            0, // 0 ALGO transaction
+            0,
             undefined,
             note,
             params
         );
         
-        // Sign transaction
         const signedTxn = txn.signTxn(account.sk);
         
-        // Show transaction modal
         showTxModal('Saving player data to Algorand...');
         
-        // Send transaction
         const { txId } = await algodClient.sendRawTransaction(signedTxn).do();
         
-        // Wait for confirmation
         await waitForConfirmation(algodClient, txId, 4);
         
-        // Update UI
         updateTxModal(true, 'Player data saved successfully!', txId);
         showFloatingText('Progress saved to blockchain!', 
             gameState.player.x * 32 + 16, 
@@ -361,7 +326,6 @@ async function saveToAlgorand() {
     btn.innerHTML = 'Save to Algorand';
 }
 
-// Sync data from Algorand
 async function syncWithAlgorand() {
     if (!account || !indexerClient) {
         showFloatingText('No wallet connected', 
@@ -383,13 +347,8 @@ async function syncWithAlgorand() {
             '#3b82f6'
         );
         
-        // Load player data
         await loadPlayerFromAlgorand();
-        
-        // Load other players
         await loadOtherPlayers();
-        
-        // Load recent chat messages
         await loadChatMessages();
         
         showFloatingText('Sync complete!', 
@@ -411,7 +370,6 @@ async function syncWithAlgorand() {
     btn.innerHTML = 'Sync from Algorand';
 }
 
-// Wait for transaction confirmation
 async function waitForConfirmation(algodClient, txId, timeout) {
     const startRound = (await algodClient.status().do())['last-round'];
     let currentRound = startRound;
@@ -427,34 +385,25 @@ async function waitForConfirmation(algodClient, txId, timeout) {
     throw new Error('Transaction timeout');
 }
 
-// Start periodic updates
 function startPeriodicUpdates() {
-    // Update chat every 10 seconds
     chatUpdateInterval = setInterval(loadChatMessages, 10000);
-    
-    // Update other players every 15 seconds
     playerUpdateInterval = setInterval(loadOtherPlayers, 15000);
-    
-    // Update balance every 30 seconds
     setInterval(updateAccountBalance, 30000);
 }
 
-// Stop periodic updates
 function stopPeriodicUpdates() {
     if (chatUpdateInterval) clearInterval(chatUpdateInterval);
     if (playerUpdateInterval) clearInterval(playerUpdateInterval);
 }
 
 // ============================================
-// DATA LOADING FROM ALGORAND (FIXED)
+// DATA LOADING FROM ALGORAND
 // ============================================
 
-// Load player data from Algorand blockchain
 async function loadPlayerFromAlgorand() {
     if (!account || !indexerClient) return;
     
     try {
-        // Search for transactions with player data note
         const txns = await indexerClient
             .searchForTransactions()
             .address(account.addr)
@@ -466,13 +415,11 @@ async function loadPlayerFromAlgorand() {
         if (txns.transactions && txns.transactions.length > 0) {
             const latestTxn = txns.transactions[0];
             
-            // Decode note to get player data (FIXED)
             if (latestTxn.note) {
                 const noteText = decodeBase64Note(latestTxn.note);
                 const jsonStr = noteText.replace(NOTE_PREFIXES.PLAYER_DATA, '');
                 const playerData = JSON.parse(jsonStr);
                 
-                // Update game state with loaded data
                 gameState.player.name = playerData.name || gameState.player.name;
                 gameState.player.level = playerData.level || 1;
                 gameState.player.hp = playerData.hp || 100;
@@ -506,7 +453,6 @@ async function loadPlayerFromAlgorand() {
                 );
             }
         } else {
-            // No existing data, create new player
             showFloatingText('New player created!', 
                 gameState.player.x * 32 + 16, 
                 gameState.player.y * 32 - 40, 
@@ -519,13 +465,11 @@ async function loadPlayerFromAlgorand() {
     }
 }
 
-// Load other players from recent transactions (FIXED)
 async function loadOtherPlayers() {
     if (!indexerClient) return;
     
     try {
-        // Get recent player position updates (last 24 hours)
-        const minRound = (await algodClient.status().do())['last-round'] - 86400; // ~24 hours of blocks
+        const minRound = (await algodClient.status().do())['last-round'] - 86400;
         
         const txns = await indexerClient
             .searchForTransactions()
@@ -538,7 +482,6 @@ async function loadOtherPlayers() {
         
         if (txns.transactions) {
             for (const txn of txns.transactions) {
-                // Skip our own transactions
                 if (txn.sender === account.addr) continue;
                 
                 try {
@@ -568,12 +511,10 @@ async function loadOtherPlayers() {
     }
 }
 
-// Load chat messages from blockchain (FIXED)
 async function loadChatMessages() {
     if (!indexerClient) return;
     
     try {
-        // Get recent chat messages (last 1000 blocks)
         const minRound = (await algodClient.status().do())['last-round'] - 1000;
         
         const txns = await indexerClient
@@ -587,7 +528,6 @@ async function loadChatMessages() {
         chatDiv.innerHTML = '';
         
         if (txns.transactions) {
-            // Sort by round time
             txns.transactions.sort((a, b) => a['round-time'] - b['round-time']);
             
             for (const txn of txns.transactions) {
@@ -615,14 +555,12 @@ async function loadChatMessages() {
     }
 }
 
-// Send chat message to blockchain
 async function sendChatMessage() {
     const input = document.getElementById('chatInput');
     const message = input.value.trim();
     
     if (!message) return;
     
-    // Add message to local chat immediately
     const chatDiv = document.getElementById('chatMessages');
     const messageDiv = document.createElement('div');
     messageDiv.innerHTML = `<span style="color: #fbbf24;">You:</span> ${message}`;
@@ -645,7 +583,6 @@ async function sendChatMessage() {
     btn.innerHTML = '...';
     
     try {
-        // Prepare chat data
         const chatData = {
             name: gameState.player.name,
             message: message,
@@ -653,25 +590,21 @@ async function sendChatMessage() {
             timestamp: Date.now()
         };
         
-        // Create note with chat data
         const note = new TextEncoder().encode(
             NOTE_PREFIXES.CHAT_MESSAGE + JSON.stringify(chatData)
         );
         
-        // Get suggested params
         const params = await algodClient.getTransactionParams().do();
         
-        // Create transaction
         const txn = algosdk.makePaymentTxnWithSuggestedParams(
             account.addr,
             account.addr,
-            0, // 0 ALGO transaction
+            0,
             undefined,
             note,
             params
         );
         
-        // Sign and send transaction
         const signedTxn = txn.signTxn(account.sk);
         const { txId } = await algodClient.sendRawTransaction(signedTxn).do();
         
@@ -681,7 +614,6 @@ async function sendChatMessage() {
             '#3b82f6'
         );
         
-        // Wait for confirmation
         await waitForConfirmation(algodClient, txId, 4);
         
         showFloatingText('Message sent!', 
@@ -703,7 +635,6 @@ async function sendChatMessage() {
     btn.innerHTML = 'Send';
 }
 
-// Update position on blockchain (called periodically during movement)
 async function updatePositionOnChain() {
     if (!account || !algodClient) return;
     
@@ -743,7 +674,6 @@ async function updatePositionOnChain() {
 // NFT FUNCTIONS
 // ============================================
 
-// Create player NFT (Algorand Standard Asset)
 async function createPlayerNFT() {
     if (!account || !algodClient) {
         showFloatingText('No wallet connected', 
@@ -761,10 +691,8 @@ async function createPlayerNFT() {
     try {
         showTxModal('Minting your Player NFT...');
         
-        // Get suggested params
         const params = await algodClient.getTransactionParams().do();
         
-        // Create NFT metadata
         const metadata = {
             name: `EternalBliss Hero #${Date.now()}`,
             description: `Level ${gameState.player.level} Hero in EternalBliss RPG`,
@@ -777,34 +705,29 @@ async function createPlayerNFT() {
             }
         };
         
-        // Create ASA (Algorand Standard Asset) for NFT
         const txn = algosdk.makeAssetCreateTxnWithSuggestedParams(
             account.addr,
             new TextEncoder().encode(JSON.stringify(metadata)),
-            1, // Total supply of 1 for NFT
-            0, // No decimals
-            false, // Not defaultFrozen
-            account.addr, // Manager
-            account.addr, // Reserve
-            account.addr, // Freeze
-            account.addr, // Clawback
-            'CHRPG', // Unit name
-            `Hero-${gameState.player.level}`, // Asset name
-            'https://EternalBliss.algo/nft', // URL
+            1,
+            0,
+            false,
+            account.addr,
+            account.addr,
+            account.addr,
+            account.addr,
+            'CHRPG',
+            `Hero-${gameState.player.level}`,
+            'https://EternalBliss.algo/nft',
             undefined,
             params
         );
         
-        // Sign transaction
         const signedTxn = txn.signTxn(account.sk);
         
-        // Send transaction
         const { txId } = await algodClient.sendRawTransaction(signedTxn).do();
         
-        // Wait for confirmation
         const confirmedTxn = await waitForConfirmation(algodClient, txId, 4);
         
-        // Get the asset ID
         const assetId = confirmedTxn['asset-index'];
         gameState.player.assetId = assetId;
         
@@ -834,7 +757,6 @@ async function createPlayerNFT() {
 // TRANSACTION MODAL FUNCTIONS
 // ============================================
 
-// Show transaction modal
 function showTxModal(message) {
     const modal = document.getElementById('txModal');
     const status = document.getElementById('txStatus');
@@ -850,7 +772,6 @@ function showTxModal(message) {
     modal.style.display = 'flex';
 }
 
-// Update transaction modal with result
 function updateTxModal(success, message, txId = null) {
     const status = document.getElementById('txStatus');
     const result = document.getElementById('txResult');
@@ -871,7 +792,6 @@ function updateTxModal(success, message, txId = null) {
     }
 }
 
-// Close transaction modal
 function closeTxModal() {
     document.getElementById('txModal').style.display = 'none';
 }
@@ -887,18 +807,15 @@ function updateOnlinePlayersList() {
     list.innerHTML = '';
     count.textContent = otherPlayers.size + 1;
     
-    // Add yourself
     const youItem = document.createElement('div');
     youItem.className = 'player-item';
     youItem.innerHTML = `<strong>You (${gameState.player.name})</strong> - Level ${gameState.player.level}`;
     list.appendChild(youItem);
     
-    // Add other players
     otherPlayers.forEach((player, address) => {
         const item = document.createElement('div');
         item.className = 'player-item';
         
-        // Calculate time since last update
         const timeSince = player.lastUpdate ? 
             Math.floor((Date.now() - player.lastUpdate * 1000) / 60000) : 0;
         
@@ -941,40 +858,31 @@ function getPlayerLevelTier(level) {
 // GAME INITIALIZATION
 // ============================================
 
-// Initialize the game
 function initGame() {
-    // Initialize Algorand
     initAlgorand();
     
-    // Generate game world
     generateWorld();
     createBuildings();
     createNPCs();
     createEnemies();
     spawnRandomItems();
     
-    // Update UI
     updateUI();
     centerCameraOnPlayer();
     
-    // Setup event listeners
     setupEventListeners();
     setupMobileControls();
 }
 
-// Setup event listeners
 function setupEventListeners() {
-    // Chat
     document.getElementById('sendChatBtn').addEventListener('click', sendChatMessage);
     document.getElementById('chatInput').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') sendChatMessage();
     });
     
-    // Keyboard controls
     document.addEventListener('keydown', handleKeyboard);
     document.addEventListener('keyup', handleKeyUp);
     
-    // Window resize
     window.addEventListener('resize', () => {
         centerCameraOnPlayer();
     });
@@ -984,7 +892,6 @@ function setupEventListeners() {
 // WORLD GENERATION
 // ============================================
 
-// Generate the game world
 function generateWorld() {
     worldMap = [];
     const seed = 12345;
@@ -1015,7 +922,6 @@ function generateWorld() {
                 tileType = 'forest';
             }
             
-            // Roads
             if ((x === 10 || x === 25 || x === 40) && y > 5 && y < 32) tileType = 'road';
             if ((y === 10 || y === 20) && x > 5 && x < 45) tileType = 'road';
             if ((x === 15 && y > 8 && y < 14) || (y === 15 && x > 20 && x < 30)) tileType = 'road';
@@ -1025,7 +931,6 @@ function generateWorld() {
     }
 }
 
-// Create buildings in the world
 function createBuildings() {
     buildings = [
         {x: 12, y: 8, type: 'inn', name: 'Algorand Rest Inn', class: 'building house inn'},
@@ -1048,7 +953,6 @@ function createBuildings() {
     ];
 }
 
-// Create NPCs
 function createNPCs() {
     npcs = [
         {x: 13, y: 9, name: 'Keeper Marcus', class: 'npc npc-villager', dialogue: 'Welcome to Algorand realm! Rest here for 20 ALGO to restore your strength.'},
@@ -1064,7 +968,6 @@ function createNPCs() {
     ];
 }
 
-// Create enemies
 function createEnemies() {
     enemies = [
         {x: 20, y: 12, name: 'FUD Goblin', class: 'enemy-spawn enemy-goblin', hp: 40, maxHp: 40, attack: 8, xpReward: 25, goldReward: 15},
@@ -1079,7 +982,6 @@ function createEnemies() {
     ];
 }
 
-// Spawn random items
 function spawnRandomItems() {
     items = [];
     const seed = 98765;
@@ -1113,12 +1015,10 @@ function spawnRandomItems() {
 // WORLD RENDERING
 // ============================================
 
-// Render the game world
 function renderWorld() {
     const worldGrid = document.getElementById('worldGrid');
     worldGrid.innerHTML = '';
     
-    // Render ALL terrain tiles
     for (let y = 0; y < gameState.world.height; y++) {
         for (let x = 0; x < gameState.world.width; x++) {
             const tile = document.createElement('div');
@@ -1129,49 +1029,42 @@ function renderWorld() {
         }
     }
     
-    // Render buildings
     buildings.forEach(building => {
         const buildingEl = document.createElement('div');
         buildingEl.className = building.class;
         buildingEl.style.left = `${building.x * 32}px`;
         buildingEl.style.top = `${building.y * 32}px`;
-        buildingEl.onclick = () => interactWithBuilding(building);
+        buildingEl.onclick = () => tryInteractWithBuilding(building);
         buildingEl.title = building.name;
         worldGrid.appendChild(buildingEl);
     });
     
-    // Render NPCs with avatars
     npcs.forEach(npc => {
         const npcEl = document.createElement('div');
         npcEl.className = 'npc-avatar';
         npcEl.style.left = `${npc.x * 32}px`;
         npcEl.style.top = `${npc.y * 32}px`;
         
-        // Set NPC type for styling
         npcEl.setAttribute('data-npc-type', getNPCType(npc.class));
         
-        // Add name overlay
         const nameOverlay = document.createElement('div');
         nameOverlay.className = 'character-name-overlay';
         nameOverlay.textContent = npc.name.split(' ')[0];
         npcEl.appendChild(nameOverlay);
         
-        npcEl.onclick = () => talkToNPC(npc);
+        npcEl.onclick = () => tryTalkToNPC(npc);
         npcEl.title = npc.name;
         worldGrid.appendChild(npcEl);
     });
     
-    // Render enemies with avatars
     enemies.forEach(enemy => {
         const enemyEl = document.createElement('div');
         enemyEl.className = 'enemy-avatar';
         enemyEl.style.left = `${enemy.x * 32}px`;
         enemyEl.style.top = `${enemy.y * 32}px`;
         
-        // Set enemy type for styling
         enemyEl.setAttribute('data-enemy-type', getEnemyType(enemy.class));
         
-        // Add health bar
         const healthBar = document.createElement('div');
         healthBar.className = 'enemy-health-bar';
         const healthFill = document.createElement('div');
@@ -1185,28 +1078,34 @@ function renderWorld() {
         worldGrid.appendChild(enemyEl);
     });
     
-    // Render items
+    // FIXED: Gold items now render correctly
     items.forEach((item, index) => {
         const itemEl = document.createElement('div');
         itemEl.className = 'item-drop';
-        itemEl.style.left = `${item.x * 32 + 4}px`;
-        itemEl.style.top = `${item.y * 32 + 4}px`;
-        itemEl.onclick = () => collectItem(index);
+        itemEl.style.left = `${item.x * 32}px`;
+        itemEl.style.top = `${item.y * 32}px`;
+        itemEl.style.width = '32px';
+        itemEl.style.height = '32px';
+        itemEl.style.position = 'absolute';
+        itemEl.style.display = 'flex';
+        itemEl.style.alignItems = 'center';
+        itemEl.style.justifyContent = 'center';
+        itemEl.style.fontSize = '20px';
+        itemEl.style.cursor = 'pointer';
+        itemEl.innerHTML = '💰';
+        itemEl.onclick = () => tryCollectItem(index, item);
         itemEl.title = `Treasure: ${item.value} gold`;
         worldGrid.appendChild(itemEl);
     });
     
-    // Render other players with enhanced avatars
     otherPlayers.forEach((player, address) => {
         const otherPlayerEl = document.createElement('div');
         otherPlayerEl.className = 'other-player-avatar';
         otherPlayerEl.style.left = `${player.x * 32}px`;
         otherPlayerEl.style.top = `${player.y * 32}px`;
         
-        // Set avatar based on level
         otherPlayerEl.setAttribute('data-player-level', getPlayerLevelTier(player.level));
         
-        // Add player info overlay
         const playerInfo = document.createElement('div');
         playerInfo.className = 'character-name-overlay player-name';
         playerInfo.textContent = `${player.name} (${player.level})`;
@@ -1217,14 +1116,12 @@ function renderWorld() {
         worldGrid.appendChild(otherPlayerEl);
     });
     
-    // Render main player with enhanced avatar
     const player = document.createElement('div');
     player.className = 'main-player-avatar';
     player.style.left = `${gameState.player.x * 32}px`;
     player.style.top = `${gameState.player.y * 32}px`;
     player.setAttribute('data-player-level', getPlayerLevelTier(gameState.player.level));
     
-    // Add your name overlay
     const yourName = document.createElement('div');
     yourName.className = 'character-name-overlay your-name';
     yourName.textContent = 'You';
@@ -1238,7 +1135,6 @@ function renderWorld() {
 // MOVEMENT SYSTEM
 // ============================================
 
-// Move player
 function movePlayer(dx, dy) {
     if (gameState.inBattle) return;
     
@@ -1250,23 +1146,19 @@ function movePlayer(dx, dy) {
         gameState.player.y = newY;
         gameState.player.isMoving = true;
         
-        // Optimized updates
         updatePlayerPositionOnly();
         centerCameraOnPlayerOptimized();
         checkLocationQuick();
         
-        // Small MP cost for movement (only every 5 moves)
         if ((gameState.player.x + gameState.player.y) % 5 === 0) {
             gameState.player.mp = Math.max(0, gameState.player.mp - 1);
             updateUI();
         }
         
-        // Update position on chain periodically (every 10 moves)
         if ((gameState.player.x + gameState.player.y) % 10 === 0 && account) {
             updatePositionOnChain();
         }
         
-        // Check for random encounters
         if (Math.random() < 0.005) {
             const tileType = worldMap[Math.floor(newY)][Math.floor(newX)];
             const encounterChance = tileType === 'road' ? 0.005 : 0.01;
@@ -1275,7 +1167,6 @@ function movePlayer(dx, dy) {
             }
         }
         
-        // Check for items
         checkItemCollectionOptimized();
         
     } else {
@@ -1283,7 +1174,6 @@ function movePlayer(dx, dy) {
     }
 }
 
-// Update player position only
 function updatePlayerPositionOnly() {
     const playerEl = document.querySelector('.main-player-avatar');
     if (playerEl) {
@@ -1300,7 +1190,6 @@ function updatePlayerPositionOnly() {
     }
 }
 
-// Optimized camera centering
 function centerCameraOnPlayerOptimized() {
     const worldView = document.getElementById('worldView');
     const worldGrid = document.getElementById('worldGrid');
@@ -1316,21 +1205,17 @@ function centerCameraOnPlayerOptimized() {
     const finalX = -Math.max(0, Math.min(worldWidth - viewWidth, targetX));
     const finalY = -Math.max(0, Math.min(worldHeight - viewHeight, targetY));
 
-    // Use transform3d for hardware acceleration
     worldGrid.style.transform = `translate3d(${finalX}px, ${finalY}px, 0)`;
     
-    // Update minimap less frequently
     if ((gameState.player.x + gameState.player.y) % 3 === 0) {
         updateMinimapOptimized();
     }
 }
 
-// Center camera on player (full function)
 function centerCameraOnPlayer() {
     centerCameraOnPlayerOptimized();
 }
 
-// Check if can move to position
 function canMoveTo(x, y) {
     const tileX = Math.floor(x);
     const tileY = Math.floor(y);
@@ -1348,7 +1233,6 @@ function canMoveTo(x, y) {
     return true;
 }
 
-// Quick location check
 function checkLocationQuick() {
     let locationName = "Wilderness";
     
@@ -1371,11 +1255,9 @@ function checkLocationQuick() {
     if (locationName !== gameState.currentLocation) {
         gameState.currentLocation = locationName;
         
-        // Update UI elements
         document.getElementById('currentLocation').textContent = locationName;
         document.getElementById('locationName').textContent = locationName;
         
-        // Show location change
         showFloatingText(`Welcome to ${locationName}!`, 
             gameState.player.x * 32 + 16, 
             gameState.player.y * 32 - 25, 
@@ -1385,12 +1267,10 @@ function checkLocationQuick() {
     }
 }
 
-// Check location (full function)
 function checkLocation() {
     checkLocationQuick();
 }
 
-// Optimized item collection check
 function checkItemCollectionOptimized() {
     for (let i = items.length - 1; i >= 0; i--) {
         const item = items[i];
@@ -1405,7 +1285,22 @@ function checkItemCollectionOptimized() {
     }
 }
 
-// Collect item
+// FIXED: Distance check for gold collection
+function tryCollectItem(index, item) {
+    const distance = Math.sqrt(
+        Math.pow(gameState.player.x - item.x, 2) + 
+        Math.pow(gameState.player.y - item.y, 2)
+    );
+    
+    const PICKUP_RANGE = 1.5;
+    
+    if (distance <= PICKUP_RANGE) {
+        collectItem(index);
+    } else {
+        showFloatingText('Too far away!', gameState.player.x * 32 + 16, gameState.player.y * 32 - 20, '#ef4444');
+    }
+}
+
 function collectItem(index) {
     const item = items[index];
     gameState.inventory.gold += item.value;
@@ -1423,15 +1318,12 @@ function collectItem(index) {
 // MINIMAP SYSTEM
 // ============================================
 
-// Initialize minimap with static elements
 function initializeMinimap() {
     const minimapContent = document.getElementById('minimapContent');
     minimapContent.innerHTML = '';
     
-    // Calculate scale factor for minimap (200px width for 50 tiles = 4px per tile)
     const scale = 4;
     
-    // Add terrain background (simplified)
     for (let y = 0; y < gameState.world.height; y++) {
         for (let x = 0; x < gameState.world.width; x++) {
             const tile = document.createElement('div');
@@ -1441,7 +1333,6 @@ function initializeMinimap() {
             tile.style.width = `${scale}px`;
             tile.style.height = `${scale}px`;
             
-            // Set color based on terrain type
             switch(worldMap[y][x]) {
                 case 'water':
                     tile.style.background = '#1e40af';
@@ -1466,7 +1357,6 @@ function initializeMinimap() {
         }
     }
     
-    // Add buildings to minimap
     buildings.forEach(building => {
         const dot = document.createElement('div');
         dot.setAttribute('data-type', 'building');
@@ -1482,7 +1372,6 @@ function initializeMinimap() {
         minimapContent.appendChild(dot);
     });
     
-    // Add enemies to minimap
     enemies.forEach(enemy => {
         const dot = document.createElement('div');
         dot.setAttribute('data-type', 'enemy');
@@ -1498,16 +1387,13 @@ function initializeMinimap() {
     });
 }
 
-// Optimized minimap update
 function updateMinimapOptimized() {
     const minimapContent = document.getElementById('minimapContent');
-    const scale = 4; // 4px per tile
+    const scale = 4;
     
-    // Clear only player dots
     const existingPlayerDots = minimapContent.querySelectorAll('[data-type="player"]');
     existingPlayerDots.forEach(dot => dot.remove());
     
-    // Player dot (make it more visible)
     const playerDot = document.createElement('div');
     playerDot.setAttribute('data-type', 'player');
     playerDot.style.position = 'absolute';
@@ -1521,7 +1407,6 @@ function updateMinimapOptimized() {
     playerDot.style.boxShadow = '0 0 8px #10b981';
     minimapContent.appendChild(playerDot);
     
-    // Other players
     otherPlayers.forEach((player) => {
         const dot = document.createElement('div');
         dot.setAttribute('data-type', 'player');
@@ -1548,12 +1433,10 @@ function updateMinimap() {
 // INTERACTION SYSTEM
 // ============================================
 
-// Main interaction function
 function interact() {
     let interacted = false;
     const INTERACTION_RANGE = 1.5;
     
-    // Check for other players
     otherPlayers.forEach((player, address) => {
         if (interacted) return;
         const distance = Math.sqrt(Math.pow(gameState.player.x - player.x, 2) + Math.pow(gameState.player.y - player.y, 2));
@@ -1564,7 +1447,6 @@ function interact() {
     });
     if (interacted) return;
     
-    // Check for NPCs
     npcs.forEach(npc => {
         if (interacted) return;
         const distance = Math.sqrt(Math.pow(gameState.player.x - npc.x, 2) + Math.pow(gameState.player.y - npc.y, 2));
@@ -1575,7 +1457,6 @@ function interact() {
     });
     if (interacted) return;
     
-    // Check for buildings
     buildings.forEach(building => {
         if (interacted) return;
         const distance = Math.sqrt(Math.pow(gameState.player.x - building.x, 2) + Math.pow(gameState.player.y - building.y, 2));
@@ -1586,7 +1467,6 @@ function interact() {
     });
     if (interacted) return;
     
-    // Check for enemies
     enemies.forEach(enemy => {
         if (interacted) return;
         const distance = Math.sqrt(Math.pow(gameState.player.x - enemy.x, 2) + Math.pow(gameState.player.y - enemy.y, 2));
@@ -1601,7 +1481,6 @@ function interact() {
     }
 }
 
-// Interact with another player
 function interactWithPlayer(address, player) {
     document.getElementById('modalTitle').textContent = `${player.name} (Level ${player.level})`;
     document.getElementById('modalContent').innerHTML = `
@@ -1622,19 +1501,32 @@ function interactWithPlayer(address, player) {
     document.getElementById('interactionModal').style.display = 'flex';
 }
 
-// Challenge player (placeholder)
 function challengePlayer(targetAddress) {
     showFloatingText('PvP battles coming soon!', gameState.player.x * 32 + 16, gameState.player.y * 32 - 40, '#fbbf24');
     closeModal();
 }
 
-// Trade with player (placeholder)
 function tradeWithPlayer(targetAddress) {
     showFloatingText('P2P trading coming soon!', gameState.player.x * 32 + 16, gameState.player.y * 32 - 40, '#fbbf24');
     closeModal();
 }
 
-// Talk to NPC
+// FIXED: Distance check for NPC interaction
+function tryTalkToNPC(npc) {
+    const distance = Math.sqrt(
+        Math.pow(gameState.player.x - npc.x, 2) + 
+        Math.pow(gameState.player.y - npc.y, 2)
+    );
+    
+    const INTERACTION_RANGE = 1.5;
+    
+    if (distance <= INTERACTION_RANGE) {
+        talkToNPC(npc);
+    } else {
+        showFloatingText(`Too far from ${npc.name}!`, gameState.player.x * 32 + 16, gameState.player.y * 32 - 20, '#ef4444');
+    }
+}
+
 function talkToNPC(npc) {
     document.getElementById('modalTitle').textContent = npc.name;
     document.getElementById('modalContent').innerHTML = `
@@ -1648,7 +1540,22 @@ function talkToNPC(npc) {
     createParticleEffect(npc.x * 32 + 16, npc.y * 32, '#3b82f6');
 }
 
-// Interact with building
+// FIXED: Distance check for building interaction
+function tryInteractWithBuilding(building) {
+    const distance = Math.sqrt(
+        Math.pow(gameState.player.x - building.x, 2) + 
+        Math.pow(gameState.player.y - building.y, 2)
+    );
+    
+    const INTERACTION_RANGE = 2.0;
+    
+    if (distance <= INTERACTION_RANGE) {
+        interactWithBuilding(building);
+    } else {
+        showFloatingText(`Too far from ${building.name}!`, gameState.player.x * 32 + 16, gameState.player.y * 32 - 20, '#ef4444');
+    }
+}
+
 function interactWithBuilding(building) {
     document.getElementById('modalTitle').textContent = building.name;
     
@@ -1714,7 +1621,6 @@ function interactWithBuilding(building) {
     createParticleEffect(building.x * 32 + 32, building.y * 32 + 32, '#fbbf24');
 }
 
-// Building interactions
 function restAtInn() {
     if (gameState.inventory.gold >= 20) {
         gameState.inventory.gold -= 20;
@@ -1797,7 +1703,6 @@ function closeModal() {
 // BATTLE SYSTEM
 // ============================================
 
-// Check distance before battle
 function tryBattleEnemy(enemy) {
     const distance = Math.sqrt(
         Math.pow(gameState.player.x - enemy.x, 2) + 
@@ -1824,7 +1729,6 @@ function tryBattleEnemy(enemy) {
     }
 }
 
-// Start battle
 function startBattle(enemy) {
     gameState.inBattle = true;
     gameState.currentEnemy = {...enemy};
@@ -1852,7 +1756,6 @@ function getBattleEmoji(enemyClass) {
     }
 }
 
-// Battle action
 function battleAction(action) {
     if (!gameState.inBattle || !gameState.currentEnemy) return;
     
@@ -1916,7 +1819,6 @@ function battleAction(action) {
     }
 }
 
-// Enemy turn
 function enemyTurn() {
     if (!gameState.inBattle || !gameState.currentEnemy) return;
     
@@ -1936,7 +1838,6 @@ function enemyTurn() {
     }
 }
 
-// Enemy defeated
 function enemyDefeated() {
     const enemy = gameState.currentEnemy;
     gameState.player.xp += enemy.xpReward;
@@ -1959,7 +1860,6 @@ function enemyDefeated() {
     setTimeout(() => endBattle(true), 3000);
 }
 
-// Player defeated
 function playerDefeated() {
     addBattleLog(`💀 You have been defeated!`, 'log-damage');
     
@@ -1974,7 +1874,6 @@ function playerDefeated() {
     }, 2500);
 }
 
-// End battle
 function endBattle(victory) {
     gameState.inBattle = false;
     gameState.currentEnemy = null;
@@ -1988,7 +1887,6 @@ function endBattle(victory) {
     }
 }
 
-// Check level up
 function checkLevelUp() {
     while (gameState.player.xp >= gameState.player.xpToNext) {
         gameState.player.level++;
@@ -2010,7 +1908,6 @@ function checkLevelUp() {
     }
 }
 
-// Random encounter
 function randomEncounter() {
     if (gameState.inBattle) return;
     
@@ -2024,7 +1921,6 @@ function randomEncounter() {
     setTimeout(() => startBattle(enemy), 1000);
 }
 
-// Update battle UI
 function updateBattleUI() {
     if (gameState.currentEnemy) {
         document.getElementById('enemyHp').textContent = gameState.currentEnemy.hp;
@@ -2032,7 +1928,6 @@ function updateBattleUI() {
     }
 }
 
-// Add battle log entry
 function addBattleLog(message, type) {
     const log = document.getElementById('battleLog');
     const entry = document.createElement('div');
@@ -2046,7 +1941,6 @@ function addBattleLog(message, type) {
 // UI UPDATE FUNCTIONS
 // ============================================
 
-// Update UI
 function updateUI() {
     document.getElementById('playerLevel').textContent = gameState.player.level;
     document.getElementById('playerHp').textContent = gameState.player.hp;
@@ -2078,7 +1972,6 @@ function updateUI() {
 // VISUAL EFFECTS
 // ============================================
 
-// Show floating text
 function showFloatingText(text, x, y, color = '#10b981') {
     const floating = document.createElement('div');
     floating.className = 'floating-text';
@@ -2096,7 +1989,6 @@ function showFloatingText(text, x, y, color = '#10b981') {
     }, 2000);
 }
 
-// Create particle effect
 function createParticleEffect(x, y, color = '#fbbf24') {
     for (let i = 0; i < 8; i++) {
         const particle = document.createElement('div');
@@ -2116,7 +2008,6 @@ function createParticleEffect(x, y, color = '#fbbf24') {
     }
 }
 
-// Flash stat bar
 function flashStatBar(type, effect) {
     const barFill = document.getElementById(`player${type.charAt(0).toUpperCase() + type.slice(1)}Bar`);
     if (barFill) {
@@ -2125,7 +2016,6 @@ function flashStatBar(type, effect) {
     }
 }
 
-// Show level up effect
 function showLevelUpEffect() {
     const levelUpEl = document.createElement('div');
     levelUpEl.className = 'level-up-effect';
@@ -2143,7 +2033,6 @@ function showLevelUpEffect() {
 // KEYBOARD AND MOBILE CONTROLS
 // ============================================
 
-// Handle keyboard input
 function handleKeyboard(event) {
     if (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT') return;
 
@@ -2156,17 +2045,14 @@ function handleKeyboard(event) {
     
     const key = event.key.toLowerCase();
     
-    // Handle movement keys
     if (['w', 's', 'a', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
         event.preventDefault();
         
         if (!keyStates[key] && !moveInterval) {
             keyStates[key] = true;
             
-            // Initial move
             performMove(key);
             
-            // Set up repeat movement
             moveInterval = setInterval(() => {
                 if (keyStates[key]) {
                     performMove(key);
@@ -2174,7 +2060,7 @@ function handleKeyboard(event) {
                     clearInterval(moveInterval);
                     moveInterval = null;
                 }
-            }, 120); // Smooth 120ms repeat rate
+            }, 120);
         }
     } else if (key === ' ' || key === 'enter') {
         event.preventDefault();
@@ -2184,7 +2070,6 @@ function handleKeyboard(event) {
     }
 }
 
-// Handle key release
 function handleKeyUp(event) {
     const key = event.key.toLowerCase();
     keyStates[key] = false;
@@ -2195,7 +2080,6 @@ function handleKeyUp(event) {
     }
 }
 
-// Perform movement based on key
 function performMove(key) {
     switch(key) {
         case 'w': case 'arrowup':
@@ -2209,24 +2093,20 @@ function performMove(key) {
     }
 }
 
-// Setup mobile controls
 function setupMobileControls() {
     const buttons = document.querySelectorAll('#mobile-controls .ctl-btn');
     buttons.forEach(btn => {
         const dir = btn.dataset.dir;
-        // When finger touches down
         btn.addEventListener('touchstart', e => {
             e.preventDefault();
             handleDirection(dir);
         });
-        // Optional: stop movement on touchend
         btn.addEventListener('touchend', e => {
             e.preventDefault();
         });
     });
 }
 
-// Handle direction for mobile
 function handleDirection(dir) {
     switch(dir) {
         case 'up':    movePlayer( 0,-1); break;
@@ -2242,8 +2122,9 @@ function handleDirection(dir) {
 // GAME INITIALIZATION AND STARTUP
 // ============================================
 
-// Initialize game on page load
 window.addEventListener('load', () => {
+    initGame();
+    renderWorld();
     initGame();
     renderWorld();
     initializeMinimap();
@@ -2268,7 +2149,6 @@ window.addEventListener('load', () => {
     }, 1000);
 });
 
-// Global error handlers
 window.addEventListener('error', (event) => {
     console.error('Global error caught:', event.error);
 });
@@ -2278,13 +2158,11 @@ window.addEventListener('unhandledrejection', (event) => {
 });
 
 // ============================================
-// DEBUG HELPERS (Development Only)
+// DEBUG HELPERS
 // ============================================
 
-// Expose game state for debugging
 window.gameState = gameState;
 
-// Debug commands
 window.addGold = (amount) => {
     gameState.inventory.gold += amount;
     updateUI();
@@ -2475,7 +2353,6 @@ window.quickLocations = () => {
     console.log('teleport(25, 18) - Road intersection');
 };
 
-// Console startup messages
 console.log('EternalBliss Algorand Ready!');
 console.log('Connect your Algorand wallet to start playing');
 console.log('');
