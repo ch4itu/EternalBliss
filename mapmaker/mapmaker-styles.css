@@ -344,6 +344,35 @@ body {
     50% { transform: scale(1.05); }
 }
 
+.item-palette {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.item-item {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    font-size: 16px;
+}
+
+.item-item:hover {
+    background: linear-gradient(135deg, #f59e0b, #fbbf24);
+}
+
+@keyframes itemSparkle {
+    0%, 100% { 
+        transform: scale(1) rotate(0deg);
+        box-shadow: 0 0 8px rgba(251, 191, 36, 0.5);
+    }
+    50% { 
+        transform: scale(1.1) rotate(180deg);
+        box-shadow: 0 0 16px rgba(251, 191, 36, 0.8);
+    }
+}
+
 .section {
     background: linear-gradient(135deg, #0f3460 0%, #1e40af 25%, #0f3460 100%);
     padding: 16px;
@@ -525,8 +554,9 @@ body {
 }
 
 .tool-btn.active {
-    background: linear-gradient(135deg, #059669 0%, #10b981 50%, #059669 100%);
-    border-color: #065f46;
+    background: linear-gradient(135deg, #059669 0%, #10b981 50%, #059669 100%) !important;
+    border-color: #065f46 !important;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.5) !important;
 }
 
 .coordinates {

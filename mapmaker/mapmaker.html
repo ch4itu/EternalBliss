@@ -55,6 +55,17 @@
             </div>
 
             <div class="section">
+                <h3>💰 Items</h3>
+                <div class="item-palette">
+                    <div class="palette-item item-item gold active" data-item="gold" title="Gold">💰</div>
+                    <div class="palette-item item-item health-potion" data-item="health_potion" title="Health Potion">🧪</div>
+                    <div class="palette-item item-item mana-potion" data-item="mana_potion" title="Mana Potion">🔮</div>
+                    <div class="palette-item item-item key" data-item="key" title="Key">🗝️</div>
+                    <div class="palette-item item-item treasure" data-item="treasure" title="Treasure Chest">📦</div>
+                </div>
+            </div>
+
+            <div class="section">
                 <h3>🖌️ Brush Settings</h3>
                 <div class="brush-size">
                     <div class="brush-btn active" data-size="1">1x1</div>
@@ -75,17 +86,18 @@
         </div>
 
         <div class="main-canvas">
-            <div class="toolbar">
-                <div class="tool-btn active" data-tool="paint" title="Paint Terrain">🎨 Paint</div>
-                <div class="tool-btn" data-tool="building" title="Place Buildings">🏗️ Build</div>
-                <div class="tool-btn" data-tool="npc" title="Place NPCs">👥 NPCs</div>
-                <div class="tool-btn" data-tool="enemy" title="Place Enemies">👹 Enemies</div>
-                <div class="tool-btn" data-tool="erase" title="Erase">🗑️ Erase</div>
-                <div class="tool-btn" data-tool="pan" title="Pan View">✋ Pan</div>
-                <div class="tool-btn" data-tool="fill" title="Fill Area">🪣 Fill</div>
-                <div class="tool-btn" data-tool="area" title="Define Areas">📍 Area</div>
-                <div class="coordinates" id="coordinates">X: 0, Y: 0</div>
-            </div>
+<div class="toolbar">
+    <div class="tool-btn active" data-tool="paint" title="Paint Terrain">🎨 Paint</div>
+    <div class="tool-btn" data-tool="building" title="Place Buildings">🏗️ Build</div>
+    <div class="tool-btn" data-tool="npc" title="Place NPCs">👥 NPCs</div>
+    <div class="tool-btn" data-tool="enemy" title="Place Enemies">👹 Enemies</div>
+    <div class="tool-btn" data-tool="item" title="Place Items">💰 Items</div>
+    <div class="tool-btn" data-tool="erase" title="Erase">🗑️ Erase</div>
+    <div class="tool-btn" data-tool="pan" title="Pan View">✋ Pan</div>
+    <div class="tool-btn" data-tool="fill" title="Fill Area">🪣 Fill</div>
+    <div class="tool-btn" data-tool="area" title="Define Areas">📍 Area</div>
+    <div class="coordinates" id="coordinates">X: 0, Y: 0</div>
+</div>
 
             <div class="canvas-view" id="canvasView">
                 <div class="canvas-grid" id="canvasGrid"></div>
@@ -173,13 +185,12 @@
                     <div>Buildings: <span id="buildingCount">0</span></div>
                     <div>NPCs: <span id="npcCount">0</span></div>
                     <div>Enemies: <span id="enemyCount">0</span></div>
+                    <div>Items: <span id="itemCount">0</span></div>
                     <div>Areas: <span id="areaCount">0</span></div>
                     <div>Terrain Types: <span id="terrainTypes">0</span></div>
                     <div>Last Action: <span id="lastAction">Ready</span></div>
                 </div>
             </div>
-        </div>
-    </div>
 
     <div class="modal" id="exportModal">
         <div class="modal-content">

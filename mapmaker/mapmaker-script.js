@@ -8,6 +8,7 @@ let mapData = {
     buildings: [],
     npcs: [],
     enemies: [],
+    items: [],
     areas: []
 };
 
@@ -17,6 +18,7 @@ let editorState = {
     selectedBuilding: 'house',
     selectedNPC: 'villager',
     selectedEnemy: 'goblin',
+    selectedItem: 'gold',
     brushSize: 1,
     isMouseDown: false,
     isPanning: false,
@@ -43,6 +45,7 @@ function initializeMap() {
     mapData.buildings = [];
     mapData.npcs = [];
     mapData.enemies = [];
+    mapData.items = [];
     mapData.areas = [];
     
     for (let y = 0; y < mapData.height; y++) {
@@ -82,6 +85,10 @@ function setupEventListeners() {
         item.addEventListener('click', () => selectEnemy(item.dataset.enemy));
     });
     
+    document.querySelectorAll('[data-item]').forEach(item => {
+        item.addEventListener('click', () => selectItem(item.dataset.item));
+    });
+
     document.querySelectorAll('[data-size]').forEach(btn => {
         btn.addEventListener('click', () => selectBrushSize(parseInt(btn.dataset.size)));
     });
@@ -234,6 +241,9 @@ function performAction(x, y) {
         case 'enemy':
             placeEnemy(x, y);
             break;
+        case 'item':
+            placeItem(x, y);
+            break;
         case 'erase':
             eraseTile(x, y);
             break;
@@ -242,7 +252,6 @@ function performAction(x, y) {
             break;
     }
 }
-
 function paintTerrain(centerX, centerY) {
     const size = editorState.brushSize;
     const radius = Math.floor(size / 2);
@@ -407,11 +416,62 @@ function placeEnemy(x, y) {
     updateStatus(`Placed ${enemyType.name} at (${x}, ${y})`);
 }
 
+function placeItem(x, y) {
+    // Remove existing item at this position
+    mapData.items = mapData.items.filter(i => !(i.x === x && i.y === y));
+    
+    const itemTypes = {
+        gold: {
+            type: 'gold',
+            value: 50,
+            class: 'item-drop'
+        },
+        health_potion: {
+            type: 'health_potion',
+            value: 1,
+            class: 'item-drop health-potion'
+        },
+        mana_potion: {
+            type: 'mana_potion',
+            value: 1,
+            class: 'item-drop mana-potion'
+        },
+        key: {
+            type: 'key',
+            value: 1,
+            class: 'item-drop key'
+        },
+        treasure: {
+            type: 'treasure',
+            value: 100,
+            class: 'item-drop treasure'
+        }
+    };
+    
+    const itemType = itemTypes[editorState.selectedItem] || itemTypes.gold;
+    
+    const itemData = {
+        x: x,
+        y: y,
+        type: itemType.type,
+        value: itemType.value,
+        class: itemType.class
+    };
+    
+    mapData.items.push(itemData);
+    
+    renderCanvas();
+    updateMinimap();
+    updateStats();
+    updateStatus(`Placed ${itemType.type.replace('_', ' ')} at (${x}, ${y})`);
+}
+
 function eraseTile(x, y) {
     mapData.terrain[y][x] = 'grass';
     mapData.buildings = mapData.buildings.filter(b => !(b.x === x && b.y === y));
     mapData.npcs = mapData.npcs.filter(n => !(n.x === x && n.y === y));
     mapData.enemies = mapData.enemies.filter(e => !(e.x === x && e.y === y));
+    mapData.items = mapData.items.filter(i => !(i.x === x && i.y === y));
     
     // Check if clicking on an area
     const area = mapData.areas.find(a => 
@@ -518,6 +578,16 @@ function selectEnemy(enemy) {
     });
     
     updateStatus(`Selected ${enemy} enemy`);
+}
+
+function selectItem(item) {
+    editorState.selectedItem = item;
+    
+    document.querySelectorAll('[data-item]').forEach(itemEl => {
+        itemEl.classList.toggle('active', itemEl.dataset.item === item);
+    });
+    
+    updateStatus(`Selected ${item.replace('_', ' ')} item`);
 }
 
 function selectBrushSize(size) {
@@ -675,7 +745,49 @@ function renderCanvas() {
         enemyEl.onmouseleave = () => enemyEl.style.transform = 'scale(1)';
         canvasGrid.appendChild(enemyEl);
     });
+
+// Render items
+mapData.items.forEach(item => {
+    const itemEl = document.createElement('div');
+    itemEl.className = 'item-drop';
+    itemEl.style.position = 'absolute';  // ADD THIS LINE
+    itemEl.style.left = `${item.x * 32 + 4}px`;
+    itemEl.style.top = `${item.y * 32 + 4}px`;
+    itemEl.style.width = '24px';
+    itemEl.style.height = '24px';
+        itemEl.style.background = 'radial-gradient(circle at 50% 30%, #fbbf24 30%, #f59e0b 60%, #d97706 100%)';
+        itemEl.style.border = '3px solid #92400e';
+        itemEl.style.borderRadius = '50%';
+        itemEl.style.display = 'flex';
+        itemEl.style.alignItems = 'center';
+        itemEl.style.justifyContent = 'center';
+        itemEl.style.fontSize = '14px';
+        itemEl.style.cursor = 'pointer';
+        itemEl.style.transition = 'transform 0.2s ease';
+        itemEl.style.animation = 'itemSparkle 2s ease-in-out infinite';
+        itemEl.style.zIndex = '12';
+        
+        const itemEmojis = {
+            gold: '💰',
+            health_potion: '🧪',
+            mana_potion: '🔮',
+            key: '🗝️',
+            treasure: '📦'
+        };
+        itemEl.innerHTML = itemEmojis[item.type] || '💰';
+        
+        itemEl.title = `${item.type.replace('_', ' ')} - Value: ${item.value}`;
+        itemEl.onclick = (e) => {
+            e.stopPropagation();
+            editObject('item', item);
+        };
+        itemEl.onmouseenter = () => itemEl.style.transform = 'scale(1.15)';
+        itemEl.onmouseleave = () => itemEl.style.transform = 'scale(1)';
+        canvasGrid.appendChild(itemEl);
+    });
 }
+
+
 
 function getNPCEmoji(npcType) {
     const emojis = {
@@ -808,8 +920,22 @@ function editObject(type, obj) {
                 <option value="skeleton" ${obj.class.includes('skeleton') ? 'selected' : ''}>Skeleton</option>
             </select>
         `;
+    } else if (type === 'item') {
+        content = `
+            <h4>Edit Item</h4>
+            <label>Type:</label>
+            <select id="editItemType" style="width: 100%; margin: 8px 0; padding: 4px;">
+                <option value="gold" ${obj.type === 'gold' ? 'selected' : ''}>Gold</option>
+                <option value="health_potion" ${obj.type === 'health_potion' ? 'selected' : ''}>Health Potion</option>
+                <option value="mana_potion" ${obj.type === 'mana_potion' ? 'selected' : ''}>Mana Potion</option>
+                <option value="key" ${obj.type === 'key' ? 'selected' : ''}>Key</option>
+                <option value="treasure" ${obj.type === 'treasure' ? 'selected' : ''}>Treasure</option>
+            </select>
+            <label>Value:</label>
+            <input type="number" id="editValue" value="${obj.value}" style="width: 100%; margin: 8px 0; padding: 4px;">
+        `;
     }
-    
+
     const modal = document.createElement('div');
     modal.style.cssText = `
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -859,6 +985,9 @@ function saveEdit(type, button) {
         obj.goldReward = parseInt(document.getElementById('editGoldReward').value);
         const enemyType = document.getElementById('editEnemyType').value;
         obj.class = `enemy-spawn enemy-${enemyType}`;
+    } else if (type === 'item') {
+        obj.type = document.getElementById('editItemType').value;
+        obj.value = parseInt(document.getElementById('editValue').value);
     }
     
     renderCanvas();
@@ -874,6 +1003,8 @@ function deleteObject(type, x, y) {
         mapData.npcs = mapData.npcs.filter(n => !(n.x === x && n.y === y));
     } else if (type === 'enemy') {
         mapData.enemies = mapData.enemies.filter(e => !(e.x === x && e.y === y));
+    } else if (type === 'item') {
+        mapData.items = mapData.items.filter(i => !(i.x === x && i.y === y));
     }
     
     renderCanvas();
@@ -958,6 +1089,19 @@ function updateMinimap() {
         dot.style.borderRadius = '50%';
         minimapContent.appendChild(dot);
     });
+
+    // Items
+    mapData.items.forEach(item => {
+        const dot = document.createElement('div');
+        dot.style.position = 'absolute';
+        dot.style.left = `${item.x}px`;
+        dot.style.top = `${item.y}px`;
+        dot.style.width = '2px';
+        dot.style.height = '2px';
+        dot.style.backgroundColor = '#fbbf24';
+        dot.style.borderRadius = '50%';
+        minimapContent.appendChild(dot);
+    });
 }
 
 function getTerrainColor(terrain) {
@@ -989,9 +1133,11 @@ function updateStats() {
     
     const npcCountEl = document.getElementById('npcCount');
     const enemyCountEl = document.getElementById('enemyCount');
+    const itemCountEl = document.getElementById('itemCount');
     const areaCountEl = document.getElementById('areaCount');
     if (npcCountEl) npcCountEl.textContent = mapData.npcs.length;
     if (enemyCountEl) enemyCountEl.textContent = mapData.enemies.length;
+    if (itemCountEl) itemCountEl.textContent = mapData.items.length;
     if (areaCountEl) areaCountEl.textContent = mapData.areas.length;
 }
 
@@ -1008,10 +1154,11 @@ function handleKeyboard(e) {
         case '2': selectTool('building'); break;
         case '3': selectTool('npc'); break;
         case '4': selectTool('enemy'); break;
-        case '5': selectTool('erase'); break;
-        case '6': selectTool('pan'); break;
-        case '7': selectTool('fill'); break;
-        case '8': selectTool('area'); break;
+        case '5': selectTool('item'); break;
+        case '6': selectTool('erase'); break;
+        case '7': selectTool('pan'); break;
+        case '8': selectTool('fill'); break;
+        case '9': selectTool('area'); break;
         case 'g': case 'G': toggleGrid(); break;
         case 'a': case 'A': toggleAreas(); break;
         case ' ': e.preventDefault(); centerView(); break;
@@ -1069,6 +1216,7 @@ function resizeMap() {
     mapData.buildings = mapData.buildings.filter(b => b.x < newWidth && b.y < newHeight);
     mapData.npcs = mapData.npcs.filter(n => n.x < newWidth && n.y < newHeight);
     mapData.enemies = mapData.enemies.filter(e => e.x < newWidth && e.y < newHeight);
+    mapData.items = mapData.items.filter(i => i.x < newWidth && i.y < newHeight);
     mapData.areas = mapData.areas.filter(a => a.x + a.width <= newWidth && a.y + a.height <= newHeight);
     
     mapData.width = newWidth;
@@ -1107,6 +1255,7 @@ function generateRandom() {
         mapData.buildings = [];
         mapData.npcs = [];
         mapData.enemies = [];
+        mapData.items = [];
         mapData.areas = [];
         
         // Generate areas
@@ -1185,10 +1334,34 @@ function generateRandom() {
             });
         }
         
+        // Generate items (OUTSIDE the enemies loop!)
+        const itemTypes = ['gold', 'health_potion', 'mana_potion', 'key', 'treasure'];
+        const numItems = Math.floor(Math.random() * 15) + 8;
+        for (let i = 0; i < numItems; i++) {
+            const x = Math.floor(Math.random() * mapData.width);
+            const y = Math.floor(Math.random() * mapData.height);
+            const type = itemTypes[Math.floor(Math.random() * itemTypes.length)];
+            
+            const baseValues = {
+                gold: 50,
+                health_potion: 1,
+                mana_potion: 1,
+                key: 1,
+                treasure: 100
+            };
+            
+            mapData.items.push({
+                x: x, y: y,
+                type: type,
+                value: baseValues[type],
+                class: 'item-drop'
+            });
+        }
+        
         renderCanvas();
         updateMinimap();
         updateStats();
-        updateStatus('Random map with areas generated');
+        updateStatus('Random map with areas and items generated');
     }
 }
 
@@ -1196,20 +1369,21 @@ function exportMap() {
     mapData.name = document.getElementById('mapName').value || 'Custom Map';
     
     const exportData = {
-        name: mapData.name,
-        width: mapData.width,
-        height: mapData.height,
-        terrain: mapData.terrain,
-        buildings: mapData.buildings,
-        npcs: mapData.npcs,
-        enemies: mapData.enemies,
-        areas: mapData.areas,
-        metadata: {
-            created: new Date().toISOString(),
-            version: '1.2',
-            creator: 'EternalBliss Map Maker Enhanced with Areas'
-        }
-    };
+    name: mapData.name,
+    width: mapData.width,
+    height: mapData.height,
+    terrain: mapData.terrain,
+    buildings: mapData.buildings,
+    npcs: mapData.npcs,
+    enemies: mapData.enemies,
+    items: mapData.items,  // <-- ADD THIS LINE
+    areas: mapData.areas,
+    metadata: {
+        created: new Date().toISOString(),
+        version: '1.2',
+        creator: 'EternalBliss Map Maker Enhanced with Areas and Items'
+    }
+};
     
     document.getElementById('exportOutput').textContent = JSON.stringify(exportData, null, 2);
     document.getElementById('exportModal').style.display = 'flex';
@@ -1221,15 +1395,16 @@ function exportCode() {
     const buildingsCode = `\n\n// Buildings\nconst customBuildings = ${JSON.stringify(mapData.buildings, null, 2)};`;
     const npcsCode = `\n\n// NPCs\nconst customNPCs = ${JSON.stringify(mapData.npcs, null, 2)};`;
     const enemiesCode = `\n\n// Enemies\nconst customEnemies = ${JSON.stringify(mapData.enemies, null, 2)};`;
+    const itemsCode = `\n\n// Items\nconst customItems = ${JSON.stringify(mapData.items, null, 2)};`;  // ADD THIS
     const areasCode = `\n\n// Areas/Zones\nconst customAreas = ${JSON.stringify(mapData.areas, null, 2)};`;
     
-    const integrationCode = `\n\n// Integration Code\n// Replace the generateWorld() function with:\nfunction generateWorld() {\n    worldMap = customTerrain;\n    gameState.world.width = ${mapData.width};\n    gameState.world.height = ${mapData.height};\n    gameState.world.areas = customAreas;\n}\n\n// Replace the createBuildings() function with:\nfunction createBuildings() {\n    buildings = customBuildings;\n}\n\n// Replace the createNPCs() function with:\nfunction createNPCs() {\n    npcs = customNPCs;\n}\n\n// Replace the createEnemies() function with:\nfunction createEnemies() {\n    enemies = customEnemies;\n}\n\n// Add area detection function:\nfunction getAreaAtPosition(x, y) {\n    return customAreas.find(area => \n        x >= area.x && x < area.x + area.width &&\n        y >= area.y && y < area.y + area.height\n    );\n}`;
+    const integrationCode = `\n\n// Integration Code\n// Replace the generateWorld() function with:\nfunction generateWorld() {\n    worldMap = customTerrain;\n    gameState.world.width = ${mapData.width};\n    gameState.world.height = ${mapData.height};\n    gameState.world.areas = customAreas;\n}\n\n// Replace the createBuildings() function with:\nfunction createBuildings() {\n    buildings = customBuildings;\n}\n\n// Replace the createNPCs() function with:\nfunction createNPCs() {\n    npcs = customNPCs;\n}\n\n// Replace the createEnemies() function with:\nfunction createEnemies() {\n    enemies = customEnemies;\n}\n\n// Replace the createItems() function with:\nfunction createItems() {\n    items = customItems;\n}\n\n// Add area detection function:\nfunction getAreaAtPosition(x, y) {\n    return customAreas.find(area => \n        x >= area.x && x < area.x + area.width &&\n        y >= area.y && y < area.y + area.height\n    );\n}`;
     
-    const fullCode = terrainCode + buildingsCode + npcsCode + enemiesCode + areasCode + integrationCode;
+    const fullCode = terrainCode + buildingsCode + npcsCode + enemiesCode + itemsCode + areasCode + integrationCode;  // ADD itemsCode here
     
     document.getElementById('exportOutput').textContent = fullCode;
     document.getElementById('exportModal').style.display = 'flex';
-    updateStatus('Game code exported with all entities and areas');
+    updateStatus('Game code exported with all entities, items and areas');
 }
 
 function showImportModal() {
@@ -1252,6 +1427,7 @@ function importMap() {
         mapData.buildings = importedData.buildings || [];
         mapData.npcs = importedData.npcs || [];
         mapData.enemies = importedData.enemies || [];
+        mapData.items = importedData.items || [];
         mapData.areas = importedData.areas || [];
         
         document.getElementById('mapName').value = mapData.name;
