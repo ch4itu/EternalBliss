@@ -1,14 +1,12 @@
-/* EternalBliss Algorand */
-
-/* Base Styles (Original) */
+/* Base Styles */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'Courier New', monospace;
 }
 
 body {
+    font-family: 'Courier New', monospace;
     background: #000;
     color: #fff;
     overflow: hidden;
@@ -24,7 +22,7 @@ body {
     background: #000;
 }
 
-/* Left Panel Styles (Original) */
+/* Left Panel Styles */
 .left-panel {
     width: 300px;
     background: #1a1a2e;
@@ -34,15 +32,7 @@ body {
     box-shadow: inset -4px 0 8px rgba(0,0,0,0.5);
 }
 
-h3 {
-    color: #fff;
-    border-bottom: 2px solid #3d5a80;
-    padding-bottom: 8px;
-    margin-bottom: 16px;
-    font-size: 1.2em;
-}
-
-/* Main Game Area (Original) */
+/* Main Game Area */
 .main-game {
     flex: 1;
     display: flex;
@@ -65,69 +55,88 @@ h3 {
     transition: transform 0.15s ease;
 }
 
-/* ------------------------------------------- */
-/* NEW-AGE GRAPHICS FOR WORLD ELEMENTS */
-/* ------------------------------------------- */
-
 /* Tile System */
 .tile {
     position: absolute;
     width: 32px;
     height: 32px;
-    background-size: cover;
-    image-rendering: auto;
-    border: none;
+    background-size: 32px 32px;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
 }
 
 /* Terrain Sprites */
 .grass {
-    background: #2a3d2e;
-    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+    background: 
+        radial-gradient(circle at 8px 8px, #4a7c59 2px, transparent 2px),
+        radial-gradient(circle at 24px 16px, #4a7c59 1px, transparent 1px),
+        radial-gradient(circle at 16px 24px, #4a7c59 1px, transparent 1px),
+        linear-gradient(45deg, #3d6b47 25%, transparent 25%),
+        linear-gradient(-45deg, #3d6b47 25%, transparent 25%),
+        #2d5016;
+    background-size: 16px 16px, 16px 16px, 16px 16px, 8px 8px, 8px 8px, 32px 32px;
 }
 
 .water {
-    background: #0a1128;
-    background-image: linear-gradient(
-        -45deg,
-        #121d33 25%,
-        #0a1128 25%,
-        #0a1128 50%,
-        #121d33 50%,
-        #121d33 75%,
-        #0a1128 75%
-    );
-    background-size: 20px 20px;
-    animation: water-flow 4s linear infinite;
-    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+    background: 
+        repeating-linear-gradient(
+            0deg,
+            #1e40af 0px,
+            #1e40af 2px,
+            #2563eb 2px,
+            #2563eb 4px,
+            #3b82f6 4px,
+            #3b82f6 6px,
+            #2563eb 6px,
+            #2563eb 8px
+        );
+    animation: water-flow 2s linear infinite;
 }
 
 @keyframes water-flow {
-    100% { background-position: 20px 20px; }
+    0% { background-position: 0 0; }
+    100% { background-position: 0 -8px; }
 }
 
 .mountain {
-    background: #3c424a;
-    background-image: 
-        linear-gradient(135deg, rgba(255,255,255,0.1) 25%, transparent 25%),
-        linear-gradient(225deg, rgba(255,255,255,0.1) 25%, transparent 25%),
-        linear-gradient(315deg, rgba(255,255,255,0.1) 25%, transparent 25%),
-        linear-gradient(45deg, rgba(255,255,255,0.1) 25%, transparent 25%);
-    background-size: 16px 16px;
+    background: 
+        conic-gradient(from 0deg at 50% 30%, #9ca3af 0deg, #6b7280 90deg, #4b5563 180deg, #374151 270deg),
+        linear-gradient(to bottom, #9ca3af 0%, #6b7280 50%, #4b5563 100%);
+    background-size: 32px 32px;
 }
 
 .forest {
-    background: #1d271e;
-    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+    background: 
+        radial-gradient(circle at 16px 8px, #166534 6px, transparent 6px),
+        radial-gradient(circle at 8px 20px, #15803d 4px, transparent 4px),
+        radial-gradient(circle at 24px 24px, #166534 5px, transparent 5px),
+        #0f2a0a;
 }
 
 .road {
-    background: #4a3e3c;
-    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+    background: 
+        repeating-linear-gradient(
+            90deg,
+            #8b5a2b 0px,
+            #8b5a2b 8px,
+            #a16207 8px,
+            #a16207 16px,
+            #8b5a2b 16px,
+            #8b5a2b 24px,
+            #a16207 24px,
+            #a16207 32px
+        );
 }
 
 .sand {
-    background: #4d462f;
-    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+    background: 
+        radial-gradient(circle at 6px 6px, #f59e0b 1px, transparent 1px),
+        radial-gradient(circle at 18px 14px, #f59e0b 1px, transparent 1px),
+        radial-gradient(circle at 26px 26px, #f59e0b 1px, transparent 1px),
+        radial-gradient(circle at 10px 22px, #f59e0b 1px, transparent 1px),
+        #eab308;
+    background-size: 16px 16px;
 }
 
 /* Building Sprites */
@@ -136,275 +145,308 @@ h3 {
     height: 64px;
     position: absolute;
     cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    border: none;
-    background: transparent;
-    border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    transition: transform 0.1s ease;
 }
 
 .building:hover {
-    transform: translateY(-5px) scale(1.05);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.7);
+    transform: scale(1.05);
 }
 
 .house {
-    background: linear-gradient(135deg, #3a3f45, #2f3439);
-    border: 1px solid #4a4f56;
+    background: 
+        linear-gradient(to bottom, #92400e 0px, #92400e 16px, #7c2d12 16px, #7c2d12 48px, #451a03 48px, #451a03 64px),
+        linear-gradient(to right, transparent 16px, #451a03 16px, #451a03 48px, transparent 48px);
 }
+
 .house::before {
     content: '';
     position: absolute;
-    top: -10px;
-    left: 10px;
-    right: 10px;
-    height: 30px;
-    background: #a94b4b;
-    border-radius: 5px;
+    top: 0px;
+    left: 8px;
+    right: 8px;
+    height: 20px;
+    background: 
+        conic-gradient(from 0deg at 50% 100%, #dc2626 0deg, #b91c1c 60deg, #991b1b 120deg, #7f1d1d 180deg, #991b1b 240deg, #b91c1c 300deg);
 }
+
 .house::after {
-    content: '🏠';
+    content: '';
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 24px;
-    color: #fff;
-    text-shadow: 0 0 10px rgba(255,255,255,0.5);
+    top: 32px;
+    left: 24px;
+    width: 16px;
+    height: 20px;
+    background: #451a03;
+    border: 2px solid #1c0a00;
 }
 
 .shop {
-    background: linear-gradient(135deg, #3d5a80, #2c4263);
-    border: 1px solid #58a6ff;
+    background: 
+        linear-gradient(to bottom, #059669 0px, #059669 16px, #047857 16px, #047857 48px, #064e3b 48px, #064e3b 64px);
 }
+
 .shop::before {
     content: '';
     position: absolute;
-    top: -10px;
-    left: 10px;
-    right: 10px;
-    height: 30px;
-    background: #a94b4b;
-    border-radius: 5px;
+    top: 0px;
+    left: 4px;
+    right: 4px;
+    height: 20px;
+    background: 
+        repeating-linear-gradient(45deg, #dc2626 0px, #dc2626 4px, #fbbf24 4px, #fbbf24 8px);
 }
+
 .shop::after {
     content: '🏪';
     position: absolute;
-    top: 50%;
+    top: 24px;
     left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 24px;
-    color: #fff;
+    transform: translateX(-50%);
+    font-size: 20px;
 }
 
 .inn {
-    background: linear-gradient(135deg, #7c3aed, #6d28d9);
-    border: 1px solid #9a68fa;
+    background: 
+        linear-gradient(to bottom, #7c3aed 0px, #7c3aed 16px, #6d28d9 16px, #6d28d9 48px, #4c1d95 48px, #4c1d95 64px);
 }
+
 .inn::before {
     content: '';
     position: absolute;
-    top: -10px;
-    left: 10px;
-    right: 10px;
-    height: 30px;
-    background: #a94b4b;
-    border-radius: 5px;
+    top: 0px;
+    left: 8px;
+    right: 8px;
+    height: 20px;
+    background: 
+        linear-gradient(to bottom, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
 }
+
 .inn::after {
     content: '🛏️';
     position: absolute;
-    top: 50%;
+    top: 24px;
     left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 24px;
-    color: #fff;
+    transform: translateX(-50%);
+    font-size: 18px;
 }
 
 .temple {
-    background: linear-gradient(135deg, #ffd700, #ffc400);
-    border: 1px solid #ffe65a;
+    background: 
+        linear-gradient(to bottom, #fbbf24 0px, #fbbf24 16px, #f59e0b 16px, #f59e0b 48px, #d97706 48px, #d97706 64px);
 }
+
 .temple::before {
-    content: '🙏';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 28px;
-    color: #fff;
-    text-shadow: 0 0 15px #ffd700;
-}
-.temple::after {
     content: '';
     position: absolute;
-    top: -12px;
+    top: -8px;
     left: 50%;
+    transform: translateX(-50%);
     width: 0;
     height: 0;
-    border-left: 20px solid transparent;
-    border-right: 20px solid transparent;
-    border-bottom: 30px solid #ffd700;
+    border-left: 16px solid transparent;
+    border-right: 16px solid transparent;
+    border-bottom: 24px solid #fbbf24;
+}
+
+.temple::after {
+    content: '🙏';
+    position: absolute;
+    top: 20px;
+    left: 50%;
     transform: translateX(-50%);
+    font-size: 20px;
+    color: #fff;
 }
 
 .castle {
     width: 96px;
     height: 96px;
-    background: linear-gradient(135deg, #4b5563, #374151);
-    border: 1px solid #6b7280;
-}
-.castle::after {
-    content: '🏰';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 48px;
-    color: #fff;
-    text-shadow: 0 0 15px rgba(255,255,255,0.7);
+    background: 
+        linear-gradient(to bottom, #6b7280 0px, #6b7280 24px, #4b5563 24px, #4b5563 72px, #374151 72px, #374151 96px);
 }
 
-/* Avatar Styles */
-.npc-avatar, .enemy-avatar, .other-player-avatar, .main-player-avatar {
+.castle::before {
+    content: '';
+    position: absolute;
+    top: -16px;
+    left: 8px;
+    right: 8px;
+    height: 32px;
+    background: 
+        repeating-linear-gradient(0deg, #6b7280 0px, #6b7280 8px, #4b5563 8px, #4b5563 16px),
+        linear-gradient(to bottom, #6b7280 0%, #4b5563 100%);
+}
+
+.castle::after {
+    content: '👑';
+    position: absolute;
+    top: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 24px;
+}
+
+/* Character Sprites */
+.player-sprite {
     position: absolute;
     width: 32px;
     height: 32px;
+    z-index: 100;
+    transition: all 0.15s ease;
+    background: 
+        radial-gradient(circle at 16px 8px, #fbbf24 4px, transparent 4px),
+        radial-gradient(circle at 12px 16px, #3b82f6 3px, transparent 3px),
+        radial-gradient(circle at 20px 16px, #3b82f6 3px, transparent 3px),
+        linear-gradient(to bottom, #fbbf24 0px, #fbbf24 12px, #3b82f6 12px, #3b82f6 20px, #8b5a2b 20px, #8b5a2b 28px, #451a03 28px, #451a03 32px);
+    animation: player-idle-bob 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes player-idle-bob {
+    0% { transform: translateY(0px); }
+    100% { transform: translateY(-2px); }
+}
+
+.player-sprite::after {
+    content: '';
+    position: absolute;
+    top: 4px;
+    left: 14px;
+    width: 4px;
+    height: 4px;
+    background: #000;
     border-radius: 50%;
+    box-shadow: 4px 0 0 #000;
+}
+
+.player-sprite.walking {
+    animation: player-walk 0.4s ease-in-out infinite alternate;
+}
+
+@keyframes player-walk {
+    0% { transform: translateY(0px) scaleY(1); }
+    100% { transform: translateY(-1px) scaleY(0.98); }
+}
+
+/* NPC Sprites */
+.npc {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    z-index: 50;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-    z-index: 15;
+    transition: transform 0.1s ease;
+    animation: npc-idle 3s ease-in-out infinite;
+}
+
+.npc:hover {
+    transform: scale(1.1);
+}
+
+@keyframes npc-idle {
+    0%, 100% { transform: translateX(0px); }
+    50% { transform: translateX(1px); }
+}
+
+.npc-villager {
+    background: 
+        radial-gradient(circle at 16px 8px, #8b5a2b 4px, transparent 4px),
+        linear-gradient(to bottom, #8b5a2b 0px, #8b5a2b 12px, #059669 12px, #059669 20px, #451a03 20px, #451a03 28px, #1c0a00 28px, #1c0a00 32px);
+}
+
+.npc-merchant {
+    background: 
+        radial-gradient(circle at 16px 8px, #dc2626 4px, transparent 4px),
+        linear-gradient(to bottom, #dc2626 0px, #dc2626 12px, #7c3aed 12px, #7c3aed 20px, #451a03 20px, #451a03 28px, #1c0a00 28px, #1c0a00 32px);
+}
+
+.npc-priest {
+    background: 
+        radial-gradient(circle at 16px 8px, #9ca3af 4px, transparent 4px),
+        linear-gradient(to bottom, #9ca3af 0px, #9ca3af 12px, #fbbf24 12px, #fbbf24 20px, #8b5a2b 20px, #8b5a2b 28px, #451a03 28px, #451a03 32px);
+}
+
+.npc-elder {
+    background: 
+        radial-gradient(circle at 16px 8px, #e5e7eb 4px, transparent 4px),
+        linear-gradient(to bottom, #e5e7eb 0px, #e5e7eb 12px, #6d28d9 12px, #6d28d9 20px, #451a03 20px, #451a03 28px, #1c0a00 28px, #1c0a00 32px);
+}
+
+/* Enemy Sprites */
+.enemy-spawn {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    z-index: 30;
+    cursor: pointer;
+    animation: enemy-glow 2s ease-in-out infinite;
+    transition: transform 0.1s ease;
+}
+
+.enemy-spawn:hover {
+    transform: scale(1.1);
+}
+
+@keyframes enemy-glow {
+    0%, 100% { 
+        box-shadow: 0 0 8px #dc2626, inset 0 0 8px rgba(220, 38, 38, 0.3);
+        filter: brightness(1);
+    }
+    50% { 
+        box-shadow: 0 0 16px #dc2626, inset 0 0 16px rgba(220, 38, 38, 0.5);
+        filter: brightness(1.2);
+    }
+}
+
+.enemy-goblin {
+    background: 
+        radial-gradient(circle at 16px 8px, #16a34a 4px, transparent 4px),
+        linear-gradient(to bottom, #16a34a 0px, #16a34a 12px, #7c2d12 12px, #7c2d12 20px, #166534 20px, #166534 28px, #064e3b 28px, #064e3b 32px);
+}
+
+.enemy-dragon {
+    background: 
+        radial-gradient(circle at 16px 6px, #dc2626 6px, transparent 6px),
+        radial-gradient(circle at 8px 16px, #dc2626 4px, transparent 4px),
+        radial-gradient(circle at 24px 16px, #dc2626 4px, transparent 4px),
+        linear-gradient(to bottom, #dc2626 0px, #dc2626 12px, #991b1b 12px, #991b1b 24px, #7f1d1d 24px, #7f1d1d 32px);
+}
+
+.enemy-wolf {
+    background: 
+        radial-gradient(circle at 16px 8px, #4b5563 4px, transparent 4px),
+        radial-gradient(circle at 12px 16px, #4b5563 3px, transparent 3px),
+        radial-gradient(circle at 20px 16px, #4b5563 3px, transparent 3px),
+        linear-gradient(to bottom, #4b5563 0px, #4b5563 12px, #374151 12px, #374151 24px, #1f2937 24px, #1f2937 32px);
+}
+
+/* Multiplayer Players */
+.other-player {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    z-index: 99;
+    cursor: pointer;
+    background: linear-gradient(135deg, #10b981, #34d399);
+    border: 2px solid #065f46;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 20px;
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    font-size: 16px;
+    animation: player-pulse 2s ease-in-out infinite;
+    transition: all 0.2s ease;
 }
 
-.npc-avatar:hover, .enemy-avatar:hover, .other-player-avatar:hover {
-    transform: translateY(-4px) scale(1.1);
-    z-index: 20;
-    box-shadow: 0 8px 15px rgba(0,0,0,0.6);
+.other-player:hover {
+    transform: scale(1.2);
 }
 
-/* NPC Avatars */
-.npc-avatar {
-    background: linear-gradient(135deg, #4a7c59, #3d6b47);
-    border: 2px solid #5d936c;
-}
-.npc-avatar[data-npc-type="merchant"] { background: linear-gradient(135deg, #f59e0b, #d97706); border-color: #fbbf24; }
-.npc-avatar[data-npc-type="priest"] { background: linear-gradient(135deg, #7c3aed, #6d28d9); border-color: #8b5cf6; }
-.npc-avatar[data-npc-type="elder"] { background: linear-gradient(135deg, #4b5563, #374151); border-color: #6b7280; }
-.npc-avatar[data-npc-type="villager"] { background: linear-gradient(135deg, #58a6ff, #3d88d3); border-color: #68b4ff; }
-.npc-avatar::before { content: '🧑'; }
-
-/* Enemy Avatars */
-.enemy-avatar {
-    background: linear-gradient(135deg, #dc2626, #991b1b);
-    border: 2px solid #ef4444;
-    animation: enemyPulse 2s ease-in-out infinite, enemyGlow 1s ease-in-out infinite alternate;
-}
-.enemy-avatar[data-enemy-type="goblin"]::before { content: '👹'; }
-.enemy-avatar[data-enemy-type="dragon"] { background: linear-gradient(135deg, #7c2d12, #dc2626); border-color: #f87171; font-size: 24px; }
-.enemy-avatar[data-enemy-type="dragon"]::before { content: '🐉'; }
-.enemy-avatar[data-enemy-type="wolf"]::before { content: '🐺'; }
-.enemy-avatar[data-enemy-type="monster"]::before { content: '👾'; }
-
-@keyframes enemyPulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.08); }
-}
-@keyframes enemyGlow {
-    0% { box-shadow: 0 4px 10px rgba(220, 38, 38, 0.4); }
-    100% { box-shadow: 0 4px 15px rgba(220, 38, 38, 0.8); }
+@keyframes player-pulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 10px rgba(16, 185, 129, 0.5); }
+    50% { transform: scale(1.1); box-shadow: 0 0 20px rgba(16, 185, 129, 0.8); }
 }
 
-/* Player Avatars */
-.other-player-avatar {
-    background: linear-gradient(135deg, #34d399, #10b981);
-    border: 2px solid #4ade80;
-    animation: playerGlow 2s ease-in-out infinite alternate;
-}
-
-.main-player-avatar {
-    background: linear-gradient(135deg, #fbbf24, #f59e0b);
-    border: 3px solid #fcd34d;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.5), 0 0 15px rgba(251, 191, 36, 0.6);
-    animation: yourPlayerGlow 2s ease-in-out infinite alternate;
-    z-index: 20;
-}
-.other-player-avatar[data-player-level="novice"]::before, .main-player-avatar[data-player-level="novice"]::before { content: '🧙'; }
-.other-player-avatar[data-player-level="veteran"]::before, .main-player-avatar[data-player-level="veteran"]::before { content: '⚔️'; }
-.other-player-avatar[data-player-level="expert"]::before, .main-player-avatar[data-player-level="expert"]::before { content: '🛡️'; }
-.other-player-avatar[data-player-level="master"]::before, .main-player-avatar[data-player-level="master"]::before { content: '🏹'; }
-.other-player-avatar[data-player-level="legendary"]::before, .main-player-avatar[data-player-level="legendary"]::before { content: '👑'; }
-.other-player-avatar[data-player-level="master"] { background: linear-gradient(135deg, #8b5cf6, #7c3aed); border-color: #a78bfa; }
-.other-player-avatar[data-player-level="legendary"] { background: linear-gradient(135deg, #fbbf24, #f59e0b); border-color: #fcd34d; font-size: 24px; }
-
-@keyframes playerGlow {
-    0% { box-shadow: 0 4px 10px rgba(52, 211, 153, 0.4); }
-    100% { box-shadow: 0 44px 15px rgba(52, 211, 153, 0.8); }
-}
-@keyframes yourPlayerGlow {
-    0% { box-shadow: 0 4px 12px rgba(0,0,0,0.5), 0 0 15px rgba(251, 191, 36, 0.6); }
-    100% { box-shadow: 0 4px 20px rgba(0,0,0,0.7), 0 0 25px rgba(251, 191, 36, 0.9); }
-}
-
-/* Character name overlays */
-.character-name-overlay {
-    position: absolute;
-    top: -22px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.8);
-    color: white;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 9px;
-    font-weight: bold;
-    white-space: nowrap;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    z-index: 25;
-}
-
-.npc-avatar:hover .character-name-overlay,
-.other-player-avatar:hover .character-name-overlay {
-    opacity: 1;
-}
-
-.your-name {
-    background: rgba(251, 191, 36, 0.9);
-    color: #000;
-    opacity: 0.8;
-}
-
-.player-name {
-    background: rgba(52, 211, 153, 0.9);
-    color: #000;
-}
-/* Enemy health bars */
-.enemy-health-bar {
-    position: absolute;
-    top: -8px;
-    left: 2px;
-    width: 28px;
-    height: 4px;
-    background: rgba(0, 0, 0, 0.6);
-    border-radius: 2px;
-    pointer-events: none;
-}
-
-.enemy-health-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #dc2626, #ef4444);
-    border-radius: 2px;
-    transition: width 0.3s ease;
-}
-
-/* UI Components (Original) */
+/* UI Components */
 .wallet-section, .character-info, .inventory, .multiplayer-section {
     background: linear-gradient(135deg, #0f3460 0%, #1e40af 25%, #0f3460 100%);
     padding: 16px;
@@ -595,19 +637,7 @@ h3 {
     box-shadow: 0 6px 12px rgba(0,0,0,0.4);
 }
 
-.btn-warning {
-    background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 50%, #f59e0b 100%);
-    border-color: #d97706;
-    color: #000;
-}
-
-.btn-warning:hover {
-    background: linear-gradient(135deg, #fbbf24 0%, #fde047 50%, #fbbf24 100%);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0,0,0,0.4);
-}
-
-/* Modal Styling (Original) */
+/* Modal Styling */
 .modal {
     position: fixed;
     top: 0;
@@ -792,8 +822,9 @@ h3 {
     position: absolute;
     bottom: 160px;
     right: 16px;
-    width: 200px;
-    height: 150px;
+    width: 220px;
+    min-height: 150px;
+    max-height: 400px;
     background: linear-gradient(135deg, rgba(26, 26, 46, 0.95), rgba(22, 33, 62, 0.95));
     border: 3px solid #3d5a80;
     border-radius: 12px;
@@ -803,14 +834,14 @@ h3 {
 }
 
 .minimap-content {
-    width: 200px;
-    height: 130px;
+    width: 220px;
+    height: 165px;
     background: #2d5016;
     position: relative;
     overflow: hidden;
+    /* Width and height will be set dynamically by JavaScript */
 }
 
-/* Visual Effects (New) */
 .floating-text {
     position: absolute;
     font-size: 16px;
@@ -821,6 +852,7 @@ h3 {
     text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
     font-family: 'Courier New', monospace;
 }
+
 @keyframes float-up {
     0% { opacity: 1; transform: translateY(0) scale(1); }
     50% { opacity: 1; transform: translateY(-15px) scale(1.1); }
@@ -828,15 +860,41 @@ h3 {
 }
 
 .item-drop {
-    background: #fbbf24;
-    border: 2px solid #f59e0b;
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    background: 
+        radial-gradient(circle at 50% 30%, #fbbf24 30%, #f59e0b 60%, #d97706 100%),
+        linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+    border: 3px solid #92400e;
     border-radius: 50%;
-    box-shadow: 0 0 15px rgba(251, 191, 36, 0.8);
-    animation: item-pulse 1.5s ease-in-out infinite alternate;
+    z-index: 80;
+    cursor: pointer;
+    animation: item-sparkle 2s ease-in-out infinite;
+    box-shadow: 0 0 12px rgba(251, 191, 36, 0.6);
 }
-@keyframes item-pulse {
-    0% { transform: scale(1); box-shadow: 0 0 10px rgba(251, 191, 36, 0.6); }
-    100% { transform: scale(1.1); box-shadow: 0 0 20px rgba(251, 191, 36, 1); }
+
+.item-drop::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 6px;
+    width: 6px;
+    height: 3px;
+    background: #fff;
+    border-radius: 50%;
+    opacity: 0.8;
+}
+
+@keyframes item-sparkle {
+    0%, 100% { 
+        transform: scale(1) rotate(0deg);
+        box-shadow: 0 0 12px rgba(251, 191, 36, 0.6);
+    }
+    50% { 
+        transform: scale(1.15) rotate(180deg);
+        box-shadow: 0 0 20px rgba(251, 191, 36, 0.9);
+    }
 }
 
 .particle {
@@ -877,6 +935,7 @@ h3 {
     z-index: 1500;
     border: 4px solid #92400e;
 }
+
 @keyframes level-up-pulse {
     0%, 100% { 
         transform: translate(-50%, -50%) scale(0.8);
@@ -891,7 +950,6 @@ h3 {
         opacity: 1;
     }
 }
-
 
 .inventory-item {
     display: flex;
@@ -979,23 +1037,7 @@ h3 {
     font-size: 0.9em;
 }
 
-/* Loading Spinner */
-.loading-spinner {
-    border: 3px solid rgba(255, 255, 255, 0.1);
-    border-top: 3px solid #10b981;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    animation: spin 1s linear infinite;
-    margin: 0 auto;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-/* Responsive Design (Original) */
+/* Responsive Design */
 @media (max-width: 1200px) {
     .left-panel {
         width: 260px;
@@ -1023,6 +1065,7 @@ h3 {
         font-size: 14px;
     }
     
+    /* Mobile-specific: Hide minimap for smaller screens */
     .minimap {
         display: none;
     }
@@ -1032,7 +1075,8 @@ h3 {
         padding: 8px 12px;
     }
     
-    .desktop-controls-hint {
+    /* Mobile-specific: Hide desktop direction handlers */
+    .desktop-controls-hint { /* Targets the "WASD/Arrows: Move | Space: Interact" line */
         display: none;
     }
 
@@ -1042,7 +1086,7 @@ h3 {
     }
 }
 
-/* Mobile-specific adjustments (Original) */
+/* Mobile-specific adjustments */
 @media (max-width: 600px) {
     .game-container {
         flex-direction: column;
@@ -1060,15 +1104,14 @@ h3 {
     }
     
     .ui-panel {
-        height: auto;
+        height: auto;            /* let it grow */
         display: flex;
-        flex-wrap: wrap;
+        flex-wrap: wrap;         /* stack blocks if needed */
         gap: 8px;
     }
-    
     .stat-block {
-        flex: 1 1 45%;
-        min-width: auto;
+        flex: 1 1 45%;           /* two columns, wrapping to one if too narrow */
+        min-width: auto;         /* remove the old min-width that forced overflow */
     }
     
     .controls {
@@ -1081,8 +1124,9 @@ h3 {
         font-size: 12px;
     }
 
+    /* Show mobile D-pad on small screens */
     #mobile-controls {
-        display: grid;
+        display: grid; /* Overrides default display: none for larger screens */
     }
 }
 
@@ -1091,48 +1135,51 @@ h3 {
     display: none;
 }
 
+
+/* styles.css */
+
 /* Make the game container full-screen mobile */
 html, body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    touch-action: none;
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  touch-action: none; /* Prevent scrolling when swiping */
 }
 
 /* Scale tiles down on small widths */
 @media (max-width: 600px) {
-    :root {
-        --tile-size: 24px;
-    }
+  :root {
+    --tile-size: 24px; /* instead of 32px */
+  }
 }
 
 /* D-pad container */
 #mobile-controls {
-    position: fixed;
-    bottom: 16px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 160px;
-    height: 160px;
-    display: grid;
-    grid-template-areas:
-        ". up    ."
-        "left .   right"
-        ". down  .";
-    grid-gap: 8px;
-    pointer-events: auto;
-    user-select: none;
-    z-index: 1000;
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 160px;
+  height: 160px;
+  display: grid;
+  grid-template-areas:
+    ". up    ."
+    "left .   right"
+    ". down  .";
+  grid-gap: 8px;
+  pointer-events: auto;
+  user-select: none;
+  z-index: 1000;
 }
 
 /* Individual buttons */
 .ctl-btn {
-    background: rgba(0,0,0,0.5);
-    color: #fff;
-    font-size: 1.2rem;
-    border: none;
-    border-radius: 8px;
-    touch-action: none;
+  background: rgba(0,0,0,0.5);
+  color: #fff;
+  font-size: 1.2rem;
+  border: none;
+  border-radius: 8px;
+  touch-action: none;
 }
 
 /* Layout areas */
@@ -1141,7 +1188,206 @@ html, body {
 .ctl-btn.left  { grid-area: left;  }
 .ctl-btn.right { grid-area: right; }
 
-/* Character interacting animation */
+/* Enhanced Avatar Styles */
+/* Base avatar styling */
+.npc-avatar, .enemy-avatar, .other-player-avatar, .main-player-avatar {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 15;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+.npc-avatar:hover, .enemy-avatar:hover, .other-player-avatar:hover {
+    transform: scale(1.1);
+    z-index: 20;
+}
+
+/* NPC Avatars */
+.npc-avatar {
+    background: linear-gradient(45deg, #3b82f6, #1d4ed8);
+    border: 2px solid #e5e7eb;
+}
+
+/* MODIFIED: Merchant avatar to human emoji */
+.npc-avatar[data-npc-type="merchant"]::before { content: '🧑'; } /* Changed from '🛒' */
+.npc-avatar[data-npc-type="merchant"] {
+    background: linear-gradient(45deg, #f59e0b, #d97706);
+}
+
+.npc-avatar[data-npc-type="priest"]::before { content: '⛪'; }
+.npc-avatar[data-npc-type="elder"]::before { content: '👴'; }
+.npc-avatar[data-npc-type="villager"]::before { content: '🧑'; }
+
+.npc-avatar[data-npc-type="priest"] {
+    background: linear-gradient(45deg, #8b5cf6, #7c3aed);
+}
+
+.npc-avatar[data-npc-type="elder"] {
+    background: linear-gradient(45deg, #6b7280, #4b5563);
+}
+
+/* Enemy Avatars */
+.enemy-avatar {
+    background: linear-gradient(45deg, #dc2626, #991b1b);
+    border: 2px solid #fca5a5;
+    animation: enemyPulse 1.5s ease-in-out infinite;
+}
+
+.enemy-avatar[data-enemy-type="goblin"]::before { content: '👹'; }
+.enemy-avatar[data-enemy-type="dragon"]::before { content: '🐉'; }
+.enemy-avatar[data-enemy-type="wolf"]::before { content: '🐺'; }
+.enemy-avatar[data-enemy-type="monster"]::before { content: '👾'; }
+
+.enemy-avatar[data-enemy-type="dragon"] {
+    background: linear-gradient(45deg, #7c2d12, #dc2626);
+    font-size: 20px;
+}
+
+@keyframes enemyPulse {
+    0%, 100% { 
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3), 0 0 0 2px rgba(220, 38, 38, 0.3);
+    }
+    50% { 
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3), 0 0 0 4px rgba(220, 38, 38, 0.5);
+    }
+}
+
+/* Player Avatars */
+.other-player-avatar {
+    background: linear-gradient(45deg, #34d399, #10b981);
+    border: 2px solid #fff;
+    animation: playerGlow 2s ease-in-out infinite;
+}
+
+.main-player-avatar {
+    background: linear-gradient(45deg, #fbbf24, #f59e0b);
+    border: 3px solid #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 0 0 3px rgba(251, 191, 36, 0.4);
+    animation: yourPlayerGlow 2s ease-in-out infinite;
+    z-index: 20;
+}
+
+/* Player level tiers */
+.other-player-avatar[data-player-level="novice"]::before,
+.main-player-avatar[data-player-level="novice"]::before { content: '🧙‍♂️'; }
+
+.other-player-avatar[data-player-level="veteran"]::before,
+.main-player-avatar[data-player-level="veteran"]::before { content: '⚔️'; }
+
+.other-player-avatar[data-player-level="expert"]::before,
+.main-player-avatar[data-player-level="expert"]::before { content: '🛡️'; }
+
+.other-player-avatar[data-player-level="master"]::before,
+.main-player-avatar[data-player-level="master"]::before { content: '🏹'; }
+
+.other-player-avatar[data-player-level="legendary"]::before,
+.main-player-avatar[data-player-level="legendary"]::before { content: '👑'; }
+
+/* High-level player styling */
+.other-player-avatar[data-player-level="master"],
+.main-player-avatar[data-player-level="master"] {
+    background: linear-gradient(45deg, #8b5cf6, #7c3aed);
+}
+
+.other-player-avatar[data-player-level="legendary"],
+.main-player-avatar[data-player-level="legendary"] {
+    background: linear-gradient(45deg, #fbbf24, #f59e0b);
+    border-color: #fbbf24;
+    font-size: 20px;
+}
+
+@keyframes playerGlow {
+    0%, 100% { 
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3), 0 0 0 2px rgba(52, 211, 153, 0.3);
+    }
+    50% { 
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3), 0 0 0 4px rgba(52, 211, 153, 0.5);
+    }
+}
+
+@keyframes yourPlayerGlow {
+    0%, 100% { 
+        box-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 0 0 3px rgba(251, 191, 36, 0.4);
+    }
+    50% { 
+        box-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 0 0 5px rgba(251, 191, 36, 0.6);
+    }
+}
+
+/* Character name overlays */
+.character-name-overlay {
+    position: absolute;
+    top: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: bold;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 25;
+}
+
+.npc-avatar:hover .character-name-overlay,
+.other-player-avatar:hover .character-name-overlay {
+    opacity: 1;
+}
+
+.your-name {
+    background: rgba(251, 191, 36, 0.9);
+    color: #000;
+    opacity: 0.8;
+}
+
+.player-name {
+    background: rgba(52, 211, 153, 0.9);
+    color: #000;
+}
+
+/* Enemy health bars */
+.enemy-health-bar {
+    position: absolute;
+    top: -8px;
+    left: 2px;
+    width: 28px;
+    height: 4px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 2px;
+    pointer-events: none;
+}
+
+.enemy-health-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #dc2626, #ef4444);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+/* Walking animation for main player */
+.main-player-avatar.walking {
+    animation: walk 0.3s ease-in-out;
+}
+
+@keyframes walk {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05) rotate(2deg); }
+}
+
+/* Special effects for interactions */
 .character-interacting {
     animation: interact 0.5s ease-in-out;
 }

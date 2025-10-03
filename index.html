@@ -465,9 +465,20 @@ function importMap() {
         gameState.player.x = Math.floor(currentMapData.width / 2);
         gameState.player.y = Math.floor(currentMapData.height / 2);
         
-        // Re-render everything
+        // Update world grid dimensions
+        const worldGrid = document.getElementById('worldGrid');
+        worldGrid.style.width = `${currentMapData.width * 32}px`;
+        worldGrid.style.height = `${currentMapData.height * 32}px`;
+        
+        // Re-render everything with new dimensions
         renderWorld();
-        initializeMinimap();
+        
+        // Force immediate minimap update
+        setTimeout(() => {
+            initializeMinimap();
+            updateMinimapOptimized();
+        }, 0);
+        
         centerCameraOnPlayer();
         checkLocation();
         updateUI();
@@ -496,6 +507,9 @@ function showStatus(message, type) {
 
 // Initialize when page loads
 window.addEventListener('load', initMapImporter);
+if (typeof initMapImporter === 'function') {
+    window.addEventListener('load', initMapImporter);
+}
 
 console.log('🗺️ Map Importer Plugin Ready!');
 </script>
