@@ -4,6 +4,26 @@
 // GAME STATE CONFIGURATION
 // ============================================
 
+// ============================================
+// DEFAULT MAP CONFIGURATION
+// ============================================
+// Set to null to use procedurally generated map
+// Set to a map object to use custom map
+const DEFAULT_MAP = null; // Change this to your custom map object
+
+// Example: 
+// const DEFAULT_MAP = {
+//     name: "My Custom Map",
+//     width: 30,
+//     height: 25,
+//     terrain: [...],
+//     buildings: [...],
+//     npcs: [...],
+//     enemies: [...],
+//     items: [...],
+//     areas: [...]
+// };
+
 let gameState = {
     player: {
         name: "",
@@ -950,12 +970,17 @@ function initGame() {
     // Initialize Algorand
     initAlgorand();
     
-    // Generate game world
-    generateWorld();
-    createBuildings();
-    createNPCs();
-    createEnemies();
-    spawnRandomItems();
+    // Load custom map if configured, otherwise generate default
+    if (DEFAULT_MAP) {
+        loadCustomMap(DEFAULT_MAP);
+    } else {
+        // Generate default game world
+        generateWorld();
+        createBuildings();
+        createNPCs();
+        createEnemies();
+        spawnRandomItems();
+    }
     
     // Update UI
     updateUI();
@@ -964,6 +989,54 @@ function initGame() {
     // Setup event listeners
     setupEventListeners();
     setupMobileControls();
+}
+
+function loadCustomMap(mapData) {
+    try {
+        // Validate map data
+        if (!mapData.terrain || !mapData.width || !mapData.height) {
+            console.error('Invalid map data, using default generation');
+            generateWorld();
+            createBuildings();
+            createNPCs();
+            createEnemies();
+            spawnRandomItems();
+            return;
+        }
+        
+        // Load map data
+        gameState.world.width = mapData.width;
+        gameState.world.height = mapData.height;
+        gameState.world.areas = mapData.areas || [];
+        
+        worldMap = mapData.terrain;
+        buildings = mapData.buildings || [];
+        npcs = mapData.npcs || [];
+        enemies = mapData.enemies || [];
+        items = mapData.items || [];
+        
+        // Center player on map
+        gameState.player.x = Math.floor(mapData.width / 2);
+        gameState.player.y = Math.floor(mapData.height / 2);
+        
+        // Update world grid dimensions
+        const worldGrid = document.getElementById('worldGrid');
+        if (worldGrid) {
+            worldGrid.style.width = `${mapData.width * 32}px`;
+            worldGrid.style.height = `${mapData.height * 32}px`;
+        }
+        
+        console.log(`Custom map "${mapData.name}" loaded successfully`);
+        
+    } catch (error) {
+        console.error('Failed to load custom map:', error);
+        console.log('Falling back to default generation');
+        generateWorld();
+        createBuildings();
+        createNPCs();
+        createEnemies();
+        spawnRandomItems();
+    }
 }
 
 // Setup event listeners

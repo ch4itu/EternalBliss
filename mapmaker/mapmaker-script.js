@@ -295,8 +295,6 @@ function placeBuilding(x, y) {
 }
 
 function placeNPC(x, y) {
-    mapData.npcs = mapData.npcs.filter(n => !(n.x === x && n.y === y));
-    
     const npcTypes = {
         villager: {
             name: 'Villager',
@@ -327,12 +325,31 @@ function placeNPC(x, y) {
     
     const npcType = npcTypes[editorState.selectedNPC] || npcTypes.villager;
     
+    // Prompt for custom name
+    const customName = prompt(`Enter NPC name (or leave blank for default):`, npcType.name);
+    
+    // If user cancels, don't place NPC
+    if (customName === null) {
+        updateStatus('NPC placement cancelled');
+        return;
+    }
+    
+    // Use custom name or default
+    const npcName = customName.trim() || npcType.name;
+    
+    // Prompt for custom dialogue (optional)
+    const customDialogue = prompt(`Enter dialogue for ${npcName}:`, npcType.dialogue);
+    const npcDialogue = customDialogue !== null ? customDialogue : npcType.dialogue;
+    
+    // Remove existing NPC at this position
+    mapData.npcs = mapData.npcs.filter(n => !(n.x === x && n.y === y));
+    
     const npcData = {
         x: x,
         y: y,
-        name: `${npcType.name} ${Math.floor(Math.random() * 1000)}`,
+        name: npcName,
         class: npcType.class,
-        dialogue: npcType.dialogue
+        dialogue: npcDialogue
     };
     
     mapData.npcs.push(npcData);
@@ -340,12 +357,10 @@ function placeNPC(x, y) {
     renderCanvas();
     updateMinimap();
     updateStats();
-    updateStatus(`Placed ${npcType.name} at (${x}, ${y})`);
+    updateStatus(`Placed ${npcName} at (${x}, ${y})`);
 }
 
 function placeEnemy(x, y) {
-    mapData.enemies = mapData.enemies.filter(e => !(e.x === x && e.y === y));
-    
     const enemyTypes = {
         goblin: {
             name: 'Goblin',
@@ -396,10 +411,25 @@ function placeEnemy(x, y) {
     
     const enemyType = enemyTypes[editorState.selectedEnemy] || enemyTypes.goblin;
     
+    // Prompt for custom name
+    const customName = prompt(`Enter enemy name (or leave blank for default):`, enemyType.name);
+    
+    // If user cancels, don't place enemy
+    if (customName === null) {
+        updateStatus('Enemy placement cancelled');
+        return;
+    }
+    
+    // Use custom name or default
+    const enemyName = customName.trim() || enemyType.name;
+    
+    // Remove existing enemy at this position
+    mapData.enemies = mapData.enemies.filter(e => !(e.x === x && e.y === y));
+    
     const enemyData = {
         x: x,
         y: y,
-        name: `${enemyType.name} ${Math.floor(Math.random() * 1000)}`,
+        name: enemyName,
         class: enemyType.class,
         hp: enemyType.hp,
         maxHp: enemyType.maxHp,
@@ -413,7 +443,7 @@ function placeEnemy(x, y) {
     renderCanvas();
     updateMinimap();
     updateStats();
-    updateStatus(`Placed ${enemyType.name} at (${x}, ${y})`);
+    updateStatus(`Placed ${enemyName} at (${x}, ${y})`);
 }
 
 function placeItem(x, y) {

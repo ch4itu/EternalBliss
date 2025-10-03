@@ -347,100 +347,315 @@ function validateJsonMap() {
     try {
         const mapData = JSON.parse(jsonText);
         
-        // Basic validation
-        if (!mapData.terrain || !mapData.width || !mapData.height) {
-            throw new Error('Missing required fields (terrain, width, height)');
+        // Comprehensive validation
+        const errors = [];
+        
+        if (!mapData.terrain) errors.push('Missing terrain data');
+        if (!mapData.width || mapData.width < 10) errors.push('Invalid or missing width (min: 10)');
+        if (!mapData.height || mapData.height < 10) errors.push('Invalid or missing height (min: 10)');
+        
+        if (mapData.terrain && (!Array.isArray(mapData.terrain) || mapData.terrain.length !== mapData.height)) {
+            errors.push('Terrain array height mismatch');
+        }
+        
+        if (mapData.terrain && mapData.terrain.length > 0 && mapData.terrain[0].length !== mapData.width) {
+            errors.push('Terrain array width mismatch');
+        }
+        
+        // Check optional arrays
+        if (mapData.buildings && !Array.isArray(mapData.buildings)) errors.push('Buildings must be an array');
+        if (mapData.npcs && !Array.isArray(mapData.npcs)) errors.push('NPCs must be an array');
+        if (mapData.enemies && !Array.isArray(mapData.enemies)) errors.push('Enemies must be an array');
+        if (mapData.items && !Array.isArray(mapData.items)) errors.push('Items must be an array');
+        if (mapData.areas && !Array.isArray(mapData.areas)) errors.push('Areas must be an array');
+        
+        if (errors.length > 0) {
+            throw new Error(errors.join(', '));
         }
         
         currentMapData = mapData;
         document.getElementById('importButton').disabled = false;
-        showStatus('✅ Map validation successful!', 'success');
+        showStatus('✅ Map validation successful! Ready to import.', 'success');
         return true;
+        
     } catch (error) {
         showStatus('❌ Invalid JSON: ' + error.message, 'error');
+        currentMapData = null;
+        document.getElementById('importButton').disabled = true;
         return false;
     }
 }
 
 function loadPresetMap(presetName) {
     const presets = {
-        starter_village: {
-            name: "Starter Village",
-            width: 30,
-            height: 25,
-            terrain: generateSimpleGrid(30, 25, 'village'),
-            buildings: [
-                {x: 12, y: 10, type: 'inn', name: 'Village Inn', class: 'building house inn'},
-                {x: 15, y: 12, type: 'shop', name: 'General Store', class: 'building house shop'}
-            ],
-            npcs: [
-                {x: 13, y: 11, name: 'Innkeeper', class: 'npc npc-villager', dialogue: 'Welcome to our village!'}
-            ],
-            enemies: [
-                {x: 5, y: 5, name: 'Slime', class: 'enemy-spawn enemy-goblin', hp: 25, maxHp: 25, attack: 6, xpReward: 15, goldReward: 10}
-            ],
-            items: [
-                {x: 20, y: 15, type: 'gold', value: 30}
-            ]
-        },
-        large_city: {
-            name: "Algorand City",
-            width: 50,
-            height: 40,
-            terrain: generateSimpleGrid(50, 40, 'city'),
-            buildings: [
-                {x: 20, y: 15, type: 'castle', name: 'City Hall', class: 'building castle'},
-                {x: 15, y: 20, type: 'shop', name: 'ALGO Market', class: 'building house shop'},
-                {x: 25, y: 18, type: 'inn', name: 'Grand Hotel', class: 'building house inn'}
-            ],
-            npcs: [
-                {x: 21, y: 16, name: 'Mayor', class: 'npc npc-elder', dialogue: 'Welcome to our great city!'}
-            ],
-            enemies: [
-                {x: 40, y: 30, name: 'City Thief', class: 'enemy-spawn enemy-wolf', hp: 45, maxHp: 45, attack: 12, xpReward: 30, goldReward: 20}
-            ],
-            items: [
-                {x: 35, y: 25, type: 'gold', value: 75}
-            ]
-        },
-        dungeon: {
-            name: "Dragon's Lair",
-            width: 35,
-            height: 30,
-            terrain: generateSimpleGrid(35, 30, 'dungeon'),
-            buildings: [
-                {x: 17, y: 25, type: 'castle', name: 'Dragon Lair', class: 'building castle'}
-            ],
-            npcs: [],
-            enemies: [
-                {x: 10, y: 15, name: 'Cave Troll', class: 'enemy-spawn enemy-dragon', hp: 80, maxHp: 80, attack: 20, xpReward: 60, goldReward: 40},
-                {x: 17, y: 26, name: 'Ancient Dragon', class: 'enemy-spawn enemy-dragon', hp: 150, maxHp: 150, attack: 35, xpReward: 100, goldReward: 100}
-            ],
-            items: [
-                {x: 18, y: 27, type: 'gold', value: 500}
-            ]
-        }
+starter_village: {
+    name: "Greenleaf Village",
+    width: 35,
+    height: 30,
+    terrain: generateSimpleGrid(35, 30, 'village'),
+    buildings: [
+        {x: 15, y: 14, type: 'inn', name: 'The Resting Traveler Inn', class: 'building house inn'},
+        {x: 19, y: 14, type: 'shop', name: 'General Goods Store', class: 'building house shop'},
+        {x: 12, y: 17, type: 'house', name: 'Farmer\'s House', class: 'building house'},
+        {x: 22, y: 17, type: 'house', name: 'Blacksmith\'s Home', class: 'building house'},
+        {x: 17, y: 20, type: 'temple', name: 'Village Chapel', class: 'building temple'},
+        {x: 10, y: 11, type: 'house', name: 'Miller\'s Cottage', class: 'building house'},
+        {x: 24, y: 11, type: 'house', name: 'Elder\'s Residence', class: 'building house'}
+    ],
+    npcs: [
+        {x: 16, y: 15, name: 'Innkeeper Martha', class: 'npc npc-villager', dialogue: 'Welcome, traveler! A warm bed and hot meal await you here.'},
+        {x: 20, y: 15, name: 'Merchant Thomas', class: 'npc npc-merchant', dialogue: 'Best prices in the region! Take a look at my wares.'},
+        {x: 18, y: 21, name: 'Priest Benedict', class: 'npc npc-priest', dialogue: 'May the light guide your path through these troubled times.'},
+        {x: 23, y: 18, name: 'Blacksmith Greta', class: 'npc npc-villager', dialogue: 'Need your weapon sharpened? I\'m the best smith in three villages.'},
+        {x: 25, y: 12, name: 'Village Elder', class: 'npc npc-elder', dialogue: 'Dangerous creatures have been spotted near the forest lately. Be careful, young one.'}
+    ],
+    enemies: [
+        {x: 5, y: 8, name: 'Wild Slime', class: 'enemy-spawn enemy-goblin', hp: 20, maxHp: 20, attack: 5, xpReward: 12, goldReward: 8},
+        {x: 30, y: 22, name: 'Goblin Scout', class: 'enemy-spawn enemy-goblin', hp: 30, maxHp: 30, attack: 8, xpReward: 20, goldReward: 15},
+        {x: 3, y: 25, name: 'Forest Wolf', class: 'enemy-spawn enemy-wolf', hp: 35, maxHp: 35, attack: 10, xpReward: 25, goldReward: 18}
+    ],
+    items: [
+        {x: 27, y: 10, type: 'gold', value: 25},
+        {x: 32, y: 20, type: 'health_potion', value: 1},
+        {x: 8, y: 9, type: 'gold', value: 35}
+    ],
+    areas: [
+        {id: 1, name: 'Greenleaf Village', x: 10, y: 10, width: 16, height: 13, color: 'rgba(16, 185, 129, 0.3)', description: 'A peaceful farming village'}
+    ]
+},
+
+    large_city: {
+        name: "Port Algorand",
+        width: 55,
+        height: 45,
+        terrain: generateSimpleGrid(55, 45, 'city'),
+        buildings: [
+            {x: 25, y: 20, type: 'castle', name: 'City Hall & Treasury', class: 'building castle'},
+            {x: 18, y: 15, type: 'shop', name: 'ALGO Exchange Market', class: 'building house shop'},
+            {x: 32, y: 15, type: 'shop', name: 'Weapon & Armor Shop', class: 'building house shop'},
+            {x: 20, y: 25, type: 'inn', name: 'The Golden Anchor Inn', class: 'building house inn'},
+            {x: 30, y: 25, type: 'inn', name: 'Sailor\'s Rest Tavern', class: 'building house inn'},
+            {x: 25, y: 30, type: 'temple', name: 'Grand Cathedral', class: 'building temple'},
+            {x: 15, y: 10, type: 'house', name: 'Merchant Guild', class: 'building house'},
+            {x: 35, y: 10, type: 'house', name: 'Mage Tower', class: 'building house'},
+            {x: 12, y: 35, type: 'shop', name: 'Port Market', class: 'building house shop'},
+            {x: 38, y: 35, type: 'house', name: 'Noble Estate', class: 'building house'}
+        ],
+        npcs: [
+            {x: 26, y: 21, name: 'Mayor Aldrich', class: 'npc npc-elder', dialogue: 'Welcome to Port Algorand, the jewel of the coast!'},
+            {x: 19, y: 16, name: 'Exchange Master Felix', class: 'npc npc-merchant', dialogue: 'Looking to exchange currencies? I offer the fairest rates.'},
+            {x: 33, y: 16, name: 'Armorer Bjorn', class: 'npc npc-merchant', dialogue: 'Quality steel and enchanted armor for sale.'},
+            {x: 21, y: 26, name: 'Innkeeper Rosa', class: 'npc npc-villager', dialogue: 'The finest rooms and ale! Sailors from distant lands stay here.'},
+            {x: 26, y: 31, name: 'High Priestess Elena', class: 'npc npc-priest', dialogue: 'The cathedral welcomes all who seek guidance.'},
+            {x: 13, y: 36, name: 'Port Master', class: 'npc npc-merchant', dialogue: 'Ships arrive daily with exotic goods.'},
+            {x: 16, y: 11, name: 'Guild Master', class: 'npc npc-elder', dialogue: 'Our merchant guild controls all trade routes.'},
+            {x: 36, y: 11, name: 'Court Wizard', class: 'npc npc-priest', dialogue: 'Magic flows strong in this city.'}
+        ],
+        enemies: [
+            {x: 48, y: 38, name: 'City Thug', class: 'enemy-spawn enemy-goblin', hp: 45, maxHp: 45, attack: 12, xpReward: 30, goldReward: 25},
+            {x: 8, y: 8, name: 'Sewer Rat', class: 'enemy-spawn enemy-wolf', hp: 35, maxHp: 35, attack: 10, xpReward: 22, goldReward: 15},
+            {x: 50, y: 15, name: 'Bandit', class: 'enemy-spawn enemy-goblin', hp: 50, maxHp: 50, attack: 14, xpReward: 35, goldReward: 30},
+            {x: 45, y: 8, name: 'Corrupt Guard', class: 'enemy-spawn enemy-wolf', hp: 55, maxHp: 55, attack: 16, xpReward: 40, goldReward: 35}
+        ],
+        items: [
+            {x: 40, y: 30, type: 'gold', value: 50},
+            {x: 10, y: 20, type: 'mana_potion', value: 1},
+            {x: 45, y: 25, type: 'health_potion', value: 1},
+            {x: 28, y: 8, type: 'gold', value: 75},
+            {x: 15, y: 40, type: 'key', value: 1}
+        ],
+        areas: [
+            {id: 1, name: 'Market District', x: 12, y: 8, width: 18, height: 12, color: 'rgba(251, 191, 36, 0.3)', description: 'Bustling marketplace'},
+            {id: 2, name: 'City Center', x: 20, y: 18, width: 15, height: 15, color: 'rgba(59, 130, 246, 0.3)', description: 'Government district'},
+            {id: 3, name: 'Port District', x: 8, y: 32, width: 20, height: 12, color: 'rgba(16, 185, 129, 0.3)', description: 'Harbor and docks'}
+        ]
+    },
+
+
+dungeon: {
+    name: "Caves of the Forgotten",
+    width: 40,
+    height: 35,
+    terrain: generateSimpleGrid(40, 35, 'dungeon'),
+    buildings: [
+        {x: 20, y: 28, type: 'castle', name: 'Ancient Dragon Lair', class: 'building castle'},
+        {x: 10, y: 12, type: 'temple', name: 'Ruined Shrine', class: 'building temple'},
+        {x: 30, y: 14, type: 'house', name: 'Abandoned Camp', class: 'building house'}
+    ],
+    npcs: [
+        {x: 11, y: 13, name: 'Lost Adventurer', class: 'npc npc-villager', dialogue: 'I\'ve been trapped here for days... These caves are cursed! Turn back while you still can!'},
+        {x: 20, y: 7, name: 'Hermit Sage', class: 'npc npc-priest', dialogue: 'Few venture this deep and return. The dragon guards ancient treasures below.'}
+    ],
+    enemies: [
+        {x: 12, y: 18, name: 'Cave Bat Swarm', class: 'enemy-spawn enemy-goblin', hp: 40, maxHp: 40, attack: 12, xpReward: 28, goldReward: 20},
+        {x: 18, y: 19, name: 'Stone Golem', class: 'enemy-spawn enemy-wolf', hp: 70, maxHp: 70, attack: 18, xpReward: 50, goldReward: 35},
+        {x: 25, y: 15, name: 'Dark Wraith', class: 'enemy-spawn enemy-dragon', hp: 85, maxHp: 85, attack: 22, xpReward: 65, goldReward: 45},
+        {x: 28, y: 19, name: 'Skeletal Guardian', class: 'enemy-spawn enemy-dragon', hp: 60, maxHp: 60, attack: 16, xpReward: 45, goldReward: 30},
+        {x: 20, y: 29, name: 'Ancient Red Dragon', class: 'enemy-spawn enemy-dragon', hp: 200, maxHp: 200, attack: 40, xpReward: 150, goldReward: 200}
+    ],
+    items: [
+        {x: 11, y: 14, type: 'health_potion', value: 1},
+        {x: 29, y: 15, type: 'mana_potion', value: 1},
+        {x: 21, y: 30, type: 'treasure', value: 500},
+        {x: 23, y: 28, type: 'gold', value: 150},
+        {x: 20, y: 9, type: 'key', value: 1},
+        {x: 15, y: 20, type: 'gold', value: 100}
+    ],
+    areas: [
+        {id: 1, name: 'Cave Entrance', x: 17, y: 3, width: 7, height: 8, color: 'rgba(107, 114, 128, 0.3)', description: 'Still safe to retreat'},
+        {id: 2, name: 'Deep Caverns', x: 8, y: 16, width: 25, height: 10, color: 'rgba(220, 38, 38, 0.3)', description: 'Dangerous territory'},
+        {id: 3, name: 'Dragon\'s Lair', x: 17, y: 26, width: 8, height: 7, color: 'rgba(127, 29, 29, 0.3)', description: 'Certain death awaits'}
+    ]
+}
     };
     
     currentMapData = presets[presetName];
     document.getElementById('importButton').disabled = false;
-    showStatus(`Loaded ${presetName.replace('_', ' ')} preset!`, 'success');
+    showStatus(`Loaded ${currentMapData.name} preset!`, 'success');
 }
 
 function generateSimpleGrid(width, height, type) {
     const grid = [];
+    
+    // Initialize with base terrain
     for (let y = 0; y < height; y++) {
         grid[y] = [];
         for (let x = 0; x < width; x++) {
-            if (type === 'village') {
-                grid[y][x] = Math.random() < 0.2 ? 'forest' : 'grass';
-            } else if (type === 'city') {
-                grid[y][x] = (x % 8 === 0 || y % 8 === 0) ? 'road' : 'grass';
-            } else if (type === 'dungeon') {
-                grid[y][x] = Math.random() < 0.4 ? 'mountain' : 'grass';
+            grid[y][x] = 'grass';
+        }
+    }
+    
+if (type === 'village') {
+    // Add forest patches around edges
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            if (x < 3 || x >= width - 3 || y < 2 || y >= height - 2) {
+                if (Math.random() < 0.4) grid[y][x] = 'forest';
             }
         }
     }
+    
+    // Add a small pond
+    const pondX = Math.floor(width * 0.25);  // FIXED - added space
+    const pondY = Math.floor(height * 0.3);  // FIXED - added space
+    for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+            if (Math.abs(dx) + Math.abs(dy) <= 2) {
+                grid[pondY + dy][pondX + dx] = 'water';
+            }
+        }
+    }
+        
+        // Main road through center (horizontal)
+        const roadY = Math.floor(height / 2);
+        for (let x = 0; x < width; x++) {
+            grid[roadY][x] = 'road';
+            if (Math.random() < 0.3) grid[roadY - 1][x] = 'road';
+            if (Math.random() < 0.3) grid[roadY + 1][x] = 'road';
+        }
+        
+        // Vertical road intersection
+        const roadX = Math.floor(width / 2);
+        for (let y = Math.floor(height * 0.3); y < Math.floor(height * 0.8); y++) {
+            grid[y][roadX] = 'road';
+        }
+        
+    } else if (type === 'city') {
+        // Grid pattern roads
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                if (x % 8 === 0 || x % 8 === 1 || y % 8 === 0 || y % 8 === 1) {
+                    grid[y][x] = 'road';
+                }
+            }
+        }
+        
+        // Harbor/water at bottom
+        for (let y = Math.floor(height * 0.85); y < height; y++) {
+            for (let x = 0; x < Math.floor(width * 0.4); x++) {
+                grid[y][x] = 'water';
+            }
+        }
+        
+        // Small park areas
+        const parkX = Math.floor(width * 0.7);
+        const parkY = Math.floor(height * 0.65);
+        for (let dy = 0; dy < 6; dy++) {
+            for (let dx = 0; dx < 8; dx++) {
+                if (dx > 0 && dx < 7 && dy > 0 && dy < 5) {
+                    grid[parkY + dy][parkX + dx] = 'forest';
+                }
+            }
+        }
+        
+    } else if (type === 'dungeon') {
+        // Start with mostly mountain/walls
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                grid[y][x] = 'mountain';
+            }
+        }
+        
+        // Carve out cave chambers using cellular automata-like approach
+        const chambers = [
+            {cx: Math.floor(width * 0.5), cy: Math.floor(height * 0.15), r: 4},  // Entrance
+            {cx: Math.floor(width * 0.25), cy: Math.floor(height * 0.35), r: 5}, // Left chamber
+            {cx: Math.floor(width * 0.75), cy: Math.floor(height * 0.4), r: 5},  // Right chamber
+            {cx: Math.floor(width * 0.5), cy: Math.floor(height * 0.55), r: 6},  // Central hall
+            {cx: Math.floor(width * 0.5), cy: Math.floor(height * 0.8), r: 7}    // Dragon lair
+        ];
+        
+        // Create chambers
+        chambers.forEach(chamber => {
+            for (let y = chamber.cy - chamber.r; y <= chamber.cy + chamber.r; y++) {
+                for (let x = chamber.cx - chamber.r; x <= chamber.cx + chamber.r; x++) {
+                    if (y >= 0 && y < height && x >= 0 && x < width) {
+                        const dist = Math.sqrt((x - chamber.cx) ** 2 + (y - chamber.cy) ** 2);
+                        if (dist <= chamber.r) {
+                            grid[y][x] = 'grass';
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Connect chambers with corridors
+        // Entrance to central
+        for (let y = chambers[0].cy; y < chambers[3].cy; y++) {
+            grid[y][chambers[0].cx] = 'grass';
+            grid[y][chambers[0].cx - 1] = 'grass';
+            grid[y][chambers[0].cx + 1] = 'grass';
+        }
+        
+        // Central to left chamber
+        for (let x = chambers[1].cx; x < chambers[3].cx; x++) {
+            grid[chambers[1].cy][x] = 'grass';
+            grid[chambers[1].cy - 1][x] = 'grass';
+        }
+        
+        // Central to right chamber
+        for (let x = chambers[3].cx; x < chambers[3].cx + (chambers[2].cx - chambers[3].cx); x++) {
+            grid[chambers[2].cy][x] = 'grass';
+            grid[chambers[2].cy + 1][x] = 'grass';
+        }
+        
+        // Central to dragon lair
+        for (let y = chambers[3].cy; y < chambers[4].cy; y++) {
+            grid[y][chambers[3].cx] = 'grass';
+            grid[y][chambers[3].cx - 1] = 'grass';
+            grid[y][chambers[3].cx + 1] = 'grass';
+        }
+        
+        // Add some scattered rubble/rocks in passages
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                if (grid[y][x] === 'grass' && Math.random() < 0.05) {
+                    grid[y][x] = 'sand'; // Use sand as rubble
+                }
+            }
+        }
+    }
+    
     return grid;
 }
 
