@@ -26,12 +26,13 @@ let gameState = {
         address: null,
         assetId: null // For player NFT
     },
-    world: {
-        width: 50,
-        height: 37,
-        cameraX: 0,
-        cameraY: 0
-    },
+world: {
+    width: 50,
+    height: 37,
+    cameraX: 0,
+    cameraY: 0,
+    areas: []  // ADD THIS LINE
+},
     inventory: {
         gold: 100,
         healthPotions: 3,
@@ -1138,7 +1139,17 @@ function renderWorld() {
         buildingEl.className = building.class;
         buildingEl.style.left = `${building.x * 32}px`;
         buildingEl.style.top = `${building.y * 32}px`;
-        buildingEl.onclick = () => interactWithBuilding(building);
+        buildingEl.onclick = () => {
+        const distance = Math.sqrt(
+        Math.pow(gameState.player.x - building.x, 2) + 
+        Math.pow(gameState.player.y - building.y, 2)
+    );
+    if (distance <= 2.0) {
+        interactWithBuilding(building);
+    } else {
+        showFloatingText(`Too far from ${building.name}!`, gameState.player.x * 32 + 16, gameState.player.y * 32 - 20, '#ef4444');
+    }
+};
         buildingEl.title = building.name;
         worldGrid.appendChild(buildingEl);
     });
@@ -1159,7 +1170,17 @@ function renderWorld() {
         nameOverlay.textContent = npc.name.split(' ')[0];
         npcEl.appendChild(nameOverlay);
         
-        npcEl.onclick = () => talkToNPC(npc);
+        npcEl.onclick = () => {
+        const distance = Math.sqrt(
+        Math.pow(gameState.player.x - npc.x, 2) + 
+        Math.pow(gameState.player.y - npc.y, 2)
+    );
+    if (distance <= 1.5) {
+        talkToNPC(npc);
+    } else {
+        showFloatingText(`Too far from ${npc.name}!`, gameState.player.x * 32 + 16, gameState.player.y * 32 - 20, '#ef4444');
+    }
+};
         npcEl.title = npc.name;
         worldGrid.appendChild(npcEl);
     });
@@ -1188,16 +1209,31 @@ function renderWorld() {
         worldGrid.appendChild(enemyEl);
     });
     
-    // Render items
-    items.forEach((item, index) => {
-        const itemEl = document.createElement('div');
-        itemEl.className = 'item-drop';
-        itemEl.style.left = `${item.x * 32 + 4}px`;
-        itemEl.style.top = `${item.y * 32 + 4}px`;
-        itemEl.onclick = () => collectItem(index);
-        itemEl.title = `Treasure: ${item.value} gold`;
-        worldGrid.appendChild(itemEl);
-    });
+// Render items
+items.forEach((item, index) => {
+    const itemEl = document.createElement('div');
+    itemEl.className = 'item-drop';
+    itemEl.style.left = `${item.x * 32 + 4}px`;
+    itemEl.style.top = `${item.y * 32 + 4}px`;
+    
+    // Add emoji based on item type
+    const itemEmojis = {
+        gold: '💰',
+        health_potion: '🧪',
+        mana_potion: '🔮',
+        key: '🗝️',
+        treasure: '📦'
+    };
+    itemEl.innerHTML = itemEmojis[item.type] || '💰';
+    
+    itemEl.title = `${item.type.replace('_', ' ')}: ${item.value}`;
+    itemEl.style.fontSize = '14px';
+    itemEl.style.display = 'flex';
+    itemEl.style.alignItems = 'center';
+    itemEl.style.justifyContent = 'center';
+    
+    worldGrid.appendChild(itemEl);
+});
     
     // Render other players with enhanced avatars
     otherPlayers.forEach((player, address) => {
@@ -1346,6 +1382,67 @@ function canMoveTo(x, y) {
     if (tileType === 'water' || tileType === 'mountain') {
         return false;
     }
+
+    // Check for locked doors
+    if (tileType === 'door') {
+        if (gameState.inventory.keys > 0) {
+            gameState.inventory.keys--;
+            worldMap[tileY][tileX] = 'road'; // Change door to road after unlocking
+            renderWorld();
+            updateUI();
+            showFloatingText('Door Unlocked!', 
+                x * 32 + 16, 
+                y * 32 - 20, 
+                '#fbbf24'
+            );
+            createParticleEffect(x * 32 + 16, y * 32, '#fbbf24');
+            return true;
+        } else {
+            showFloatingText('Locked! Need a key.', 
+                gameState.player.x * 32 + 16, 
+                gameState.player.y * 32 - 40, 
+                '#ef4444'
+            );
+            return false;
+        }
+    }
+    
+    
+    // Check if an enemy is blocking this tile
+    const blockingEnemy = enemies.find(enemy => 
+        Math.floor(enemy.x) === tileX && Math.floor(enemy.y) === tileY
+    );
+    
+    if (blockingEnemy) {
+        // Automatically start battle if trying to move into enemy tile
+        if (!gameState.inBattle) {
+            showFloatingText(`${blockingEnemy.name} blocks your path!`, 
+                gameState.player.x * 32 + 16, 
+                gameState.player.y * 32 - 40, 
+                '#ef4444'
+            );
+            setTimeout(() => startBattle(blockingEnemy), 500);
+        }
+        return false;
+    }
+    
+    // OPTIONAL: Check adjacent tiles for enemies (prevents diagonal passing)
+    const adjacentEnemies = enemies.filter(enemy => {
+        const enemyX = Math.floor(enemy.x);
+        const enemyY = Math.floor(enemy.y);
+        const distX = Math.abs(enemyX - tileX);
+        const distY = Math.abs(enemyY - tileY);
+        return distX <= 1 && distY <= 1 && (distX + distY) > 0;
+    });
+
+    if (adjacentEnemies.length > 0 && !gameState.inBattle) {
+        showFloatingText('Enemy nearby - approach carefully!', 
+            gameState.player.x * 32 + 16, 
+            gameState.player.y * 32 - 20, 
+            '#f59e0b'
+        );
+    }
+    // END OPTIONAL
     
     return true;
 }
@@ -1354,19 +1451,35 @@ function canMoveTo(x, y) {
 function checkLocationQuick() {
     let locationName = "Wilderness";
     
-    const settlements = {
-        "Starter Village": {x1: 10, y1: 6, x2: 22, y2: 18},
-        "Smart Contract Town": {x1: 35, y1: 6, x2: 45, y2: 14},
-        "DeFi Village": {x1: 4, y1: 20, x2: 16, y2: 32},
-        "NFT Outpost": {x1: 22, y1: 26, x2: 32, y2: 36},
-        "Foundation Castle": {x1: 22, y1: 2, x2: 28, y2: 8}
-    };
+    // First check custom areas from imported maps
+    if (gameState.world.areas && gameState.world.areas.length > 0) {
+        for (const area of gameState.world.areas) {
+            if (gameState.player.x >= area.x && 
+                gameState.player.x < area.x + area.width &&
+                gameState.player.y >= area.y && 
+                gameState.player.y < area.y + area.height) {
+                locationName = area.name;
+                break;
+            }
+        }
+    }
+    
+    // Fallback to hardcoded settlements if no custom area found
+    if (locationName === "Wilderness") {
+        const settlements = {
+            "Starter Village": {x1: 10, y1: 6, x2: 22, y2: 18},
+            "Smart Contract Town": {x1: 35, y1: 6, x2: 45, y2: 14},
+            "DeFi Village": {x1: 4, y1: 20, x2: 16, y2: 32},
+            "NFT Outpost": {x1: 22, y1: 26, x2: 32, y2: 36},
+            "Foundation Castle": {x1: 22, y1: 2, x2: 28, y2: 8}
+        };
 
-    for (const [name, bounds] of Object.entries(settlements)) {
-        if (gameState.player.x >= bounds.x1 && gameState.player.x <= bounds.x2 &&
-            gameState.player.y >= bounds.y1 && gameState.player.y <= bounds.y2) {
-            locationName = name;
-            break;
+        for (const [name, bounds] of Object.entries(settlements)) {
+            if (gameState.player.x >= bounds.x1 && gameState.player.x <= bounds.x2 &&
+                gameState.player.y >= bounds.y1 && gameState.player.y <= bounds.y2) {
+                locationName = name;
+                break;
+            }
         }
     }
     
@@ -1400,7 +1513,7 @@ function checkItemCollectionOptimized() {
             Math.pow(gameState.player.x - item.x, 2) + 
             Math.pow(gameState.player.y - item.y, 2)
         );
-        if (distance < 0.8) {
+        if (distance < 0.8) { // Increased pickup range slightly
             collectItem(i);
             break;
         }
@@ -1410,10 +1523,32 @@ function checkItemCollectionOptimized() {
 // Collect item
 function collectItem(index) {
     const item = items[index];
-    gameState.inventory.gold += item.value;
-    gameState.stats.treasuresFound++;
     
-    showFloatingText(`+${item.value} Gold!`, item.x * 32 + 16, item.y * 32, '#fbbf24');
+    // Handle different item types
+    switch(item.type) {
+        case 'gold':
+        case 'treasure':
+            gameState.inventory.gold += item.value;
+            showFloatingText(`+${item.value} Gold!`, item.x * 32 + 16, item.y * 32, '#fbbf24');
+            break;
+        case 'health_potion':
+            gameState.inventory.healthPotions += item.value;
+            showFloatingText(`+${item.value} Health Potion!`, item.x * 32 + 16, item.y * 32, '#ef4444');
+            break;
+        case 'mana_potion':
+            gameState.inventory.manaPotions += item.value;
+            showFloatingText(`+${item.value} Mana Potion!`, item.x * 32 + 16, item.y * 32, '#3b82f6');
+            break;
+        case 'key':
+            gameState.inventory.keys += item.value;
+            showFloatingText(`+${item.value} Key!`, item.x * 32 + 16, item.y * 32, '#fbbf24');
+            break;
+        default:
+            gameState.inventory.gold += item.value;
+            showFloatingText(`+${item.value} Gold!`, item.x * 32 + 16, item.y * 32, '#fbbf24');
+    }
+    
+    gameState.stats.treasuresFound++;
     createParticleEffect(item.x * 32 + 16, item.y * 32, '#fbbf24');
     
     items.splice(index, 1);
@@ -1426,14 +1561,13 @@ function collectItem(index) {
 // ============================================
 
 // Initialize minimap with static elements
-// Initialize minimap with static elements
+
 function initializeMinimap() {
     const minimapContent = document.getElementById('minimapContent');
     const minimapContainer = document.querySelector('.minimap');
     minimapContent.innerHTML = '';
     
     // Calculate scale factor dynamically based on map size
-    // Target minimap content size: ~200px width
     const targetWidth = 200;
     const scale = targetWidth / gameState.world.width;
     
@@ -1445,10 +1579,10 @@ function initializeMinimap() {
     minimapContent.style.height = `${contentHeight}px`;
     
     // Adjust container height to fit content + header
-    const headerHeight = 35; // Header padding
-    minimapContainer.style.height = `${contentHeight + headerHeight}px`;
+    const headerHeight = 35;
+    minimapContainer.style.height = `${Math.min(contentHeight + headerHeight, 400)}px`;
     
-    // Add terrain background (simplified)
+    // Add terrain background
     for (let y = 0; y < gameState.world.height; y++) {
         for (let x = 0; x < gameState.world.width; x++) {
             const tile = document.createElement('div');
@@ -1518,7 +1652,7 @@ function initializeMinimap() {
     minimapContent.dataset.scale = scale;
 }
 
-// Optimized minimap update
+
 // Optimized minimap update
 function updateMinimapOptimized() {
     const minimapContent = document.getElementById('minimapContent');
@@ -1876,6 +2010,12 @@ function getBattleEmoji(enemyClass) {
 // Battle action
 function battleAction(action) {
     if (!gameState.inBattle || !gameState.currentEnemy) return;
+    
+    // Prevent actions if enemy is already dead
+    if (gameState.currentEnemy.hp <= 0) {
+        addBattleLog('Enemy is already defeated!', 'log-info');
+        return;
+    }
     
     let playerDamage = 0;
     let playerUsedTurn = true;

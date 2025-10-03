@@ -1396,3 +1396,28 @@ html, body {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.2); }
 }
+
+.door {
+    background: 
+        linear-gradient(to right, #451a03 0px, #451a03 12px, #92400e 12px, #92400e 20px, #451a03 20px, #451a03 32px),
+        linear-gradient(to bottom, #92400e 0%, #7c2d12 50%, #451a03 100%);
+    position: relative;
+}
+
+.door::before {
+    content: '🚪';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 20px;
+}
+
+.door::after {
+    content: '🔒';
+    position: absolute;
+    top: 50%;
+    right: 4px;
+    transform: translateY(-50%);
+    font-size: 12px;
+}

@@ -454,6 +454,7 @@ function importMap() {
         // Update game world
         gameState.world.width = currentMapData.width;
         gameState.world.height = currentMapData.height;
+        gameState.world.areas = currentMapData.areas || []; // ADD THIS
         
         worldMap = currentMapData.terrain;
         buildings = currentMapData.buildings || [];
@@ -473,7 +474,7 @@ function importMap() {
         // Re-render everything with new dimensions
         renderWorld();
         
-        // Force immediate minimap update
+        // Force immediate minimap update with new dimensions
         setTimeout(() => {
             initializeMinimap();
             updateMinimapOptimized();

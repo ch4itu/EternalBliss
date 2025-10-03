@@ -916,3 +916,9 @@ h3 {
         display: none;
     }
 }
+
+.door {
+    background: 
+        linear-gradient(to right, #451a03 0px, #451a03 12px, #92400e 12px, #92400e 20px, #451a03 20px, #451a03 32px),
+        linear-gradient(to bottom, #92400e 0%, #7c2d12 50%, #451a03 100%);
+}

@@ -1111,7 +1111,8 @@ function getTerrainColor(terrain) {
         mountain: '#9ca3af',
         forest: '#166534',
         road: '#8b5a2b',
-        sand: '#eab308'
+        sand: '#eab308',
+        door: '#92400e'
     };
     return colors[terrain] || '#2d5016';
 }
