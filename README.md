@@ -180,7 +180,7 @@ Even if the original team steps away, the world of Eternal Bliss will **never su
 - ✅ Dynamic map importer with 8 preset worlds.
 - ✅ Enhanced avatar and visual systems.
 - ✅ In-game help system and comprehensive documentation.
-- 🔨 Frontend enhancements (UI, animations, multiplayer polish) — IN PROGRESS.  
+- 🔨 Frontend enhancements (Avatars, UI, fog of war, animations, multiplayer polish) — IN PROGRESS.  
 - 🛒 In-game marketplace (ASA-based trading) — SOON.  
 - 🌍 Mainnet launch + community-driven expansion — SOON.  
 
