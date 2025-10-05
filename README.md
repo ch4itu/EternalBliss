@@ -1,4 +1,4 @@
-# 🌟 Eternal Bliss – A Fully On-Chain P2P RPG on Algorand
+# 🌟 Eternal Bliss — A Fully On-Chain P2P RPG on Algorand
 
 https://ch4itu.github.io/EternalBliss/
 
@@ -22,13 +22,14 @@ Eternal Bliss demonstrates that decentralized games can be **fun, fair, permanen
 ## 🎮 Gameplay Loop
 
 - **Create Hero** → Opt-in mints your Hero NFT and initializes stats.  
-- **Explore** → Move across forests, villages, mountains, and lakes (browser-rendered map).  
+- **Explore** → Move across forests, villages, mountains, lakes, and more (browser-rendered map).  
 - **Battle** → Fight enemies, earn gold & XP using transparent on-chain formulas:  
   - Gold = `enemyLevel * 10 + 15`  
   - XP = `enemyLevel * 15 + 20`  
+- **Navigate** → Use boats to cross water bodies (15 moves per boat) or pickaxes to clear mountains (10 uses per pickaxe).
 - **Progress** → Spend gold on items, trade with peers using atomic transfers.  
 - **Offline Play** → The game can be played completely offline; local state is stored, then synced back to Algorand in one efficient transaction.  
-- **Immortality** → Your Hero NFT is forever etched on-chain — your story can’t be lost.  
+- **Immortality** → Your Hero NFT is forever etched on-chain — your story can't be lost.  
 
 ---
 
@@ -73,9 +74,34 @@ Eternal Bliss demonstrates that decentralized games can be **fun, fair, permanen
 
 ---
 
+## 🎒 Game Features
+
+### Navigation & Exploration
+- **Boat System**: Purchase boats (50 gold) to cross water bodies. Each boat provides 15 water tiles of movement. When moves run out while on water, an automatic rescue system teleports you to the nearest land with a small penalty (-20 HP, -10 gold).
+- **Pickaxe System**: Buy pickaxes (75 gold) to clear mountain obstacles. Each pickaxe has 10 uses and permanently converts mountain tiles to grass, creating new pathways.
+- **Dynamic Map Import**: Load preset maps (Starter Village, Large City, Dungeon, Forest Temple, Desert Oasis, Mountain Fortress, Swamp Ruins, Coastal Port) or create custom maps using the integrated Mapmaker.
+
+### Inventory Management
+- **Consumable Items**: Health potions (15 gold), Mana potions (10 gold)
+- **Tools**: Boats (reusable with move limits), Pickaxes (durability-based), Keys (unlock doors)
+- **Real-time UI**: Track boat sailing moves, pickaxe durability, and all inventory items
+
+### Visual Enhancements
+- **Avatar System**: Emoji-based character representations with level tiers (Novice, Veteran, Expert, Master, Legendary)
+- **Terrain Variety**: Grass, water, mountains, forests, roads, sand, and more
+- **Building Types**: Inns (rest/heal), Shops (buy items), Temples (free healing), Castles (quests)
+- **Particle Effects**: Visual feedback for item collection, battles, level-ups, and interactions
+
+### Safety Features
+- **Water Rescue**: Prevents players from getting stuck on water tiles
+- **Auto-save**: Progress automatically syncs to Algorand blockchain
+- **Offline Compatibility**: Play without connection, sync when ready
+
+---
+
 ## 🔒 The Sunset Problem
 
-Most “on-chain” games today are only partially decentralized. They shut down servers, stop maintaining contracts, or remove frontends — and player assets effectively disappear.
+Most "on-chain" games today are only partially decentralized. They shut down servers, stop maintaining contracts, or remove frontends — and player assets effectively disappear.
 
 **Eternal Bliss is different.**  
 - Heroes and stats are written directly on Algorand.  
@@ -89,9 +115,13 @@ Even if the original team steps away, the world of Eternal Bliss will **never su
 ## 🗺️ Roadmap
 
 - ✅ Core smart contract deployed on TestNet.  
-- 🔨 Frontend enhancements (UI, animations, multiplayer polish) – SOON.  
-- 🛒 In-game marketplace (ASA-based trading) – SOON.  
-- 🌍 Mainnet launch + community-driven expansion – SOON.  
+- ✅ Boat navigation system with auto-rescue.
+- ✅ Pickaxe tool with durability system.
+- ✅ Dynamic map importer with 8 preset worlds.
+- ✅ Enhanced avatar and visual systems.
+- 🔨 Frontend enhancements (UI, animations, multiplayer polish) — IN PROGRESS.  
+- 🛒 In-game marketplace (ASA-based trading) — SOON.  
+- 🌍 Mainnet launch + community-driven expansion — SOON.  
 
 ---
 
@@ -109,18 +139,20 @@ Eternal Bliss is a **prototype demo for hackathons**.
 2. Open `index.html` in your browser.  
 3. Connect via mnemonic/private key (demo input).  
 4. Play, explore, battle — offline or online.  
-5. Sync progress to Algorand TestNet when ready.  
-6. Use `mapmaker.html` to design or extend maps and plug them into the main game.  
-
+5. Purchase boats and pickaxes from shops to navigate terrain.
+6. Sync progress to Algorand TestNet when ready.  
+7. Use `mapmaker.html` to design or extend maps and plug them into the main game.  
 
 ---
 
-✨ Eternal Bliss isn’t just a game. It’s a **proof-of-concept** that shows what happens when the blockchain itself **hosts the entire world**:  
+✨ Eternal Bliss isn't just a game. It's a **proof-of-concept** that shows what happens when the blockchain itself **hosts the entire world**:  
 - play offline,  
 - sync on-chain,  
 - chat peer-to-peer,  
 - store maps on-chain,  
 - access the full client via a transaction ID,  
+- navigate with consumable tools (boats, pickaxes),
+- import community-created worlds,
 - keep progress forever,  
 - **never sunset**.  
 
