@@ -9,8 +9,545 @@
 // ============================================
 // Set to null to use procedurally generated map
 // Set to a map object to use custom map
-const DEFAULT_MAP = null; // Change this to your custom map object
+//const DEFAULT_MAP = null; // Change this to your custom map object
 
+// Replace the DEFAULT_MAP constant (around line 15) with:
+// Replace the DEFAULT_MAP constant with:
+const DEFAULT_MAP = {
+    name: "Kingdom of Algorand - The Great Realm",
+    width: 150,
+    height: 150,
+    terrain: generateLargeNaturalTerrain(150, 150),
+    buildings: generateLargeBuildings(),
+    npcs: generateLargeNPCs(),
+    enemies: generateLargeEnemies(),
+    items: generateLargeItems(),
+    areas: generateLargeAreas()
+};
+
+// Add this function BEFORE generateLargeNaturalTerrain
+function placeDoors(grid) {
+    const doorLocations = [
+        {x: 73, y: 70}, // Capital north entrance
+        {x: 68, y: 75}, // Capital west entrance
+        {x: 50, y: 19}, // Temple entrance
+        {x: 20, y: 50}, // Vault entrance
+        {x: 105, y: 73}, // Fortress entrance
+        {x: 30, y: 42}  // Forest path
+    ];
+    
+    doorLocations.forEach(door => {
+        if (grid[door.y] && grid[door.y][door.x] && grid[door.y][door.x] !== 'water') {
+            grid[door.y][door.x] = 'door';
+        }
+    });
+}
+
+// Add these terrain generation functions:
+
+function generateLargeNaturalTerrain(width, height) {
+    const grid = [];
+    
+    // Initialize all as grass
+    for (let y = 0; y < height; y++) {
+        grid[y] = [];
+        for (let x = 0; x < width; x++) {
+            grid[y][x] = 'grass';
+        }
+    }
+    
+    // Multi-octave noise function for natural variation
+    function noise(x, y, seed) {
+        const n = Math.sin(x * 12.9898 + y * 78.233 + seed) * 43758.5453;
+        return n - Math.floor(n);
+    }
+    
+    function fractalNoise(x, y, octaves) {
+        let total = 0;
+        let frequency = 1;
+        let amplitude = 1;
+        let maxValue = 0;
+        
+        for (let i = 0; i < octaves; i++) {
+            total += noise(x * frequency * 0.02, y * frequency * 0.02, i) * amplitude;
+            maxValue += amplitude;
+            amplitude *= 0.5;
+            frequency *= 2;
+        }
+        
+        return total / maxValue;
+    }
+    
+    // Generate height/moisture maps
+    const heightMap = [];
+    const moistureMap = [];
+    
+    for (let y = 0; y < height; y++) {
+        heightMap[y] = [];
+        moistureMap[y] = [];
+        for (let x = 0; x < width; x++) {
+            heightMap[y][x] = fractalNoise(x, y, 5);
+            moistureMap[y][x] = fractalNoise(x + 1000, y + 1000, 4);
+        }
+    }
+    
+    // WATER BODIES - Create natural lakes and rivers
+    
+    // Large central lake
+    const lake1X = 45;
+    const lake1Y = 75;
+    const lake1Size = 18;
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const dist = Math.sqrt((x - lake1X) ** 2 + (y - lake1Y) ** 2);
+            const variance = noise(x * 0.15, y * 0.15, 10) * 4;
+            if (dist < lake1Size + variance) {
+                grid[y][x] = 'water';
+            }
+        }
+    }
+    
+    // Northern mountain lake
+    const lake2X = 75;
+    const lake2Y = 25;
+    const lake2Size = 10;
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const dist = Math.sqrt((x - lake2X) ** 2 + (y - lake2Y) ** 2);
+            const variance = noise(x * 0.2, y * 0.2, 11) * 3;
+            if (dist < lake2Size + variance) {
+                grid[y][x] = 'water';
+            }
+        }
+    }
+    
+    // Eastern swamp lake
+    const lake3X = 120;
+    const lake3Y = 100;
+    const lake3Size = 12;
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const dist = Math.sqrt((x - lake3X) ** 2 + (y - lake3Y) ** 2);
+            const variance = noise(x * 0.18, y * 0.18, 12) * 3.5;
+            if (dist < lake3Size + variance) {
+                grid[y][x] = 'water';
+            }
+        }
+    }
+    
+    // Rivers - more natural flowing
+    // River from lake1 to east
+    let riverX = lake1X + lake1Size;
+    let riverY = lake1Y;
+    for (let i = 0; i < 50; i++) {
+        riverX += 1 + Math.floor(noise(i, 0, 20) * 2);
+        riverY += Math.floor(noise(i, 1, 20) * 3) - 1;
+        if (riverX < width && riverY >= 0 && riverY < height) {
+            grid[riverY][riverX] = 'water';
+            if (riverY > 0) grid[riverY - 1][riverX] = 'water';
+            if (riverY < height - 1) grid[riverY + 1][riverX] = 'water';
+        }
+    }
+    
+    // River from lake2 flowing south
+    riverX = lake2X;
+    riverY = lake2Y + lake2Size;
+    for (let i = 0; i < 60; i++) {
+        riverY += 1;
+        riverX += Math.floor(noise(i, 2, 21) * 3) - 1;
+        if (riverX >= 0 && riverX < width && riverY < height) {
+            grid[riverY][riverX] = 'water';
+            if (riverX > 0) grid[riverY][riverX - 1] = 'water';
+        }
+    }
+    
+    // Coastal ocean in the southwest
+    for (let y = 100; y < height; y++) {
+        for (let x = 0; x < 40; x++) {
+            const dist = Math.sqrt((x - 20) ** 2 + (y - 120) ** 2);
+            if (dist > 25 - noise(x * 0.1, y * 0.1, 30) * 8) {
+                grid[y][x] = 'water';
+            }
+        }
+    }
+    
+    // MOUNTAINS - Create natural ranges
+    
+    // Northern mountain range
+    for (let y = 5; y < 40; y++) {
+        for (let x = 20; x < 130; x++) {
+            const mountainValue = heightMap[y][x] + (40 - y) * 0.015;
+            if (mountainValue > 0.72 && grid[y][x] !== 'water') {
+                grid[y][x] = 'mountain';
+            }
+        }
+    }
+    
+    // Eastern mountain range
+    for (let y = 20; y < 120; y++) {
+        for (let x = 110; x < width; x++) {
+            const mountainValue = heightMap[y][x] + (x - 110) * 0.01;
+            if (mountainValue > 0.68 && grid[y][x] !== 'water') {
+                grid[y][x] = 'mountain';
+            }
+        }
+    }
+    
+    // Central highlands
+    for (let y = 50; y < 90; y++) {
+        for (let x = 60; x < 100; x++) {
+            if (heightMap[y][x] > 0.75 && grid[y][x] !== 'water') {
+                grid[y][x] = 'mountain';
+            }
+        }
+    }
+    
+    // FORESTS - Based on moisture and height
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            if (grid[y][x] === 'grass') {
+                // Dense forest in wet, moderate elevation areas
+                if (moistureMap[y][x] > 0.55 && heightMap[y][x] > 0.35 && heightMap[y][x] < 0.65) {
+                    grid[y][x] = 'forest';
+                }
+                // Scattered trees
+                else if (moistureMap[y][x] > 0.45 && noise(x * 0.5, y * 0.5, 40) > 0.7) {
+                    grid[y][x] = 'forest';
+                }
+            }
+        }
+    }
+    
+    // DESERT - Dry lowlands in the south
+    for (let y = 110; y < 145; y++) {
+        for (let x = 40; x < 110; x++) {
+            if (grid[y][x] === 'grass' && moistureMap[y][x] < 0.4) {
+                grid[y][x] = 'sand';
+            }
+        }
+    }
+    
+    // ROADS - Natural trade routes
+    
+    // Main east-west highway
+    for (let x = 5; x < width - 5; x++) {
+        const y = 75 + Math.floor(Math.sin(x * 0.04) * 4);
+        if (grid[y][x] !== 'water' && grid[y][x] !== 'mountain') {
+            grid[y][x] = 'road';
+            if (y > 0 && grid[y-1][x] !== 'water') grid[y-1][x] = 'road';
+        }
+    }
+    
+    // North-south trade route
+    for (let y = 10; y < height - 10; y++) {
+        const x = 75 + Math.floor(Math.cos(y * 0.03) * 5);
+        if (grid[y][x] !== 'water' && grid[y][x] !== 'mountain') {
+            grid[y][x] = 'road';
+        }
+    }
+    
+    // Coastal road
+    for (let y = 105; y < height - 5; y++) {
+        if (grid[y][35] !== 'water') {
+            grid[y][35] = 'road';
+        }
+    }
+    
+    // Mountain pass road
+    for (let x = 30; x < 110; x++) {
+        const y = 25 + Math.floor(noise(x * 0.1, 0, 50) * 3);
+        if (grid[y][x] !== 'water' && grid[y][x] !== 'mountain') {
+            grid[y][x] = 'road';
+        }
+    }
+    
+    // Eastern frontier road
+    for (let y = 30; y < 110; y++) {
+        if (grid[y][105] !== 'water' && grid[y][105] !== 'mountain') {
+            grid[y][105] = 'road';
+        }
+    }
+        placeDoors(grid);
+    return grid;
+}
+
+function generateLargeBuildings() {
+    return [
+        // Capital City (75, 75)
+        {x: 73, y: 73, type: 'castle', name: 'Royal Palace of Algorand', class: 'building castle'},
+        {x: 70, y: 75, type: 'shop', name: 'Royal Market', class: 'building house shop'},
+        {x: 78, y: 75, type: 'inn', name: 'Crown & Scepter Inn', class: 'building house inn'},
+        {x: 73, y: 79, type: 'temple', name: 'Grand Cathedral', class: 'building temple'},
+        {x: 68, y: 77, type: 'shop', name: 'Master Armory', class: 'building house shop'},
+        {x: 78, y: 77, type: 'shop', name: 'Alchemist Guild', class: 'building house shop'},
+        {x: 70, y: 71, type: 'house', name: 'Mage Tower', class: 'building house'},
+        {x: 76, y: 71, type: 'house', name: 'Treasury', class: 'building house'},
+        {x: 72, y: 68, type: 'house', name: 'Knight\'s Barracks', class: 'building house'},
+        
+        // Add LOCKED DOORS near capital (requires keys)
+        // These will be door tiles placed manually
+        
+        // Lakeside Town (30, 75)
+        {x: 28, y: 75, type: 'inn', name: 'Lakeside Rest', class: 'building house inn'},
+        {x: 28, y: 73, type: 'shop', name: 'Fisherman\'s Market', class: 'building house shop'},
+        {x: 30, y: 77, type: 'temple', name: 'Temple of the Lake', class: 'building temple'},
+        {x: 26, y: 77, type: 'house', name: 'Boat Builder', class: 'building house'},
+        
+        // Northern Mining Town (75, 30)
+        {x: 73, y: 30, type: 'inn', name: 'Mountain Lodge', class: 'building house inn'},
+        {x: 70, y: 30, type: 'shop', name: 'Mining Supplies', class: 'building house shop'},
+        {x: 76, y: 30, type: 'house', name: 'Smithy', class: 'building house'},
+        {x: 73, y: 27, type: 'temple', name: 'Stone Temple', class: 'building temple'},
+        
+        // Forest Village (25, 35)
+        {x: 24, y: 35, type: 'shop', name: 'Ranger Supplies', class: 'building house shop'},
+        {x: 26, y: 37, type: 'inn', name: 'Green Leaf Inn', class: 'building house inn'},
+        {x: 22, y: 37, type: 'temple', name: 'Druid Grove', class: 'building temple'},
+        {x: 24, y: 32, type: 'house', name: 'Herbalist Hut', class: 'building house'},
+        
+        // Desert Oasis (75, 125)
+        {x: 73, y: 125, type: 'inn', name: 'Desert Star Inn', class: 'building house inn'},
+        {x: 70, y: 125, type: 'shop', name: 'Oasis Bazaar', class: 'building house shop'},
+        {x: 76, y: 127, type: 'temple', name: 'Sun Temple', class: 'building temple'},
+        {x: 73, y: 122, type: 'house', name: 'Nomad Tent', class: 'building house'},
+        
+        // Coastal Port (25, 120)
+        {x: 35, y: 105, type: 'shop', name: 'Harbor Master', class: 'building house shop'},
+        {x: 33, y: 107, type: 'inn', name: 'Sailor\'s Anchor', class: 'building house inn'},
+        {x: 37, y: 107, type: 'house', name: 'Shipwright', class: 'building house'},
+        {x: 35, y: 110, type: 'temple', name: 'Sea Chapel', class: 'building temple'},
+        
+        // Eastern Fortress (120, 75)
+        {x: 105, y: 75, type: 'castle', name: 'Eastern Keep', class: 'building castle'},
+        {x: 103, y: 77, type: 'shop', name: 'Border Supplies', class: 'building house shop'},
+        {x: 107, y: 77, type: 'inn', name: 'Frontier Inn', class: 'building house inn'},
+        
+        // Hidden Temple (requires key) - in mountains
+        {x: 50, y: 20, type: 'temple', name: 'Ancient Shrine', class: 'building temple'},
+        
+        // Secret Treasury (requires key) - in forest
+        {x: 20, y: 50, type: 'house', name: 'Hidden Vault', class: 'building house'},
+        
+        // Scattered settlements
+        {x: 100, y: 50, type: 'house', name: 'Hill Farm', class: 'building house'},
+        {x: 50, y: 100, type: 'house', name: 'Ranch', class: 'building house'},
+        {x: 40, y: 50, type: 'house', name: 'Watchtower', class: 'building house'},
+        {x: 110, y: 110, type: 'house', name: 'Hermit Dwelling', class: 'building house'},
+        {x: 60, y: 40, type: 'inn', name: 'Crossroads Inn', class: 'building house inn'},
+        {x: 90, y: 90, type: 'shop', name: 'Traveling Merchant', class: 'building house shop'}
+    ];
+}
+
+function generateLargeNPCs() {
+    return [
+        // Capital
+        {x: 74, y: 74, name: 'King Algorand III', class: 'npc npc-elder', dialogue: 'Welcome to our kingdom! The realm prospers through unity.'},
+        {x: 71, y: 76, name: 'Royal Merchant', class: 'npc npc-merchant', dialogue: 'Finest goods in all the land! Keys available for worthy adventurers.'},
+        {x: 79, y: 76, name: 'Innkeeper William', class: 'npc npc-villager', dialogue: 'Rest and restore your strength, brave hero.'},
+        {x: 74, y: 80, name: 'Archbishop', class: 'npc npc-priest', dialogue: 'May the light guide your journey.'},
+        {x: 69, y: 78, name: 'Master Blacksmith', class: 'npc npc-merchant', dialogue: 'I forge the finest weapons. Need a pickaxe?'},
+        
+        // Lakeside
+        {x: 29, y: 76, name: 'Fisher Tom', class: 'npc npc-villager', dialogue: 'The lake is generous to those who respect it.'},
+        {x: 27, y: 78, name: 'Boat Maker', class: 'npc npc-merchant', dialogue: 'Need a boat? I craft the best vessels!'},
+        
+        // Mining town
+        {x: 74, y: 31, name: 'Chief Miner', class: 'npc npc-villager', dialogue: 'Mountains are dangerous but rich with ore!'},
+        {x: 71, y: 31, name: 'Tool Seller', class: 'npc npc-merchant', dialogue: 'Pickaxes! Fresh pickaxes here!'},
+        
+        // Forest
+        {x: 25, y: 36, name: 'Head Ranger', class: 'npc npc-villager', dialogue: 'The forest hides many secrets and dangers.'},
+        {x: 23, y: 38, name: 'Druid Elder', class: 'npc npc-priest', dialogue: 'Nature provides for those who listen.'},
+        
+        // Desert
+        {x: 74, y: 126, name: 'Desert Guide', class: 'npc npc-villager', dialogue: 'Water is life here. Stock up before venturing deeper.'},
+        {x: 71, y: 126, name: 'Oasis Trader', class: 'npc npc-merchant', dialogue: 'Rare treasures from distant sands!'},
+        
+        // Coast
+        {x: 36, y: 106, name: 'Captain Redbeard', class: 'npc npc-villager', dialogue: 'The sea holds both fortune and danger.'},
+        {x: 34, y: 108, name: 'Harbor Keeper', class: 'npc npc-merchant', dialogue: 'Boats for sale! Best prices at the port!'},
+        
+        // Fortress
+        {x: 106, y: 76, name: 'Commander Stark', class: 'npc npc-elder', dialogue: 'We defend the eastern border. Stay alert out there.'},
+        
+        // Hidden NPCs (near secret areas)
+        {x: 51, y: 21, name: 'Mysterious Sage', class: 'npc npc-priest', dialogue: 'Ancient powers rest here. Do you have the key?'},
+        {x: 21, y: 51, name: 'Treasure Hunter', class: 'npc npc-merchant', dialogue: 'I know of hidden vaults... but they are locked.'}
+    ];
+}
+
+function generateLargeEnemies() {
+    const enemies = [];
+    
+    // Forest enemies (northwest)
+    for (let i = 0; i < 25; i++) {
+        enemies.push({
+            x: 15 + Math.floor(Math.random() * 35),
+            y: 30 + Math.floor(Math.random() * 30),
+            name: 'Forest Wolf',
+            class: 'enemy-spawn enemy-wolf',
+            hp: 45,
+            maxHp: 45,
+            attack: 13,
+            xpReward: 32,
+            goldReward: 22
+        });
+    }
+    
+    // Mountain enemies (north)
+    for (let i = 0; i < 20; i++) {
+        enemies.push({
+            x: 50 + Math.floor(Math.random() * 50),
+            y: 10 + Math.floor(Math.random() * 25),
+            name: 'Mountain Troll',
+            class: 'enemy-spawn enemy-dragon',
+            hp: 90,
+            maxHp: 90,
+            attack: 22,
+            xpReward: 65,
+            goldReward: 48
+        });
+    }
+    
+    // Desert enemies (south)
+    for (let i = 0; i < 18; i++) {
+        enemies.push({
+            x: 45 + Math.floor(Math.random() * 55),
+            y: 115 + Math.floor(Math.random() * 25),
+            name: 'Sand Scorpion',
+            class: 'enemy-spawn enemy-goblin',
+            hp: 55,
+            maxHp: 55,
+            attack: 16,
+            xpReward: 42,
+            goldReward: 32
+        });
+    }
+    
+    // Plains enemies (central)
+    for (let i = 0; i < 30; i++) {
+        enemies.push({
+            x: 50 + Math.floor(Math.random() * 50),
+            y: 60 + Math.floor(Math.random() * 30),
+            name: 'Goblin Raider',
+            class: 'enemy-spawn enemy-goblin',
+            hp: 40,
+            maxHp: 40,
+            attack: 11,
+            xpReward: 28,
+            goldReward: 18
+        });
+    }
+    
+    // Eastern enemies (tough)
+    for (let i = 0; i < 15; i++) {
+        enemies.push({
+            x: 110 + Math.floor(Math.random() * 25),
+            y: 50 + Math.floor(Math.random() * 50),
+            name: 'Dark Knight',
+            class: 'enemy-spawn enemy-dragon',
+            hp: 110,
+            maxHp: 110,
+            attack: 26,
+            xpReward: 85,
+            goldReward: 65
+        });
+    }
+    
+    // Boss near hidden temple
+    enemies.push({
+        x: 50,
+        y: 22,
+        name: 'Ancient Guardian',
+        class: 'enemy-spawn enemy-dragon',
+        hp: 200,
+        maxHp: 200,
+        attack: 35,
+        xpReward: 150,
+        goldReward: 200
+    });
+    
+    return enemies;
+}
+
+function generateLargeItems() {
+    const items = [];
+    
+    // Gold scattered throughout
+    for (let i = 0; i < 50; i++) {
+        items.push({
+            x: 15 + Math.floor(Math.random() * 120),
+            y: 15 + Math.floor(Math.random() * 120),
+            type: 'gold',
+            value: 35 + Math.floor(Math.random() * 50)
+        });
+    }
+    
+    // Health potions
+    for (let i = 0; i < 25; i++) {
+        items.push({
+            x: 20 + Math.floor(Math.random() * 110),
+            y: 20 + Math.floor(Math.random() * 110),
+            type: 'health_potion',
+            value: 1
+        });
+    }
+    
+    // Mana potions
+    for (let i = 0; i < 18; i++) {
+        items.push({
+            x: 25 + Math.floor(Math.random() * 100),
+            y: 25 + Math.floor(Math.random() * 100),
+            type: 'mana_potion',
+            value: 1
+        });
+    }
+    
+    // KEYS - placed strategically
+    items.push(
+        // Key 1: Near starting area
+        {x: 80, y: 80, type: 'key', value: 1},
+        // Key 2: In forest
+        {x: 30, y: 45, type: 'key', value: 1},
+        // Key 3: In mountains
+        {x: 85, y: 25, type: 'key', value: 1},
+        // Key 4: In desert
+        {x: 70, y: 130, type: 'key', value: 1},
+        // Key 5: Near eastern fortress
+        {x: 115, y: 80, type: 'key', value: 1},
+        // Key 6: Hidden near coast
+        {x: 40, y: 110, type: 'key', value: 1}
+    );
+    
+    // Treasure chests
+    items.push(
+        {x: 50, y: 21, type: 'treasure', value: 500}, // Near temple
+        {x: 21, y: 51, type: 'treasure', value: 400}, // Hidden vault area
+        {x: 120, y: 100, type: 'treasure', value: 350},
+        {x: 35, y: 115, type: 'treasure', value: 300}
+    );
+    
+    return items;
+}
+
+function generateLargeAreas() {
+    return [
+        {id: 1, name: 'Capital City', x: 68, y: 68, width: 18, height: 18, color: 'rgba(59, 130, 246, 0.3)', description: 'The heart of the kingdom'},
+        {id: 2, name: 'Lakeside Settlement', x: 24, y: 70, width: 12, height: 12, color: 'rgba(16, 185, 129, 0.3)', description: 'Peaceful fishing town'},
+        {id: 3, name: 'Northern Mountains', x: 50, y: 5, width: 60, height: 35, color: 'rgba(107, 114, 128, 0.3)', description: 'Treacherous peaks'},
+        {id: 4, name: 'Darkwood Forest', x: 10, y: 25, width: 40, height: 40, color: 'rgba(22, 101, 52, 0.3)', description: 'Ancient woodland'},
+        {id: 5, name: 'Scorching Desert', x: 40, y: 110, width: 70, height: 35, color: 'rgba(234, 179, 8, 0.3)', description: 'Endless sands'},
+        {id: 6, name: 'Sapphire Coast', x: 10, y: 100, width: 35, height: 45, color: 'rgba(14, 165, 233, 0.3)', description: 'Port and beaches'},
+        {id: 7, name: 'Eastern Borderlands', x: 110, y: 40, width: 35, height: 70, color: 'rgba(220, 38, 38, 0.3)', description: 'Dangerous frontier'},
+        {id: 8, name: 'Central Highlands', x: 60, y: 50, width: 40, height: 40, color: 'rgba(156, 163, 175, 0.3)', description: 'Rolling hills'}
+    ];
+}
+
+
+// Modify generateLargeNaturalTerrain to include doors at the end:
+// Add this line at the very end of generateLargeNaturalTerrain before returning:
+// placeDoors(grid);
+// return grid;
 // Example: 
 // const DEFAULT_MAP = {
 //     name: "My Custom Map",
