@@ -270,6 +270,26 @@
                     <div class="preset-title">⚔️ Dungeon</div>
                     <div class="preset-desc">Dangerous cave system</div>
                 </div>
+                <div class="preset-card" onclick="loadPresetMap('forest_temple')">
+                    <div class="preset-title">🌲 Forest Temple</div>
+                    <div class="preset-desc">Ancient sacred grove</div>
+                </div>
+                <div class="preset-card" onclick="loadPresetMap('desert_oasis')">
+                    <div class="preset-title">🏜️ Desert Oasis</div>
+                    <div class="preset-desc">Trading post in the sands</div>
+                </div>
+                <div class="preset-card" onclick="loadPresetMap('mountain_fortress')">
+                    <div class="preset-title">⛰️ Mountain Fortress</div>
+                    <div class="preset-desc">High altitude stronghold</div>
+                </div>
+                <div class="preset-card" onclick="loadPresetMap('swamp_ruins')">
+                    <div class="preset-title">🏚️ Swamp Ruins</div>
+                    <div class="preset-desc">Cursed marshlands</div>
+                </div>
+                <div class="preset-card" onclick="loadPresetMap('coastal_port')">
+                    <div class="preset-title">⚓ Coastal Port</div>
+                    <div class="preset-desc">Bustling harbor town</div>
+                </div>
             </div>
         </div>
 
@@ -506,7 +526,205 @@ dungeon: {
         {id: 2, name: 'Deep Caverns', x: 8, y: 16, width: 25, height: 10, color: 'rgba(220, 38, 38, 0.3)', description: 'Dangerous territory'},
         {id: 3, name: 'Dragon\'s Lair', x: 17, y: 26, width: 8, height: 7, color: 'rgba(127, 29, 29, 0.3)', description: 'Certain death awaits'}
     ]
+},
+
+forest_temple: {
+    name: "Ancient Forest Temple",
+    width: 45,
+    height: 40,
+    terrain: generateSimpleGrid(45, 40, 'forest_temple'),
+    buildings: [
+        {x: 22, y: 20, type: 'temple', name: 'Elder Tree Shrine', class: 'building temple'},
+        {x: 15, y: 15, type: 'house', name: 'Druid Circle', class: 'building house'},
+        {x: 29, y: 15, type: 'house', name: 'Herbalist Hut', class: 'building house'},
+        {x: 22, y: 30, type: 'temple', name: 'Sacred Grove', class: 'building temple'},
+        {x: 10, y: 25, type: 'house', name: 'Ranger Outpost', class: 'building house'}
+    ],
+    npcs: [
+        {x: 23, y: 21, name: 'High Druid Silvanus', class: 'npc npc-priest', dialogue: 'Nature speaks to those who listen. The forest remembers all.'},
+        {x: 16, y: 16, name: 'Elder Willow', class: 'npc npc-elder', dialogue: 'We have protected this sacred place for centuries.'},
+        {x: 30, y: 16, name: 'Herbalist Fern', class: 'npc npc-merchant', dialogue: 'These healing herbs grow only in consecrated soil.'},
+        {x: 11, y: 26, name: 'Ranger Quinn', class: 'npc npc-villager', dialogue: 'Dark creatures stir in the deep woods lately.'},
+        {x: 23, y: 31, name: 'Spirit Guardian', class: 'npc npc-priest', dialogue: 'The ancient ones watch over this grove.'}
+    ],
+    enemies: [
+        {x: 5, y: 10, name: 'Corrupted Treant', class: 'enemy-spawn enemy-dragon', hp: 90, maxHp: 90, attack: 20, xpReward: 60, goldReward: 40},
+        {x: 40, y: 35, name: 'Shadow Beast', class: 'enemy-spawn enemy-wolf', hp: 65, maxHp: 65, attack: 18, xpReward: 50, goldReward: 35},
+        {x: 35, y: 10, name: 'Venom Spider', class: 'enemy-spawn enemy-goblin', hp: 50, maxHp: 50, attack: 14, xpReward: 35, goldReward: 25},
+        {x: 8, y: 35, name: 'Wild Guardian', class: 'enemy-spawn enemy-wolf', hp: 70, maxHp: 70, attack: 16, xpReward: 45, goldReward: 30}
+    ],
+    items: [
+        {x: 22, y: 25, type: 'treasure', value: 300},
+        {x: 18, y: 18, type: 'mana_potion', value: 2},
+        {x: 26, y: 18, type: 'health_potion', value: 2},
+        {x: 35, y: 20, type: 'gold', value: 80},
+        {x: 10, y: 15, type: 'key', value: 1}
+    ],
+    areas: [
+        {id: 1, name: 'Sacred Clearing', x: 18, y: 16, width: 10, height: 10, color: 'rgba(34, 197, 94, 0.3)', description: 'Ancient temple grounds'},
+        {id: 2, name: 'Deep Forest', x: 3, y: 8, width: 15, height: 15, color: 'rgba(22, 101, 52, 0.3)', description: 'Dangerous wilderness'}
+    ]
+},
+
+desert_oasis: {
+    name: "Mirage Oasis",
+    width: 50,
+    height: 35,
+    terrain: generateSimpleGrid(50, 35, 'desert'),
+    buildings: [
+        {x: 25, y: 17, type: 'inn', name: 'Oasis Rest Inn', class: 'building house inn'},
+        {x: 20, y: 17, type: 'shop', name: 'Desert Trader', class: 'building house shop'},
+        {x: 30, y: 17, type: 'shop', name: 'Spice Merchant', class: 'building house shop'},
+        {x: 25, y: 22, type: 'temple', name: 'Sun Temple', class: 'building temple'},
+        {x: 18, y: 12, type: 'house', name: 'Nomad Camp', class: 'building house'},
+        {x: 32, y: 12, type: 'house', name: 'Caravan Station', class: 'building house'}
+    ],
+    npcs: [
+        {x: 26, y: 18, name: 'Keeper Rashid', class: 'npc npc-villager', dialogue: 'Welcome, traveler. Rest and refresh yourself at our oasis.'},
+        {x: 21, y: 18, name: 'Trader Amara', class: 'npc npc-merchant', dialogue: 'Rare goods from across the desert lands!'},
+        {x: 31, y: 18, name: 'Spice Master Zain', class: 'npc npc-merchant', dialogue: 'Exotic spices and desert treasures await.'},
+        {x: 26, y: 23, name: 'Sun Priest Khalil', class: 'npc npc-priest', dialogue: 'The sun guides all who wander the sands.'},
+        {x: 19, y: 13, name: 'Nomad Chief', class: 'npc npc-elder', dialogue: 'Sandstorms approach. Seek shelter soon.'}
+    ],
+    enemies: [
+        {x: 10, y: 10, name: 'Sand Scorpion', class: 'enemy-spawn enemy-goblin', hp: 55, maxHp: 55, attack: 15, xpReward: 40, goldReward: 28},
+        {x: 45, y: 8, name: 'Desert Bandit', class: 'enemy-spawn enemy-wolf', hp: 60, maxHp: 60, attack: 16, xpReward: 45, goldReward: 32},
+        {x: 8, y: 30, name: 'Sand Wraith', class: 'enemy-spawn enemy-dragon', hp: 75, maxHp: 75, attack: 20, xpReward: 55, goldReward: 38},
+        {x: 42, y: 28, name: 'Dune Serpent', class: 'enemy-spawn enemy-dragon', hp: 85, maxHp: 85, attack: 22, xpReward: 60, goldReward: 42}
+    ],
+    items: [
+        {x: 25, y: 19, type: 'health_potion', value: 2},
+        {x: 15, y: 15, type: 'gold', value: 90},
+        {x: 35, y: 20, type: 'mana_potion', value: 1},
+        {x: 25, y: 10, type: 'treasure', value: 250},
+        {x: 25, y: 28, type: 'gold', value: 70}
+    ],
+    areas: [
+        {id: 1, name: 'Oasis Settlement', x: 18, y: 14, width: 15, height: 12, color: 'rgba(16, 185, 129, 0.3)', description: 'Safe haven in the desert'},
+        {id: 2, name: 'Endless Dunes', x: 3, y: 3, width: 20, height: 15, color: 'rgba(234, 179, 8, 0.3)', description: 'Treacherous sands'}
+    ]
+},
+
+mountain_fortress: {
+    name: "Ironpeak Fortress",
+    width: 40,
+    height: 45,
+    terrain: generateSimpleGrid(40, 45, 'mountain'),
+    buildings: [
+        {x: 20, y: 22, type: 'castle', name: 'Fortress Keep', class: 'building castle'},
+        {x: 15, y: 18, type: 'shop', name: 'Armory', class: 'building house shop'},
+        {x: 25, y: 18, type: 'shop', name: 'Mining Supply', class: 'building house shop'},
+        {x: 20, y: 28, type: 'inn', name: 'Mountain Hall', class: 'building house inn'},
+        {x: 12, y: 25, type: 'house', name: 'Smithy', class: 'building house'},
+        {x: 28, y: 25, type: 'house', name: 'Miner Guild', class: 'building house'}
+    ],
+    npcs: [
+        {x: 21, y: 23, name: 'Commander Stone', class: 'npc npc-elder', dialogue: 'We guard the mountain passes against all threats.'},
+        {x: 16, y: 19, name: 'Weaponmaster Thora', class: 'npc npc-merchant', dialogue: 'Finest dwarven steel in all the realm!'},
+        {x: 26, y: 19, name: 'Supply Officer', class: 'npc npc-merchant', dialogue: 'Mining picks and climbing gear available.'},
+        {x: 21, y: 29, name: 'Keeper Borin', class: 'npc npc-villager', dialogue: 'Hot mead and warm beds for weary travelers.'},
+        {x: 13, y: 26, name: 'Master Smith Durin', class: 'npc npc-villager', dialogue: 'I forge the weapons that defend this fortress.'}
+    ],
+    enemies: [
+        {x: 10, y: 10, name: 'Mountain Troll', class: 'enemy-spawn enemy-dragon', hp: 100, maxHp: 100, attack: 25, xpReward: 70, goldReward: 50},
+        {x: 35, y: 15, name: 'Rock Golem', class: 'enemy-spawn enemy-dragon', hp: 95, maxHp: 95, attack: 23, xpReward: 65, goldReward: 45},
+        {x: 8, y: 35, name: 'Ice Drake', class: 'enemy-spawn enemy-dragon', hp: 120, maxHp: 120, attack: 28, xpReward: 80, goldReward: 60},
+        {x: 32, y: 38, name: 'Frost Giant', class: 'enemy-spawn enemy-dragon', hp: 110, maxHp: 110, attack: 26, xpReward: 75, goldReward: 55}
+    ],
+    items: [
+        {x: 20, y: 20, type: 'key', value: 1},
+        {x: 18, y: 30, type: 'health_potion', value: 3},
+        {x: 22, y: 30, type: 'mana_potion', value: 2},
+        {x: 15, y: 12, type: 'treasure', value: 400},
+        {x: 30, y: 35, type: 'gold', value: 120}
+    ],
+    areas: [
+        {id: 1, name: 'Fortress Interior', x: 14, y: 16, width: 13, height: 16, color: 'rgba(107, 114, 128, 0.3)', description: 'Protected stronghold'},
+        {id: 2, name: 'Mountain Peaks', x: 5, y: 5, width: 12, height: 15, color: 'rgba(156, 163, 175, 0.3)', description: 'Treacherous heights'}
+    ]
+},
+
+swamp_ruins: {
+    name: "Blackmarsh Ruins",
+    width: 48,
+    height: 42,
+    terrain: generateSimpleGrid(48, 42, 'swamp'),
+    buildings: [
+        {x: 24, y: 21, type: 'temple', name: 'Sunken Temple', class: 'building temple'},
+        {x: 18, y: 15, type: 'house', name: 'Abandoned Hut', class: 'building house'},
+        {x: 30, y: 15, type: 'house', name: 'Alchemist Lab', class: 'building house'},
+        {x: 24, y: 30, type: 'castle', name: 'Ruined Tower', class: 'building castle'},
+        {x: 15, y: 25, type: 'house', name: 'Witch Dwelling', class: 'building house'}
+    ],
+    npcs: [
+        {x: 25, y: 22, name: 'Hermit Sage Morrigan', class: 'npc npc-priest', dialogue: 'The swamp remembers the ancient kingdom that fell here.'},
+        {x: 19, y: 16, name: 'Scavenger Grim', class: 'npc npc-villager', dialogue: 'I find treasures in the ruins. For a price, I share my maps.'},
+        {x: 31, y: 16, name: 'Alchemist Vex', class: 'npc npc-merchant', dialogue: 'Rare ingredients grow only in cursed swamps like this.'},
+        {x: 16, y: 26, name: 'Swamp Witch', class: 'npc npc-merchant', dialogue: 'Potions and curses, I deal in both.'},
+        {x: 25, y: 31, name: 'Ghost Knight', class: 'npc npc-elder', dialogue: 'I am bound to guard these ruins until the curse is lifted.'}
+    ],
+    enemies: [
+        {x: 10, y: 12, name: 'Swamp Lurker', class: 'enemy-spawn enemy-wolf', hp: 65, maxHp: 65, attack: 17, xpReward: 48, goldReward: 33},
+        {x: 38, y: 18, name: 'Bog Zombie', class: 'enemy-spawn enemy-goblin', hp: 70, maxHp: 70, attack: 18, xpReward: 52, goldReward: 36},
+        {x: 12, y: 35, name: 'Plague Carrier', class: 'enemy-spawn enemy-dragon', hp: 80, maxHp: 80, attack: 20, xpReward: 58, goldReward: 40},
+        {x: 36, y: 35, name: 'Cursed Specter', class: 'enemy-spawn enemy-dragon', hp: 75, maxHp: 75, attack: 22, xpReward: 60, goldReward: 42}
+    ],
+    items: [
+        {x: 24, y: 24, type: 'treasure', value: 350},
+        {x: 20, y: 18, type: 'health_potion', value: 2},
+        {x: 28, y: 18, type: 'mana_potion', value: 2},
+        {x: 18, y: 32, type: 'gold', value: 95},
+        {x: 30, y: 32, type: 'key', value: 1}
+    ],
+    areas: [
+        {id: 1, name: 'Ruins Center', x: 20, y: 18, width: 10, height: 10, color: 'rgba(156, 163, 175, 0.3)', description: 'Crumbling structures'},
+        {id: 2, name: 'Deep Swamp', x: 8, y: 32, width: 15, height: 8, color: 'rgba(5, 150, 105, 0.3)', description: 'Murky waters'}
+    ]
+},
+
+coastal_port: {
+    name: "Saltwind Harbor",
+    width: 52,
+    height: 38,
+    terrain: generateSimpleGrid(52, 38, 'coastal'),
+    buildings: [
+        {x: 26, y: 15, type: 'castle', name: 'Harbor Master Tower', class: 'building castle'},
+        {x: 20, y: 12, type: 'shop', name: 'Maritime Trade Co.', class: 'building house shop'},
+        {x: 32, y: 12, type: 'shop', name: 'Ship Supplies', class: 'building house shop'},
+        {x: 20, y: 18, type: 'inn', name: 'Sailor\'s Respite', class: 'building house inn'},
+        {x: 32, y: 18, type: 'inn', name: 'Mermaid Tavern', class: 'building house inn'},
+        {x: 26, y: 22, type: 'temple', name: 'Sea Temple', class: 'building temple'},
+        {x: 15, y: 15, type: 'house', name: 'Fishmonger', class: 'building house'},
+        {x: 37, y: 15, type: 'house', name: 'Shipwright', class: 'building house'}
+    ],
+    npcs: [
+        {x: 27, y: 16, name: 'Harbor Master Vale', class: 'npc npc-elder', dialogue: 'All ships passing through these waters answer to me.'},
+        {x: 21, y: 13, name: 'Trader Isabella', class: 'npc npc-merchant', dialogue: 'Goods from across the seven seas! Best prices guaranteed.'},
+        {x: 33, y: 13, name: 'Supplier Marcus', class: 'npc npc-merchant', dialogue: 'Rope, canvas, tar - everything a ship needs.'},
+        {x: 21, y: 19, name: 'Barkeep Sal', class: 'npc npc-villager', dialogue: 'Every sailor has a tale. Care to hear some?'},
+        {x: 27, y: 23, name: 'Sea Priestess Luna', class: 'npc npc-priest', dialogue: 'The tides bring fortune and disaster alike.'},
+        {x: 16, y: 16, name: 'Fisher Jon', class: 'npc npc-villager', dialogue: 'Been fishing these waters for forty years.'},
+        {x: 38, y: 16, name: 'Shipwright Ada', class: 'npc npc-villager', dialogue: 'I build vessels that can weather any storm.'}
+    ],
+    enemies: [
+        {x: 10, y: 10, name: 'Sea Raider', class: 'enemy-spawn enemy-wolf', hp: 58, maxHp: 58, attack: 16, xpReward: 42, goldReward: 30},
+        {x: 45, y: 12, name: 'Smuggler', class: 'enemy-spawn enemy-goblin', hp: 52, maxHp: 52, attack: 14, xpReward: 38, goldReward: 28},
+        {x: 8, y: 30, name: 'Reef Shark', class: 'enemy-spawn enemy-wolf', hp: 62, maxHp: 62, attack: 18, xpReward: 46, goldReward: 32},
+        {x: 44, y: 32, name: 'Kraken Spawn', class: 'enemy-spawn enemy-dragon', hp: 90, maxHp: 90, attack: 24, xpReward: 65, goldReward: 48}
+    ],
+    items: [
+        {x: 26, y: 19, type: 'health_potion', value: 2},
+        {x: 24, y: 14, type: 'mana_potion', value: 2},
+        {x: 35, y: 20, type: 'gold', value: 85},
+        {x: 18, y: 25, type: 'treasure', value: 280},
+        {x: 40, y: 28, type: 'key', value: 1}
+    ],
+    areas: [
+        {id: 1, name: 'Harbor District', x: 18, y: 10, width: 18, height: 16, color: 'rgba(59, 130, 246, 0.3)', description: 'Busy port area'},
+        {id: 2, name: 'Docks', x: 10, y: 26, width: 35, height: 10, color: 'rgba(14, 165, 233, 0.3)', description: 'Ship moorings'}
+    ]
 }
+
     };
     
     currentMapData = presets[presetName];
@@ -654,7 +872,119 @@ if (type === 'village') {
                 }
             }
         }
+    } else if (type === 'forest_temple') {
+    // Dense forest with clearings
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            if (Math.random() < 0.6) grid[y][x] = 'forest';
+        }
     }
+    
+    // Central clearing
+    const cx = Math.floor(width / 2);
+    const cy = Math.floor(height / 2);
+    for (let dy = -5; dy <= 5; dy++) {
+        for (let dx = -5; dx <= 5; dx++) {
+            if (Math.abs(dx) + Math.abs(dy) <= 7) {
+                grid[cy + dy][cx + dx] = 'grass';
+            }
+        }
+    }
+    
+    // Path through forest
+    for (let y = 0; y < height; y++) {
+        grid[y][cx] = 'road';
+    }
+    
+} else if (type === 'desert') {
+    // Mostly sand with occasional rocks
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            grid[y][x] = 'sand';
+            if (Math.random() < 0.05) grid[y][x] = 'mountain';
+        }
+    }
+    
+    // Oasis in center
+    const ox = Math.floor(width / 2);
+    const oy = Math.floor(height / 2);
+    for (let dy = -3; dy <= 3; dy++) {
+        for (let dx = -4; dx <= 4; dx++) {
+            if (Math.abs(dx) + Math.abs(dy) <= 5) {
+                grid[oy + dy][ox + dx] = 'grass';
+                if (Math.abs(dx) + Math.abs(dy) <= 2) {
+                    grid[oy + dy][ox + dx] = 'water';
+                }
+            }
+        }
+    }
+    
+} else if (type === 'mountain') {
+    // Fill with mountains
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            grid[y][x] = 'mountain';
+        }
+    }
+    
+    // Create valley path
+    const my = Math.floor(height / 2);
+    for (let x = 0; x < width; x++) {
+        for (let dy = -3; dy <= 3; dy++) {
+            grid[my + dy][x] = 'grass';
+        }
+    }
+    
+    // Fortress area
+    const fx = Math.floor(width / 2);
+    const fy = Math.floor(height / 2);
+    for (let dy = -6; dy <= 6; dy++) {
+        for (let dx = -6; dx <= 6; dx++) {
+            if (Math.abs(dx) + Math.abs(dy) <= 9) {
+                grid[fy + dy][fx + dx] = 'grass';
+            }
+        }
+    }
+    
+} else if (type === 'swamp') {
+    // Mix of grass and water
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            if (Math.random() < 0.3) {
+                grid[y][x] = 'water';
+            } else if (Math.random() < 0.1) {
+                grid[y][x] = 'forest';
+            }
+        }
+    }
+    
+    // Paths of solid ground
+    const sy = Math.floor(height / 2);
+    for (let x = 5; x < width - 5; x++) {
+        grid[sy][x] = 'grass';
+    }
+    
+} else if (type === 'coastal') {
+    // Land and sea
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            if (y > height * 0.65) {
+                grid[y][x] = 'water';
+            } else if (y > height * 0.6) {
+                grid[y][x] = 'sand';
+            }
+        }
+    }
+    
+    // Harbor roads
+    for (let x = 10; x < width - 10; x++) {
+        for (let y = Math.floor(height * 0.3); y < Math.floor(height * 0.6); y++) {
+            if (x % 6 === 0 || y % 6 === 0) {
+                grid[y][x] = 'road';
+            }
+        }
+    }
+}
     
     return grid;
 }
@@ -729,6 +1059,105 @@ if (typeof initMapImporter === 'function') {
 
 console.log('🗺️ Map Importer Plugin Ready!');
 </script>
+<!-- How to Play Button -->
+<div class="help-button" id="helpButton" title="How to Play">
+    ❓
+</div>
+
+<!-- How to Play Modal -->
+<div class="help-modal" id="helpModal">
+    <div class="help-content">
+        <h2 style="text-align: center; color: #fbbf24; margin-bottom: 24px;">🎮 How to Play Eternal Bliss</h2>
+        
+        <div class="help-section">
+            <h3>⌨️ Controls</h3>
+            <ul>
+                <li><span class="help-key">WASD</span> or <span class="help-key">Arrow Keys</span> - Move your character</li>
+                <li><span class="help-key">Space</span> or <span class="help-key">Enter</span> - Interact with NPCs, buildings, and enemies</li>
+                <li><span class="help-key">ESC</span> - Close dialogs and modals</li>
+                <li>On mobile: Use the on-screen D-pad to move</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h3>🗺️ Navigation</h3>
+            <ul>
+                <li><strong>Water:</strong> Purchase boats (50 gold) from shops. Each boat gives 15 moves across water. If moves run out on water, you'll be auto-rescued to nearest land (-20 HP, -10 gold penalty)</li>
+                <li><strong>Mountains:</strong> Buy pickaxes (75 gold) to clear mountains. Each pickaxe has 10 uses and permanently removes mountain tiles</li>
+                <li><strong>Doors:</strong> Collect keys to unlock locked doors throughout the world</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h3>⚔️ Combat</h3>
+            <ul>
+                <li>Click on enemies or walk into them to start battle</li>
+                <li><strong>Attack:</strong> Physical damage based on your ATK stat</li>
+                <li><strong>Magic:</strong> Spell damage (costs 12 MP) based on MAG stat</li>
+                <li><strong>Heal:</strong> Use health potions to restore HP during battle</li>
+                <li><strong>Flee:</strong> 75% chance to escape from battle</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h3>🏪 Buildings & NPCs</h3>
+            <ul>
+                <li><strong>Inns:</strong> Rest for 20 gold to fully restore HP & MP</li>
+                <li><strong>Shops:</strong> Buy health potions (15g), mana potions (10g), boats (50g), pickaxes (75g)</li>
+                <li><strong>Temples:</strong> Free full healing - visit anytime!</li>
+                <li><strong>Castles:</strong> Accept quests for gold and XP rewards</li>
+                <li><strong>NPCs:</strong> Talk to villagers, merchants, and priests for dialogue and information</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h3>📊 Progression</h3>
+            <ul>
+                <li>Defeat enemies to earn gold and XP</li>
+                <li>Level up to increase HP, MP, ATK, DEF, and MAG stats</li>
+                <li>Collect treasures scattered across the map</li>
+                <li>Your stats are shown in the left panel</li>
+                <li>Track sailing moves and pickaxe durability in inventory</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h3>🔗 Algorand Features</h3>
+            <ul>
+                <li><strong>Connect Wallet:</strong> Enter your 25-word mnemonic to link your Algorand wallet</li>
+                <li><strong>Save Progress:</strong> Click "Save to Algorand" to store your hero data on-chain</li>
+                <li><strong>Sync Data:</strong> Click "Sync from Algorand" to load your saved progress</li>
+                <li><strong>Mint NFT:</strong> Create a permanent Hero NFT of your character</li>
+                <li><strong>Multiplayer:</strong> See other players exploring the same world</li>
+                <li><strong>Chat:</strong> Send messages that are stored permanently on the blockchain</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h3>🗺️ Map System</h3>
+            <ul>
+                <li>Click the 🗺️ button (bottom-right) to import new maps</li>
+                <li>Choose from 8 preset worlds or paste custom JSON maps</li>
+                <li>Each map has unique NPCs, enemies, and challenges</li>
+                <li>Use the minimap (right side) to see your location</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h3>💡 Tips</h3>
+            <ul>
+                <li>Always keep health potions in stock before venturing far</li>
+                <li>Temples offer free healing - remember their locations!</li>
+                <li>Buy boats before exploring water areas</li>
+                <li>Pickaxes create permanent paths - plan your routes</li>
+                <li>Talk to NPCs for hints about the world</li>
+                <li>Save your progress regularly to the blockchain</li>
+            </ul>
+        </div>
+
+        <button class="btn btn-primary help-close" onclick="closeHelp()">Got it! Start Playing</button>
+    </div>
+</div>
 <body>
     <div class="game-container">
         <div class="left-panel">
@@ -820,8 +1249,8 @@ console.log('🗺️ Map Importer Plugin Ready!');
                     <span id="sailingMoves">0</span>
                 </div>
                 <div class="inventory-item">
-                    <span><span class="item-icon">⛏️</span>Pickaxe</span>
-                <span id="pickaxeStatus">No</span>
+                    <span><span class="item-icon">⛏️</span>Pickaxe Uses</span>
+                    <span id="pickaxeStatus">0</span>
                 </div>
 
             </div>

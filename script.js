@@ -59,7 +59,7 @@ let gameState = {
         manaPotions: 2,
         keys: 0,
         boats: 0,
-        pickaxe: false
+        pickaxe: 0
     },
     stats: {
         enemiesDefeated: 0,
@@ -1361,7 +1361,7 @@ if (gameState.sailingMoves && gameState.sailingMoves > 0) {
     boatEl.style.display = 'flex';
     boatEl.style.alignItems = 'center';
     boatEl.style.justifyContent = 'center';
-    boatEl.style.zIndex = '25';  // Higher than player (20)
+    boatEl.style.zIndex = '19';  // BELOW player (20) so player stands ON the boat
     boatEl.textContent = '⛵';
     boatEl.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))';
     boatEl.style.animation = 'boat-bob 2s ease-in-out infinite';
@@ -1518,22 +1518,37 @@ if (gameState.sailingMoves && gameState.sailingMoves > 0) {
     );
 }
 
-    // Check mountains with pickaxe
-    if (tileType === 'mountain') {
-        if (gameState.inventory.pickaxe) {
-            // Break the mountain
-            worldMap[tileY][tileX] = 'grass';
-            renderWorld();
-            showFloatingText('Mountain cleared!', 
+// Check mountains with pickaxe
+if (tileType === 'mountain') {
+    if (gameState.inventory.pickaxe > 0) {
+        // Use pickaxe durability
+        gameState.inventory.pickaxe--;
+        
+        // Break the mountain
+        worldMap[tileY][tileX] = 'grass';
+        renderWorld();
+        updateUI();
+        
+        // Show different messages based on remaining uses
+        if (gameState.inventory.pickaxe === 0) {
+            showFloatingText('Mountain cleared! Pickaxe broke!', 
+                tileX * 32 + 16, 
+                tileY * 32 - 20, 
+                '#ef4444'
+            );
+        } else {
+            showFloatingText(`Mountain cleared! (${gameState.inventory.pickaxe} uses left)`, 
                 tileX * 32 + 16, 
                 tileY * 32 - 20, 
                 '#fbbf24'
             );
-            createParticleEffect(tileX * 32 + 16, tileY * 32, '#6b7280');
-            return true;
         }
-        return false;
+        
+        createParticleEffect(tileX * 32 + 16, tileY * 32, '#6b7280');
+        return true;
     }
+    return false;
+}
 
     // Check for locked doors
     if (tileType === 'door') {
@@ -2133,8 +2148,8 @@ function buyItem(type, cost) {
             gameState.inventory.boats++;
             showFloatingText(`+1 Boat!`, gameState.player.x * 32 + 16, gameState.player.y * 32 - 25, '#3b82f6');
         } else if (type === 'pickaxe') {
-            gameState.inventory.pickaxe = true;
-            showFloatingText(`Pickaxe acquired!`, gameState.player.x * 32 + 16, gameState.player.y * 32 - 25, '#fbbf24');
+            gameState.inventory.pickaxe += 10;  // Adds 10 uses
+            showFloatingText(`Pickaxe acquired! (10 uses)`, gameState.player.x * 32 + 16, gameState.player.y * 32 - 25, '#fbbf24');
         }
         updateUI();
         createParticleEffect(gameState.player.x * 32 + 16, gameState.player.y * 32, '#fbbf24');
@@ -2477,7 +2492,7 @@ function updateUI() {
     
     document.getElementById('boatCount').textContent = gameState.inventory.boats || 0;
     document.getElementById('sailingMoves').textContent = gameState.sailingMoves || 0;
-    document.getElementById('pickaxeStatus').textContent = gameState.inventory.pickaxe ? 'Yes' : 'No';
+    document.getElementById('pickaxeStatus').textContent = gameState.inventory.pickaxe > 0 ? gameState.inventory.pickaxe : 'No';
 }
 
 // ============================================
@@ -2643,6 +2658,60 @@ function handleDirection(dir) {
     centerCameraOnPlayerOptimized();
     updatePlayerPositionOnly();
 }
+
+
+// ============================================
+// HELP SYSTEM
+// ============================================
+
+function openHelp() {
+    document.getElementById('helpModal').style.display = 'flex';
+}
+
+function closeHelp() {
+    document.getElementById('helpModal').style.display = 'none';
+}
+
+// Setup help button
+function initHelpSystem() {
+    const helpButton = document.getElementById('helpButton');
+    const helpModal = document.getElementById('helpModal');
+    
+    if (helpButton) {
+        helpButton.addEventListener('click', openHelp);
+    }
+    
+    if (helpModal) {
+        helpModal.addEventListener('click', function(e) {
+            if (e.target === this) closeHelp();
+        });
+    }
+    
+    // Show help on first visit
+    if (!localStorage.getItem('eternalBlissHelpShown')) {
+        setTimeout(() => {
+            openHelp();
+            localStorage.setItem('eternalBlissHelpShown', 'true');
+        }, 2000);
+    }
+}
+
+// Add to window load event
+window.addEventListener('load', () => {
+    initGame();
+    renderWorld();
+    initializeMinimap();
+    initHelpSystem(); // ADD THIS LINE
+    
+    setTimeout(() => {
+        showFloatingText('Welcome to EternalBliss Algorand!', 
+            gameState.player.x * 32 + 16, 
+            gameState.player.y * 32 - 40, 
+            '#fbbf24'
+        );
+        // ... rest of existing code
+    }, 1000);
+});
 
 // ============================================
 // GAME INITIALIZATION AND STARTUP
