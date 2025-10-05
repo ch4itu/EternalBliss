@@ -99,6 +99,66 @@ Eternal Bliss demonstrates that decentralized games can be **fun, fair, permanen
 
 ---
 
+## 🎮 How to Play
+
+### Controls
+- **Movement**: `WASD` or `Arrow Keys` to move your character
+- **Interact**: `Space` or `Enter` to interact with NPCs, buildings, and enemies
+- **Close Dialogs**: `ESC` to close modals and dialogs
+- **Mobile**: Use the on-screen D-pad for touch controls
+
+### Getting Started
+1. **Connect Wallet**: Enter your 25-word Algorand mnemonic phrase (use a test wallet!)
+2. **Explore the World**: Move around using WASD or arrow keys
+3. **Talk to NPCs**: Press Space near villagers, merchants, and priests
+4. **Visit Buildings**: Enter inns, shops, temples, and castles
+
+### Navigation
+- **Water**: Purchase boats (50 gold) from shops. Each boat gives 15 moves across water. Auto-rescue activates if you run out of moves while on water (penalty: -20 HP, -10 gold)
+- **Mountains**: Buy pickaxes (75 gold) to clear mountains. Each pickaxe has 10 uses
+- **Doors**: Collect keys to unlock special areas
+
+### Combat
+- Click on enemies or walk into them to start battle
+- **Attack**: Physical damage (based on ATK stat)
+- **Magic**: Spell damage - costs 12 MP (based on MAG stat)
+- **Heal**: Use health potions during battle
+- **Flee**: 75% chance to escape
+
+### Buildings
+- **Inns**: Rest for 20 gold → full HP & MP restore
+- **Shops**: Buy health potions (15g), mana potions (10g), boats (50g), pickaxes (75g)
+- **Temples**: Free full healing anytime
+- **Castles**: Accept quests for gold and XP rewards
+
+### Progression
+- Defeat enemies to earn gold and experience
+- Level up increases HP, MP, ATK, DEF, and MAG
+- Collect treasures scattered across the map
+- Track stats in the left panel
+
+### Algorand Features
+- **Save Progress**: Click "Save to Algorand" to store hero data on-chain
+- **Sync Data**: Click "Sync from Algorand" to load saved progress
+- **Mint NFT**: Create a permanent Hero NFT
+- **Multiplayer**: See other players in real-time
+- **Chat**: Send blockchain-stored messages
+
+### Maps
+- Click the 🗺️ button (bottom-right) to import new worlds
+- Choose from 8 preset maps or create custom maps
+- Each map has unique NPCs, enemies, and challenges
+
+### Tips
+- Always stock health potions before exploring
+- Remember temple locations for free healing
+- Buy boats before water exploration
+- Pickaxes create permanent paths
+- Save progress regularly to blockchain
+- Click the ❓ button for in-game help
+
+---
+
 ## 🔒 The Sunset Problem
 
 Most "on-chain" games today are only partially decentralized. They shut down servers, stop maintaining contracts, or remove frontends — and player assets effectively disappear.
@@ -119,6 +179,7 @@ Even if the original team steps away, the world of Eternal Bliss will **never su
 - ✅ Pickaxe tool with durability system.
 - ✅ Dynamic map importer with 8 preset worlds.
 - ✅ Enhanced avatar and visual systems.
+- ✅ In-game help system and comprehensive documentation.
 - 🔨 Frontend enhancements (UI, animations, multiplayer polish) — IN PROGRESS.  
 - 🛒 In-game marketplace (ASA-based trading) — SOON.  
 - 🌍 Mainnet launch + community-driven expansion — SOON.  
@@ -142,6 +203,7 @@ Eternal Bliss is a **prototype demo for hackathons**.
 5. Purchase boats and pickaxes from shops to navigate terrain.
 6. Sync progress to Algorand TestNet when ready.  
 7. Use `mapmaker.html` to design or extend maps and plug them into the main game.  
+8. Click the ❓ help button in-game for detailed gameplay instructions.
 
 ---
 
