@@ -46,18 +46,20 @@ let gameState = {
         address: null,
         assetId: null // For player NFT
     },
-world: {
-    width: 50,
-    height: 37,
-    cameraX: 0,
-    cameraY: 0,
-    areas: []  // ADD THIS LINE
-},
+    world: {
+        width: 50,
+        height: 37,
+        cameraX: 0,
+        cameraY: 0,
+        areas: []
+    },
     inventory: {
         gold: 100,
         healthPotions: 3,
         manaPotions: 2,
-        keys: 0
+        keys: 0,
+        boats: 0,
+        pickaxe: false
     },
     stats: {
         enemiesDefeated: 0,
@@ -67,12 +69,14 @@ world: {
     currentLocation: "Starter Village",
     inBattle: false,
     currentEnemy: null,
+    sailingMoves: 0,
     movement: {
         speed: 3,
         keys: { w: false, a: false, s: false, d: false }
     },
     pendingChatMessages: []
 };
+
 
 // ============================================
 // ALGORAND BLOCKCHAIN VARIABLES
@@ -1329,21 +1333,41 @@ items.forEach((item, index) => {
         worldGrid.appendChild(otherPlayerEl);
     });
     
-    // Render main player with enhanced avatar
-    const player = document.createElement('div');
-    player.className = 'main-player-avatar';
-    player.style.left = `${gameState.player.x * 32}px`;
-    player.style.top = `${gameState.player.y * 32}px`;
-    player.setAttribute('data-player-level', getPlayerLevelTier(gameState.player.level));
-    
-    // Add your name overlay
-    const yourName = document.createElement('div');
-    yourName.className = 'character-name-overlay your-name';
-    yourName.textContent = 'You';
-    player.appendChild(yourName);
-    
-    player.title = `${gameState.player.name} (Level ${gameState.player.level})`;
-    worldGrid.appendChild(player);
+// Render main player with enhanced avatar
+const player = document.createElement('div');
+player.className = 'main-player-avatar';
+player.style.left = `${gameState.player.x * 32}px`;
+player.style.top = `${gameState.player.y * 32}px`;
+player.setAttribute('data-player-level', getPlayerLevelTier(gameState.player.level));
+
+// Add your name overlay
+const yourName = document.createElement('div');
+yourName.className = 'character-name-overlay your-name';
+yourName.textContent = 'You';
+player.appendChild(yourName);
+
+player.title = `${gameState.player.name} (Level ${gameState.player.level})`;
+worldGrid.appendChild(player);
+
+// ADD BOAT RENDERING HERE - AFTER PLAYER
+if (gameState.sailingMoves && gameState.sailingMoves > 0) {
+    const boatEl = document.createElement('div');
+    boatEl.style.position = 'absolute';
+    boatEl.style.left = `${gameState.player.x * 32}px`;
+    boatEl.style.top = `${gameState.player.y * 32}px`;
+    boatEl.style.width = '32px';
+    boatEl.style.height = '32px';
+    boatEl.style.fontSize = '28px';
+    boatEl.style.display = 'flex';
+    boatEl.style.alignItems = 'center';
+    boatEl.style.justifyContent = 'center';
+    boatEl.style.zIndex = '25';  // Higher than player (20)
+    boatEl.textContent = '⛵';
+    boatEl.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))';
+    boatEl.style.animation = 'boat-bob 2s ease-in-out infinite';
+    boatEl.style.pointerEvents = 'none';
+    worldGrid.appendChild(boatEl);
+}
 }
 
 // ============================================
@@ -1413,7 +1437,6 @@ function updatePlayerPositionOnly() {
 }
 
 // Optimized camera centering
-// Optimized camera centering
 function centerCameraOnPlayerOptimized() {
     const worldView = document.getElementById('worldView');
     const worldGrid = document.getElementById('worldGrid');
@@ -1452,7 +1475,63 @@ function canMoveTo(x, y) {
     }
     
     const tileType = worldMap[tileY][tileX];
-    if (tileType === 'water' || tileType === 'mountain') {
+    
+// Check water with boat ability FIRST
+if (tileType === 'water') {
+    // If already sailing, just allow movement and decrease counter
+    if (gameState.sailingMoves && gameState.sailingMoves > 0) {
+        gameState.sailingMoves--;
+        if (gameState.sailingMoves === 0) {
+            showFloatingText('Boat sank! Click anywhere to be rescued', 
+                x * 32 + 16, 
+                y * 32 - 20, 
+                '#ef4444'
+            );
+            // Auto-rescue after 2 seconds
+            setTimeout(() => rescueFromWater(), 2000);
+        }
+        return true;
+    }
+    
+    // Check if we have a boat to deploy
+    if (gameState.inventory.boats > 0) {
+        gameState.inventory.boats--;
+        gameState.sailingMoves = 15;
+        updateUI();
+        showFloatingText('Boat deployed! 15 moves remaining', 
+            x * 32 + 16, 
+            y * 32 - 20, 
+            '#3b82f6'
+        );
+        return true;
+    }
+    return false;
+}
+
+// When moving to land, reset sailing
+if (gameState.sailingMoves && gameState.sailingMoves > 0) {
+    gameState.sailingMoves = 0;
+    showFloatingText('Reached land - boat available for next use', 
+        x * 32 + 16, 
+        y * 32 - 20, 
+        '#10b981'
+    );
+}
+
+    // Check mountains with pickaxe
+    if (tileType === 'mountain') {
+        if (gameState.inventory.pickaxe) {
+            // Break the mountain
+            worldMap[tileY][tileX] = 'grass';
+            renderWorld();
+            showFloatingText('Mountain cleared!', 
+                tileX * 32 + 16, 
+                tileY * 32 - 20, 
+                '#fbbf24'
+            );
+            createParticleEffect(tileX * 32 + 16, tileY * 32, '#6b7280');
+            return true;
+        }
         return false;
     }
 
@@ -1460,7 +1539,7 @@ function canMoveTo(x, y) {
     if (tileType === 'door') {
         if (gameState.inventory.keys > 0) {
             gameState.inventory.keys--;
-            worldMap[tileY][tileX] = 'road'; // Change door to road after unlocking
+            worldMap[tileY][tileX] = 'road';
             renderWorld();
             updateUI();
             showFloatingText('Door Unlocked!', 
@@ -1480,14 +1559,12 @@ function canMoveTo(x, y) {
         }
     }
     
-    
     // Check if an enemy is blocking this tile
     const blockingEnemy = enemies.find(enemy => 
         Math.floor(enemy.x) === tileX && Math.floor(enemy.y) === tileY
     );
     
     if (blockingEnemy) {
-        // Automatically start battle if trying to move into enemy tile
         if (!gameState.inBattle) {
             showFloatingText(`${blockingEnemy.name} blocks your path!`, 
                 gameState.player.x * 32 + 16, 
@@ -1499,7 +1576,7 @@ function canMoveTo(x, y) {
         return false;
     }
     
-    // OPTIONAL: Check adjacent tiles for enemies (prevents diagonal passing)
+    // Check adjacent tiles for enemies
     const adjacentEnemies = enemies.filter(enemy => {
         const enemyX = Math.floor(enemy.x);
         const enemyY = Math.floor(enemy.y);
@@ -1515,9 +1592,85 @@ function canMoveTo(x, y) {
             '#f59e0b'
         );
     }
-    // END OPTIONAL
     
     return true;
+}
+
+
+// Function to use boat on water
+function useBoat() {
+    if (gameState.inventory.boats > 0) {
+        // Check if standing next to water
+        const adjacentWater = [
+            {dx: 0, dy: -1}, {dx: 0, dy: 1},
+            {dx: -1, dy: 0}, {dx: 1, dy: 0}
+        ].some(dir => {
+            const checkX = Math.floor(gameState.player.x + dir.dx);
+            const checkY = Math.floor(gameState.player.y + dir.dy);
+            return worldMap[checkY] && worldMap[checkY][checkX] === 'water';
+        });
+        
+        if (adjacentWater) {
+            gameState.inventory.boats--;
+            gameState.waterWalkingMoves = 10; // Can walk on water for 10 moves
+            updateUI();
+            showFloatingText('Boat deployed!', 
+                gameState.player.x * 32 + 16, 
+                gameState.player.y * 32 - 40, 
+                '#3b82f6'
+            );
+        } else {
+            showFloatingText('No water nearby!', 
+                gameState.player.x * 32 + 16, 
+                gameState.player.y * 32 - 40, 
+                '#ef4444'
+            );
+        }
+    }
+}
+
+// Rescue player if stuck in water
+function rescueFromWater() {
+    if (gameState.sailingMoves === 0) {
+        // Find nearest land tile
+        let nearestLand = null;
+        let minDistance = Infinity;
+        
+        for (let y = 0; y < gameState.world.height; y++) {
+            for (let x = 0; x < gameState.world.width; x++) {
+                if (worldMap[y][x] !== 'water' && worldMap[y][x] !== 'mountain') {
+                    const distance = Math.sqrt(
+                        Math.pow(x - gameState.player.x, 2) + 
+                        Math.pow(y - gameState.player.y, 2)
+                    );
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        nearestLand = {x, y};
+                    }
+                }
+            }
+        }
+        
+        if (nearestLand) {
+            // Teleport to nearest land
+            gameState.player.x = nearestLand.x;
+            gameState.player.y = nearestLand.y;
+            
+            // Small penalty
+            gameState.player.hp = Math.max(10, gameState.player.hp - 20);
+            gameState.inventory.gold = Math.max(0, gameState.inventory.gold - 10);
+            
+            updateUI();
+            renderWorld();
+            centerCameraOnPlayer();
+            
+            showFloatingText('Rescued! -20 HP, -10 Gold', 
+                gameState.player.x * 32 + 16, 
+                gameState.player.y * 32 - 40, 
+                '#f59e0b'
+            );
+        }
+    }
 }
 
 // Quick location check
@@ -1893,23 +2046,31 @@ function interactWithBuilding(building) {
                 <button class="btn btn-primary" onclick="restAtInn()">💤 Rest (20 gold + tx fee)</button>
             `;
             break;
-        case 'shop':
-            content += `
-                <p style="margin-bottom: 20px;">Smart contracts display various items. The shopkeeper accepts ALGO payments.</p>
-                <div style="display: grid; gap: 10px; margin: 20px 0;">
-                    <div style="background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 6px;">
-                        <strong>🧪 Health Potion:</strong> Restores 30-50 HP (15 gold)
-                    </div>
-                    <div style="background: rgba(59, 130, 246, 0.1); padding: 10px; border-radius: 6px;">
-                        <strong>🔮 Mana Potion:</strong> Restores 20-30 MP (10 gold)
-                    </div>
-                </div>
-                <div style="display: flex; gap: 10px; justify-content: center;">
-                    <button class="btn btn-primary" onclick="buyItem('health', 15)">Buy Health</button>
-                    <button class="btn btn-primary" onclick="buyItem('mana', 10)">Buy Mana</button>
-                </div>
-            `;
-            break;
+case 'shop':
+    content += `
+        <p style="margin-bottom: 20px;">Smart contracts display various items. The shopkeeper accepts ALGO payments.</p>
+        <div style="display: grid; gap: 10px; margin: 20px 0;">
+            <div style="background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 6px;">
+                <strong>🧪 Health Potion:</strong> Restores 30-50 HP (15 gold)
+            </div>
+            <div style="background: rgba(59, 130, 246, 0.1); padding: 10px; border-radius: 6px;">
+                <strong>🔮 Mana Potion:</strong> Restores 20-30 MP (10 gold)
+            </div>
+            <div style="background: rgba(16, 185, 129, 0.1); padding: 10px; border-radius: 6px;">
+                <strong>⛵ Boat:</strong> Cross water for 15 moves (50 gold)
+            </div>
+            <div style="background: rgba(251, 191, 36, 0.1); padding: 10px; border-radius: 6px;">
+                <strong>⛏️ Pickaxe:</strong> Break mountains (75 gold)
+            </div>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+            <button class="btn btn-primary" onclick="buyItem('health', 15)">Buy Health</button>
+            <button class="btn btn-primary" onclick="buyItem('mana', 10)">Buy Mana</button>
+            <button class="btn btn-primary" onclick="buyItem('boat', 50)">Buy Boat</button>
+            <button class="btn btn-primary" onclick="buyItem('pickaxe', 75)">Buy Pickaxe</button>
+        </div>
+    `;
+    break;
         case 'temple':
             content += `
                 <p style="margin-bottom: 20px;">The Pure Proof of Stake consensus emanates divine energy. Your wounds heal through cryptographic blessing.</p>
@@ -1967,6 +2128,13 @@ function buyItem(type, cost) {
         } else if (type === 'mana') {
             gameState.inventory.manaPotions++;
             showFloatingText(`+1 Mana Potion!`, gameState.player.x * 32 + 16, gameState.player.y * 32 - 25, '#3b82f6');
+        } else if (type === 'boat') {
+            if (!gameState.inventory.boats) gameState.inventory.boats = 0;
+            gameState.inventory.boats++;
+            showFloatingText(`+1 Boat!`, gameState.player.x * 32 + 16, gameState.player.y * 32 - 25, '#3b82f6');
+        } else if (type === 'pickaxe') {
+            gameState.inventory.pickaxe = true;
+            showFloatingText(`Pickaxe acquired!`, gameState.player.x * 32 + 16, gameState.player.y * 32 - 25, '#fbbf24');
         }
         updateUI();
         createParticleEffect(gameState.player.x * 32 + 16, gameState.player.y * 32, '#fbbf24');
@@ -2306,6 +2474,10 @@ function updateUI() {
     document.getElementById('quickInfo1').textContent = `Enemies Defeated: ${gameState.stats.enemiesDefeated}`;
     document.getElementById('quickInfo2').textContent = `Treasures Found: ${gameState.stats.treasuresFound}`;
     document.getElementById('quickInfo3').textContent = `Position: (${gameState.player.x}, ${gameState.player.y})`;
+    
+    document.getElementById('boatCount').textContent = gameState.inventory.boats || 0;
+    document.getElementById('sailingMoves').textContent = gameState.sailingMoves || 0;
+    document.getElementById('pickaxeStatus').textContent = gameState.inventory.pickaxe ? 'Yes' : 'No';
 }
 
 // ============================================

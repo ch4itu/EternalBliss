@@ -1421,3 +1421,12 @@ html, body {
     transform: translateY(-50%);
     font-size: 12px;
 }
+
+.boat-sprite {
+    animation: boat-bob 2s ease-in-out infinite;
+}
+
+@keyframes boat-bob {
+    0%, 100% { transform: translateY(0px) rotate(-2deg); }
+    50% { transform: translateY(-3px) rotate(2deg); }
+}
