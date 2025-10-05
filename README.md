@@ -5,7 +5,7 @@ https://ch4itu.github.io/EternalBliss/
 ## 📖 Overview
 
 Eternal Bliss is a **fully on-chain P2P RPG** built natively on the Algorand blockchain.  
-Everything — your hero, stats, battles, progress, economy, maps, and even chat — is stored and executed directly on-chain.
+Everything — your hero, assets, stats, battles, progress, economy, maps, and even chat — is stored and executed directly on-chain.
 
 **No servers.  
 No external databases.  
