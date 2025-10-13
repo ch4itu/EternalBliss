@@ -746,120 +746,188 @@
 
     <!-- How to Play Modal -->
     <div class="help-modal" id="helpModal">
-        <div class="help-content">
-            <h2 style="text-align: center; color: #fbbf24; margin-bottom: 24px;">🎮 How to Play Eternal Bliss</h2>
-            
-            <div class="help-section">
-                <h3>⌨️ Controls</h3>
-                <ul>
-                    <li><span class="help-key">WASD</span> or <span class="help-key">Arrow Keys</span> - Move your character</li>
-                    <li><span class="help-key">Space</span> or <span class="help-key">Enter</span> - Interact with NPCs, buildings, and enemies</li>
-                    <li><span class="help-key">ESC</span> - Close dialogs and modals</li>
-                    <li>On mobile: Use the on-screen D-pad to move</li>
-                </ul>
-            </div>
-
-            <div class="help-section">
-                <h3>🔗 Wallet Connection</h3>
-                <ul>
-                    <li><strong>25-word mnemonic:</strong> Enter your Algorand recovery phrase (25 words, not 24)</li>
-                    <li>Your wallet is needed to save progress on-chain and interact with other players</li>
-                    <li>Game uses Algorand Testnet - safe for testing!</li>
-                    <li><strong>Important:</strong> Algorand uses 25-word mnemonics (24 words + 1 checksum word)</li>
-                </ul>
-            </div>
-
-            <div class="help-section">
-                <h3>🗺️ Navigation</h3>
-                <ul>
-                    <li><strong>Water:</strong> Purchase boats (50 gold) from shops. Each boat gives 15 moves across water. If moves run out on water, you'll be auto-rescued to nearest land (-20 HP, -10 gold penalty)</li>
-                    <li><strong>Mountains:</strong> Buy pickaxes (75 gold) to clear mountains. Each pickaxe has 10 uses and permanently removes mountain tiles</li>
-                    <li><strong>Doors:</strong> Collect keys to unlock locked doors throughout the world</li>
-                </ul>
-            </div>
-
-            <div class="help-section">
-                <h3>⚔️ Combat</h3>
-                <ul>
-                    <li>Click on enemies or walk into them to start battle</li>
-                    <li><strong>Attack:</strong> Physical damage based on your ATK stat</li>
-                    <li><strong>Magic:</strong> Spell damage (costs 12 MP) based on MAG stat</li>
-                    <li><strong>Heal:</strong> Use health potions to restore HP during battle</li>
-                    <li><strong>Flee:</strong> 75% chance to escape from battle</li>
-                </ul>
-            </div>
-
-            <div class="help-section">
-                <h3>🏪 Buildings & NPCs</h3>
-                <ul>
-                    <li><strong>Inns:</strong> Rest for 20 gold to fully restore HP & MP</li>
-                    <li><strong>Shops:</strong> Buy health potions (15g), mana potions (10g), boats (50g), pickaxes (75g)</li>
-                    <li><strong>Temples:</strong> Free full healing - visit anytime!</li>
-                    <li><strong>Castles:</strong> Accept quests for gold and XP rewards</li>
-                    <li><strong>NPCs:</strong> Talk to villagers, merchants, and priests for dialogue and information</li>
-                </ul>
-            </div>
-
-            <div class="help-section">
-                <h3>📊 Progression</h3>
-                <ul>
-                    <li>Defeat enemies to earn gold and XP</li>
-                    <li>Level up to increase HP, MP, ATK, DEF, and MAG stats</li>
-                    <li>Collect treasures scattered across the map</li>
-                    <li>Your stats are shown in the left panel</li>
-                    <li>Track sailing moves and pickaxe durability in inventory</li>
-                </ul>
-            </div>
-
-            <div class="help-section">
-                <h3>🔗 Algorand Features</h3>
-                <ul>
-                    <li><strong>Connect Wallet:</strong> Use your 25-word Algorand mnemonic</li>
-                    <li><strong>Save Progress:</strong> Click "Save to Algorand" to store your hero data on-chain</li>
-                    <li><strong>Sync Data:</strong> Click "Sync from Algorand" to load your saved progress</li>
-                    <li><strong>Mint NFT:</strong> Create a permanent Hero NFT of your character</li>
-                    <li><strong>Multiplayer:</strong> See other players exploring the same world</li>
-                    <li><strong>Chat:</strong> Send messages that are stored permanently on the blockchain</li>
-                    <li><strong>Important:</strong> Algorand wallets always generate 25 words (not 24 like some other chains)</li>
-                </ul>
-            </div>
-
-            <div class="help-section">
-                <h3>🗺️ Map System</h3>
-                <ul>
-                    <li>Click the 🗺️ button (bottom-right) to import new maps</li>
-                    <li>Choose from 8 preset worlds or paste custom JSON maps</li>
-                    <li>Each map has unique NPCs, enemies, and challenges</li>
-                    <li>Use the minimap (right side) to see your location</li>
-                </ul>
-            </div>
-
-            <div class="help-section">
-                <h3>⚡ Performance</h3>
-                <ul>
-                    <li><strong>Optimized Rendering:</strong> Game now uses chunking system for better performance</li>
-                    <li>Only visible areas are rendered, reducing lag significantly</li>
-                    <li>Smooth movement even on large maps</li>
-                    <li>Memory efficient - tiles are cached and reused</li>
-                </ul>
-            </div>
-
-            <div class="help-section">
-                <h3>💡 Tips</h3>
-                <ul>
-                    <li>Always keep health potions in stock before venturing far</li>
-                    <li>Temples offer free healing - remember their locations!</li>
-                    <li>Buy boats before exploring water areas</li>
-                    <li>Pickaxes create permanent paths - plan your routes</li>
-                    <li>Talk to NPCs for hints about the world</li>
-                    <li>Save your progress regularly to the blockchain</li>
-                    <li>Use your 25-word mnemonic to connect your wallet</li>
-                </ul>
-            </div>
-
-            <button class="btn btn-primary help-close" onclick="closeHelp()">Got it! Start Playing</button>
-        </div>
+<div class="help-content">
+    <h2 style="text-align: center; color: #fbbf24; margin-bottom: 24px;">🎮 How to Play Eternal Bliss</h2>
+    
+    <div class="help-section">
+        <h3>⌨️ Controls</h3>
+        <ul>
+            <li><span class="help-key">WASD</span> or <span class="help-key">Arrow Keys</span> - Move your character</li>
+            <li><span class="help-key">Space</span> or <span class="help-key">Enter</span> - Interact with NPCs, buildings, and enemies</li>
+            <li><span class="help-key">ESC</span> - Close dialogs and modals</li>
+            <li><strong>Mobile:</strong> Use the on-screen D-pad (appears automatically on touch devices)</li>
+        </ul>
     </div>
+
+    <div class="help-section">
+        <h3>🔗 Wallet Connection</h3>
+        <ul>
+            <li><strong>25-word mnemonic:</strong> Enter your Algorand recovery phrase (25 words, not 24)</li>
+            <li>Your wallet is needed to save progress on-chain and interact with other players</li>
+            <li>Game uses Algorand Testnet - safe for testing!</li>
+            <li><strong>Important:</strong> Algorand uses 25-word mnemonics (24 words + 1 checksum word)</li>
+        </ul>
+    </div>
+
+    <div class="help-section">
+        <h3>🗺️ Navigation</h3>
+        <ul>
+            <li><strong>Water:</strong> Purchase boats (50 gold) from shops. Each boat gives 15 moves across water. If moves run out on water, you'll be auto-rescued to nearest land (-20 HP, -10 gold penalty)</li>
+            <li><strong>Mountains:</strong> Buy pickaxes (75 gold) to clear mountains. Each pickaxe has 10 uses and permanently removes mountain tiles</li>
+            <li><strong>Doors:</strong> Collect keys to unlock locked doors throughout the world</li>
+        </ul>
+    </div>
+
+    <div class="help-section">
+        <h3>⚔️ Combat (PvE)</h3>
+        <ul>
+            <li>Click on enemies or walk into them to start battle</li>
+            <li><strong>Attack:</strong> Physical damage based on your ATK stat</li>
+            <li><strong>Magic:</strong> Spell damage (costs 12 MP) based on MAG stat</li>
+            <li><strong>Heal:</strong> Use health potions to restore HP during battle</li>
+            <li><strong>Flee:</strong> 75% chance to escape from battle</li>
+        </ul>
+    </div>
+
+    <div class="help-section">
+        <h3>⚔️ Player vs Player (PvP)</h3>
+        <ul>
+            <li><strong>Broadcasting Challenge:</strong>
+                <ul style="margin-left: 20px; margin-top: 8px;">
+                    <li>Click "⚔️ Ready for PvP" button</li>
+                    <li>Set wager: boats, keys, pickaxe uses, gold</li>
+                    <li>Minimum: 10 gold OR any items</li>
+                    <li>Broadcasts for 3 minutes to all players</li>
+                </ul>
+            </li>
+            <li><strong>Accepting Challenge:</strong>
+                <ul style="margin-left: 20px; margin-top: 8px;">
+                    <li>View "🎯 Active PvP Challenges" list</li>
+                    <li>Must be within 5 tiles to challenge</li>
+                    <li>Use "📍 Navigate" if too far</li>
+                    <li>Match opponent's wager to fight</li>
+                </ul>
+            </li>
+            <li><strong>PvP Combat Actions:</strong>
+                <ul style="margin-left: 20px; margin-top: 8px;">
+                    <li>⚔️ <strong>Attack</strong> - Free, 15% crit chance</li>
+                    <li>✨ <strong>Magic</strong> - 15 MP, ignores armor</li>
+                    <li>🛡️ <strong>Defend</strong> - Free, +5 DEF temporarily</li>
+                    <li>💚 <strong>Heal</strong> - Uses 1 health potion</li>
+                    <li>🔥 <strong>Ultimate</strong> - 25 MP, 1.8x damage</li>
+                </ul>
+            </li>
+            <li><strong>Rewards:</strong> Winner gets 2x wager + bonus XP (opponent level × 50)</li>
+            <li><strong>Notifications:</strong> You'll be notified when someone accepts your challenge (30-sec timer)</li>
+        </ul>
+    </div>
+
+    <div class="help-section">
+        <h3>🏪 Buildings & NPCs</h3>
+        <ul>
+            <li><strong>Inns:</strong> Rest for 20 gold to fully restore HP & MP</li>
+            <li><strong>Shops:</strong> Buy health potions (15g), mana potions (10g), boats (50g), pickaxes (75g)</li>
+            <li><strong>Temples:</strong> Free full healing - visit anytime!</li>
+            <li><strong>Castles:</strong> Accept quests for gold and XP rewards</li>
+            <li><strong>NPCs:</strong> Talk to villagers, merchants, and priests for dialogue and information</li>
+        </ul>
+    </div>
+
+    <div class="help-section">
+        <h3>📊 Progression</h3>
+        <ul>
+            <li>Defeat enemies to earn gold and XP</li>
+            <li>Win PvP battles for massive rewards (2x wager)</li>
+            <li>Level up to increase HP, MP, ATK, DEF, and MAG stats</li>
+            <li>Collect treasures scattered across the map</li>
+            <li>Your stats are shown in the left panel</li>
+            <li>Track sailing moves and pickaxe durability in inventory</li>
+        </ul>
+    </div>
+
+    <div class="help-section">
+        <h3>🔗 Algorand Features</h3>
+        <ul>
+            <li><strong>Connect Wallet:</strong> Use your 25-word Algorand mnemonic</li>
+            <li><strong>Save Progress:</strong> Click "Save to Algorand" to store your hero data on-chain</li>
+            <li><strong>Sync Data:</strong> Click "Sync from Algorand" to load your saved progress</li>
+            <li><strong>Mint NFT:</strong> Create a permanent Hero NFT of your character</li>
+            <li><strong>Multiplayer:</strong> See other players exploring the same world</li>
+            <li><strong>PvP Challenges:</strong> All challenges recorded on Algorand blockchain</li>
+            <li><strong>Chat:</strong> Send messages that are stored permanently on the blockchain</li>
+            <li><strong>Important:</strong> Algorand wallets always generate 25 words (not 24 like some other chains)</li>
+        </ul>
+    </div>
+
+    <div class="help-section">
+        <h3>🗺️ Map System</h3>
+        <ul>
+            <li>Click the 🗺️ button (bottom-right) to import new maps</li>
+            <li>Choose from 8 preset worlds or paste custom JSON maps</li>
+            <li>Each map has unique NPCs, enemies, and challenges</li>
+            <li>Use the minimap (right side) to see your location</li>
+        </ul>
+    </div>
+
+    <div class="help-section">
+        <h3>📱 Mobile Support</h3>
+        <ul>
+            <li><strong>D-pad Controls:</strong> Touch-optimized controls appear automatically on mobile devices</li>
+            <li><strong>Responsive Design:</strong> Game scales to fit your screen perfectly</li>
+            <li><strong>Haptic Feedback:</strong> Feel button presses with device vibration (if supported)</li>
+            <li><strong>Touch Gestures:</strong> Tap enemies and NPCs to interact</li>
+            <li><strong>Performance:</strong> Optimized rendering for smooth mobile gameplay</li>
+        </ul>
+    </div>
+
+    <div class="help-section">
+        <h3>⚡ Performance</h3>
+        <ul>
+            <li><strong>Optimized Rendering:</strong> Game now uses chunking system for better performance</li>
+            <li>Only visible areas are rendered, reducing lag significantly</li>
+            <li>Smooth movement even on large maps</li>
+            <li>Memory efficient - tiles are cached and reused</li>
+            <li>Works great on both desktop and mobile devices</li>
+        </ul>
+    </div>
+
+    <div class="help-section">
+        <h3>💡 Tips & Strategy</h3>
+        <ul>
+            <li>Always keep health potions in stock before venturing far</li>
+            <li>Temples offer free healing - remember their locations!</li>
+            <li>Buy boats before exploring water areas</li>
+            <li>Pickaxes create permanent paths - plan your routes</li>
+            <li><strong>PvP Tips:</strong>
+                <ul style="margin-left: 20px; margin-top: 8px;">
+                    <li>Start with small wagers (10-25 gold) to learn</li>
+                    <li>Position near opponents before broadcasting</li>
+                    <li>Use defend before opponent's turn</li>
+                    <li>Save ultimate for critical moments</li>
+                    <li>Always bring health potions to PvP</li>
+                    <li>Check opponent's level before accepting</li>
+                </ul>
+            </li>
+            <li>Talk to NPCs for hints about the world</li>
+            <li>Save your progress regularly to the blockchain</li>
+            <li>Use your 25-word mnemonic to connect your wallet</li>
+            <li>On mobile: Tap and hold for context menus</li>
+        </ul>
+    </div>
+
+    <div class="help-section" style="background: rgba(220, 38, 38, 0.1); border: 2px solid #dc2626; border-radius: 8px; padding: 16px;">
+        <h3 style="color: #ef4444;">⚠️ Important Notes</h3>
+        <ul>
+            <li><strong>TestNet Only:</strong> This game runs on Algorand TestNet - use test wallets only!</li>
+            <li><strong>PvP Wagers:</strong> Only wager what you can afford to lose</li>
+            <li><strong>Security:</strong> Never use wallets with real funds</li>
+            <li><strong>Blockchain Transactions:</strong> All PvP challenges cost a small transaction fee (0.001 ALGO)</li>
+            <li><strong>Permanent Records:</strong> Your actions are permanently recorded on Algorand</li>
+        </ul>
+    </div>
+
+    <button class="btn btn-primary help-close" onclick="closeHelp()">Got it! Start Playing</button>
+</div>
 
     <script src="map-importer-complete.js"></script>
 </body>
