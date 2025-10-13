@@ -834,12 +834,9 @@ body {
 }
 
 .minimap-content {
-    width: 220px;
-    height: 165px;
-    background: #2d5016;
-    position: relative;
-    overflow: hidden;
-    /* Width and height will be set dynamically by JavaScript */
+    position: relative !important;
+    background: #2d5016 !important;
+    overflow: hidden !important;
 }
 
 .floating-text {

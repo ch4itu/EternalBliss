@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EternalBliss - Algorand On-Chain RPG</title>
+    <title>EternalBliss - Algorand On-Chain RPG (Fixed)</title>
     <script src="https://cdn.jsdelivr.net/npm/algosdk@2.7.0/dist/browser/algosdk.min.js"></script>
     <link rel="stylesheet" href="styles.css">
+    <script src="bliss-map.js"></script>
     <script src="script.js"></script>
 </head>
-<!-- ADD THIS TO YOUR algorand-rpg-html.html FILE -->
 
-<!-- 1. ADD THE CSS (put this in your <head> section) -->
 <style>
 /* Map Importer Plugin Styles */
 .map-importer-overlay {
@@ -99,22 +98,6 @@
     padding: 12px;
     resize: vertical;
     margin-bottom: 12px;
-}
-
-.file-input {
-    width: 100%;
-    padding: 12px;
-    background: rgba(0,0,0,0.3);
-    border: 2px dashed #3d5a80;
-    border-radius: 8px;
-    color: white;
-    text-align: center;
-    cursor: pointer;
-    margin-bottom: 12px;
-}
-
-.file-input input {
-    display: none;
 }
 
 .preset-grid {
@@ -227,947 +210,11 @@
 }
 </style>
 
-<!-- 2. ADD THE HTML (put this right before </body>) -->
-
-<!-- Map Importer Button -->
-<div class="trigger-button" id="mapImporterTrigger" title="Import New Map">
-    🗺️
-</div>
-
-<!-- Map Importer Modal -->
-<div class="map-importer-overlay" id="mapImporterOverlay">
-    <div class="map-importer-modal">
-        <div class="importer-header">
-            🗺️ EternalBliss Map Importer
-        </div>
-
-        <!-- Import Method Tabs -->
-        <div class="import-method-tabs">
-            <div class="import-tab active" data-tab="json">JSON Data</div>
-            <div class="import-tab" data-tab="presets">Quick Presets</div>
-        </div>
-
-        <!-- JSON Import Section -->
-        <div class="import-section active" id="jsonSection">
-            <h4>Paste JSON Map Data</h4>
-            <textarea class="json-textarea" id="jsonInput" placeholder="Paste your generated map JSON data here..."></textarea>
-            <button class="btn btn-primary" onclick="validateJsonMap()">🔍 Validate JSON</button>
-        </div>
-
-        <!-- Presets Section -->
-        <div class="import-section" id="presetsSection">
-            <h4>Quick Load Presets</h4>
-            <div class="preset-grid">
-                <div class="preset-card" onclick="loadPresetMap('starter_village')">
-                    <div class="preset-title">🏘️ Starter Village</div>
-                    <div class="preset-desc">Small beginner-friendly map</div>
-                </div>
-                <div class="preset-card" onclick="loadPresetMap('large_city')">
-                    <div class="preset-title">🏙️ Large City</div>
-                    <div class="preset-desc">Expansive urban map</div>
-                </div>
-                <div class="preset-card" onclick="loadPresetMap('dungeon')">
-                    <div class="preset-title">⚔️ Dungeon</div>
-                    <div class="preset-desc">Dangerous cave system</div>
-                </div>
-                <div class="preset-card" onclick="loadPresetMap('forest_temple')">
-                    <div class="preset-title">🌲 Forest Temple</div>
-                    <div class="preset-desc">Ancient sacred grove</div>
-                </div>
-                <div class="preset-card" onclick="loadPresetMap('desert_oasis')">
-                    <div class="preset-title">🏜️ Desert Oasis</div>
-                    <div class="preset-desc">Trading post in the sands</div>
-                </div>
-                <div class="preset-card" onclick="loadPresetMap('mountain_fortress')">
-                    <div class="preset-title">⛰️ Mountain Fortress</div>
-                    <div class="preset-desc">High altitude stronghold</div>
-                </div>
-                <div class="preset-card" onclick="loadPresetMap('swamp_ruins')">
-                    <div class="preset-title">🏚️ Swamp Ruins</div>
-                    <div class="preset-desc">Cursed marshlands</div>
-                </div>
-                <div class="preset-card" onclick="loadPresetMap('coastal_port')">
-                    <div class="preset-title">⚓ Coastal Port</div>
-                    <div class="preset-desc">Bustling harbor town</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Import Actions -->
-        <div class="import-actions">
-            <button class="import-btn import-btn-success" id="importButton" onclick="importMap()" disabled>
-                ✅ Import Map
-            </button>
-            <button class="import-btn import-btn-danger" onclick="closeImporter()">
-                ❌ Cancel
-            </button>
-        </div>
-
-        <!-- Status Message -->
-        <div class="import-status" id="importStatus"></div>
-    </div>
-</div>
-
-<!-- 3. ADD THE JAVASCRIPT (put this right before </body>, after the HTML above) -->
-<script>
-// Map Importer Plugin JavaScript
-let currentMapData = null;
-
-function initMapImporter() {
-    document.getElementById('mapImporterTrigger').addEventListener('click', openImporter);
-    
-    document.querySelectorAll('.import-tab').forEach(tab => {
-        tab.addEventListener('click', switchTab);
-    });
-
-    document.getElementById('mapImporterOverlay').addEventListener('click', function(e) {
-        if (e.target === this) closeImporter();
-    });
-}
-
-function openImporter() {
-    document.getElementById('mapImporterOverlay').style.display = 'flex';
-    clearImporterState();
-}
-
-function closeImporter() {
-    document.getElementById('mapImporterOverlay').style.display = 'none';
-}
-
-function switchTab(e) {
-    const tabName = e.target.dataset.tab;
-    
-    document.querySelectorAll('.import-tab').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    e.target.classList.add('active');
-
-    document.querySelectorAll('.import-section').forEach(section => {
-        section.classList.remove('active');
-    });
-    document.getElementById(tabName + 'Section').classList.add('active');
-    
-    clearImporterState();
-}
-
-function clearImporterState() {
-    currentMapData = null;
-    document.getElementById('importButton').disabled = true;
-    document.getElementById('importStatus').style.display = 'none';
-}
-
-function validateJsonMap() {
-    const jsonText = document.getElementById('jsonInput').value.trim();
-    
-    if (!jsonText) {
-        showStatus('Please enter JSON data', 'error');
-        return false;
-    }
-
-    try {
-        const mapData = JSON.parse(jsonText);
-        
-        // Comprehensive validation
-        const errors = [];
-        
-        if (!mapData.terrain) errors.push('Missing terrain data');
-        if (!mapData.width || mapData.width < 10) errors.push('Invalid or missing width (min: 10)');
-        if (!mapData.height || mapData.height < 10) errors.push('Invalid or missing height (min: 10)');
-        
-        if (mapData.terrain && (!Array.isArray(mapData.terrain) || mapData.terrain.length !== mapData.height)) {
-            errors.push('Terrain array height mismatch');
-        }
-        
-        if (mapData.terrain && mapData.terrain.length > 0 && mapData.terrain[0].length !== mapData.width) {
-            errors.push('Terrain array width mismatch');
-        }
-        
-        // Check optional arrays
-        if (mapData.buildings && !Array.isArray(mapData.buildings)) errors.push('Buildings must be an array');
-        if (mapData.npcs && !Array.isArray(mapData.npcs)) errors.push('NPCs must be an array');
-        if (mapData.enemies && !Array.isArray(mapData.enemies)) errors.push('Enemies must be an array');
-        if (mapData.items && !Array.isArray(mapData.items)) errors.push('Items must be an array');
-        if (mapData.areas && !Array.isArray(mapData.areas)) errors.push('Areas must be an array');
-        
-        if (errors.length > 0) {
-            throw new Error(errors.join(', '));
-        }
-        
-        currentMapData = mapData;
-        document.getElementById('importButton').disabled = false;
-        showStatus('✅ Map validation successful! Ready to import.', 'success');
-        return true;
-        
-    } catch (error) {
-        showStatus('❌ Invalid JSON: ' + error.message, 'error');
-        currentMapData = null;
-        document.getElementById('importButton').disabled = true;
-        return false;
-    }
-}
-
-function loadPresetMap(presetName) {
-    const presets = {
-starter_village: {
-    name: "Greenleaf Village",
-    width: 35,
-    height: 30,
-    terrain: generateSimpleGrid(35, 30, 'village'),
-    buildings: [
-        {x: 15, y: 14, type: 'inn', name: 'The Resting Traveler Inn', class: 'building house inn'},
-        {x: 19, y: 14, type: 'shop', name: 'General Goods Store', class: 'building house shop'},
-        {x: 12, y: 17, type: 'house', name: 'Farmer\'s House', class: 'building house'},
-        {x: 22, y: 17, type: 'house', name: 'Blacksmith\'s Home', class: 'building house'},
-        {x: 17, y: 20, type: 'temple', name: 'Village Chapel', class: 'building temple'},
-        {x: 10, y: 11, type: 'house', name: 'Miller\'s Cottage', class: 'building house'},
-        {x: 24, y: 11, type: 'house', name: 'Elder\'s Residence', class: 'building house'}
-    ],
-    npcs: [
-        {x: 16, y: 15, name: 'Innkeeper Martha', class: 'npc npc-villager', dialogue: 'Welcome, traveler! A warm bed and hot meal await you here.'},
-        {x: 20, y: 15, name: 'Merchant Thomas', class: 'npc npc-merchant', dialogue: 'Best prices in the region! Take a look at my wares.'},
-        {x: 18, y: 21, name: 'Priest Benedict', class: 'npc npc-priest', dialogue: 'May the light guide your path through these troubled times.'},
-        {x: 23, y: 18, name: 'Blacksmith Greta', class: 'npc npc-villager', dialogue: 'Need your weapon sharpened? I\'m the best smith in three villages.'},
-        {x: 25, y: 12, name: 'Village Elder', class: 'npc npc-elder', dialogue: 'Dangerous creatures have been spotted near the forest lately. Be careful, young one.'}
-    ],
-    enemies: [
-        {x: 5, y: 8, name: 'Wild Slime', class: 'enemy-spawn enemy-goblin', hp: 20, maxHp: 20, attack: 5, xpReward: 12, goldReward: 8},
-        {x: 30, y: 22, name: 'Goblin Scout', class: 'enemy-spawn enemy-goblin', hp: 30, maxHp: 30, attack: 8, xpReward: 20, goldReward: 15},
-        {x: 3, y: 25, name: 'Forest Wolf', class: 'enemy-spawn enemy-wolf', hp: 35, maxHp: 35, attack: 10, xpReward: 25, goldReward: 18}
-    ],
-    items: [
-        {x: 27, y: 10, type: 'gold', value: 25},
-        {x: 32, y: 20, type: 'health_potion', value: 1},
-        {x: 8, y: 9, type: 'gold', value: 35}
-    ],
-    areas: [
-        {id: 1, name: 'Greenleaf Village', x: 10, y: 10, width: 16, height: 13, color: 'rgba(16, 185, 129, 0.3)', description: 'A peaceful farming village'}
-    ]
-},
-
-    large_city: {
-        name: "Port Algorand",
-        width: 55,
-        height: 45,
-        terrain: generateSimpleGrid(55, 45, 'city'),
-        buildings: [
-            {x: 25, y: 20, type: 'castle', name: 'City Hall & Treasury', class: 'building castle'},
-            {x: 18, y: 15, type: 'shop', name: 'ALGO Exchange Market', class: 'building house shop'},
-            {x: 32, y: 15, type: 'shop', name: 'Weapon & Armor Shop', class: 'building house shop'},
-            {x: 20, y: 25, type: 'inn', name: 'The Golden Anchor Inn', class: 'building house inn'},
-            {x: 30, y: 25, type: 'inn', name: 'Sailor\'s Rest Tavern', class: 'building house inn'},
-            {x: 25, y: 30, type: 'temple', name: 'Grand Cathedral', class: 'building temple'},
-            {x: 15, y: 10, type: 'house', name: 'Merchant Guild', class: 'building house'},
-            {x: 35, y: 10, type: 'house', name: 'Mage Tower', class: 'building house'},
-            {x: 12, y: 35, type: 'shop', name: 'Port Market', class: 'building house shop'},
-            {x: 38, y: 35, type: 'house', name: 'Noble Estate', class: 'building house'}
-        ],
-        npcs: [
-            {x: 26, y: 21, name: 'Mayor Aldrich', class: 'npc npc-elder', dialogue: 'Welcome to Port Algorand, the jewel of the coast!'},
-            {x: 19, y: 16, name: 'Exchange Master Felix', class: 'npc npc-merchant', dialogue: 'Looking to exchange currencies? I offer the fairest rates.'},
-            {x: 33, y: 16, name: 'Armorer Bjorn', class: 'npc npc-merchant', dialogue: 'Quality steel and enchanted armor for sale.'},
-            {x: 21, y: 26, name: 'Innkeeper Rosa', class: 'npc npc-villager', dialogue: 'The finest rooms and ale! Sailors from distant lands stay here.'},
-            {x: 26, y: 31, name: 'High Priestess Elena', class: 'npc npc-priest', dialogue: 'The cathedral welcomes all who seek guidance.'},
-            {x: 13, y: 36, name: 'Port Master', class: 'npc npc-merchant', dialogue: 'Ships arrive daily with exotic goods.'},
-            {x: 16, y: 11, name: 'Guild Master', class: 'npc npc-elder', dialogue: 'Our merchant guild controls all trade routes.'},
-            {x: 36, y: 11, name: 'Court Wizard', class: 'npc npc-priest', dialogue: 'Magic flows strong in this city.'}
-        ],
-        enemies: [
-            {x: 48, y: 38, name: 'City Thug', class: 'enemy-spawn enemy-goblin', hp: 45, maxHp: 45, attack: 12, xpReward: 30, goldReward: 25},
-            {x: 8, y: 8, name: 'Sewer Rat', class: 'enemy-spawn enemy-wolf', hp: 35, maxHp: 35, attack: 10, xpReward: 22, goldReward: 15},
-            {x: 50, y: 15, name: 'Bandit', class: 'enemy-spawn enemy-goblin', hp: 50, maxHp: 50, attack: 14, xpReward: 35, goldReward: 30},
-            {x: 45, y: 8, name: 'Corrupt Guard', class: 'enemy-spawn enemy-wolf', hp: 55, maxHp: 55, attack: 16, xpReward: 40, goldReward: 35}
-        ],
-        items: [
-            {x: 40, y: 30, type: 'gold', value: 50},
-            {x: 10, y: 20, type: 'mana_potion', value: 1},
-            {x: 45, y: 25, type: 'health_potion', value: 1},
-            {x: 28, y: 8, type: 'gold', value: 75},
-            {x: 15, y: 40, type: 'key', value: 1}
-        ],
-        areas: [
-            {id: 1, name: 'Market District', x: 12, y: 8, width: 18, height: 12, color: 'rgba(251, 191, 36, 0.3)', description: 'Bustling marketplace'},
-            {id: 2, name: 'City Center', x: 20, y: 18, width: 15, height: 15, color: 'rgba(59, 130, 246, 0.3)', description: 'Government district'},
-            {id: 3, name: 'Port District', x: 8, y: 32, width: 20, height: 12, color: 'rgba(16, 185, 129, 0.3)', description: 'Harbor and docks'}
-        ]
-    },
-
-
-dungeon: {
-    name: "Caves of the Forgotten",
-    width: 40,
-    height: 35,
-    terrain: generateSimpleGrid(40, 35, 'dungeon'),
-    buildings: [
-        {x: 20, y: 28, type: 'castle', name: 'Ancient Dragon Lair', class: 'building castle'},
-        {x: 10, y: 12, type: 'temple', name: 'Ruined Shrine', class: 'building temple'},
-        {x: 30, y: 14, type: 'house', name: 'Abandoned Camp', class: 'building house'}
-    ],
-    npcs: [
-        {x: 11, y: 13, name: 'Lost Adventurer', class: 'npc npc-villager', dialogue: 'I\'ve been trapped here for days... These caves are cursed! Turn back while you still can!'},
-        {x: 20, y: 7, name: 'Hermit Sage', class: 'npc npc-priest', dialogue: 'Few venture this deep and return. The dragon guards ancient treasures below.'}
-    ],
-    enemies: [
-        {x: 12, y: 18, name: 'Cave Bat Swarm', class: 'enemy-spawn enemy-goblin', hp: 40, maxHp: 40, attack: 12, xpReward: 28, goldReward: 20},
-        {x: 18, y: 19, name: 'Stone Golem', class: 'enemy-spawn enemy-wolf', hp: 70, maxHp: 70, attack: 18, xpReward: 50, goldReward: 35},
-        {x: 25, y: 15, name: 'Dark Wraith', class: 'enemy-spawn enemy-dragon', hp: 85, maxHp: 85, attack: 22, xpReward: 65, goldReward: 45},
-        {x: 28, y: 19, name: 'Skeletal Guardian', class: 'enemy-spawn enemy-dragon', hp: 60, maxHp: 60, attack: 16, xpReward: 45, goldReward: 30},
-        {x: 20, y: 29, name: 'Ancient Red Dragon', class: 'enemy-spawn enemy-dragon', hp: 200, maxHp: 200, attack: 40, xpReward: 150, goldReward: 200}
-    ],
-    items: [
-        {x: 11, y: 14, type: 'health_potion', value: 1},
-        {x: 29, y: 15, type: 'mana_potion', value: 1},
-        {x: 21, y: 30, type: 'treasure', value: 500},
-        {x: 23, y: 28, type: 'gold', value: 150},
-        {x: 20, y: 9, type: 'key', value: 1},
-        {x: 15, y: 20, type: 'gold', value: 100}
-    ],
-    areas: [
-        {id: 1, name: 'Cave Entrance', x: 17, y: 3, width: 7, height: 8, color: 'rgba(107, 114, 128, 0.3)', description: 'Still safe to retreat'},
-        {id: 2, name: 'Deep Caverns', x: 8, y: 16, width: 25, height: 10, color: 'rgba(220, 38, 38, 0.3)', description: 'Dangerous territory'},
-        {id: 3, name: 'Dragon\'s Lair', x: 17, y: 26, width: 8, height: 7, color: 'rgba(127, 29, 29, 0.3)', description: 'Certain death awaits'}
-    ]
-},
-
-forest_temple: {
-    name: "Ancient Forest Temple",
-    width: 45,
-    height: 40,
-    terrain: generateSimpleGrid(45, 40, 'forest_temple'),
-    buildings: [
-        {x: 22, y: 20, type: 'temple', name: 'Elder Tree Shrine', class: 'building temple'},
-        {x: 15, y: 15, type: 'house', name: 'Druid Circle', class: 'building house'},
-        {x: 29, y: 15, type: 'house', name: 'Herbalist Hut', class: 'building house'},
-        {x: 22, y: 30, type: 'temple', name: 'Sacred Grove', class: 'building temple'},
-        {x: 10, y: 25, type: 'house', name: 'Ranger Outpost', class: 'building house'}
-    ],
-    npcs: [
-        {x: 23, y: 21, name: 'High Druid Silvanus', class: 'npc npc-priest', dialogue: 'Nature speaks to those who listen. The forest remembers all.'},
-        {x: 16, y: 16, name: 'Elder Willow', class: 'npc npc-elder', dialogue: 'We have protected this sacred place for centuries.'},
-        {x: 30, y: 16, name: 'Herbalist Fern', class: 'npc npc-merchant', dialogue: 'These healing herbs grow only in consecrated soil.'},
-        {x: 11, y: 26, name: 'Ranger Quinn', class: 'npc npc-villager', dialogue: 'Dark creatures stir in the deep woods lately.'},
-        {x: 23, y: 31, name: 'Spirit Guardian', class: 'npc npc-priest', dialogue: 'The ancient ones watch over this grove.'}
-    ],
-    enemies: [
-        {x: 5, y: 10, name: 'Corrupted Treant', class: 'enemy-spawn enemy-dragon', hp: 90, maxHp: 90, attack: 20, xpReward: 60, goldReward: 40},
-        {x: 40, y: 35, name: 'Shadow Beast', class: 'enemy-spawn enemy-wolf', hp: 65, maxHp: 65, attack: 18, xpReward: 50, goldReward: 35},
-        {x: 35, y: 10, name: 'Venom Spider', class: 'enemy-spawn enemy-goblin', hp: 50, maxHp: 50, attack: 14, xpReward: 35, goldReward: 25},
-        {x: 8, y: 35, name: 'Wild Guardian', class: 'enemy-spawn enemy-wolf', hp: 70, maxHp: 70, attack: 16, xpReward: 45, goldReward: 30}
-    ],
-    items: [
-        {x: 22, y: 25, type: 'treasure', value: 300},
-        {x: 18, y: 18, type: 'mana_potion', value: 2},
-        {x: 26, y: 18, type: 'health_potion', value: 2},
-        {x: 35, y: 20, type: 'gold', value: 80},
-        {x: 10, y: 15, type: 'key', value: 1}
-    ],
-    areas: [
-        {id: 1, name: 'Sacred Clearing', x: 18, y: 16, width: 10, height: 10, color: 'rgba(34, 197, 94, 0.3)', description: 'Ancient temple grounds'},
-        {id: 2, name: 'Deep Forest', x: 3, y: 8, width: 15, height: 15, color: 'rgba(22, 101, 52, 0.3)', description: 'Dangerous wilderness'}
-    ]
-},
-
-desert_oasis: {
-    name: "Mirage Oasis",
-    width: 50,
-    height: 35,
-    terrain: generateSimpleGrid(50, 35, 'desert'),
-    buildings: [
-        {x: 25, y: 17, type: 'inn', name: 'Oasis Rest Inn', class: 'building house inn'},
-        {x: 20, y: 17, type: 'shop', name: 'Desert Trader', class: 'building house shop'},
-        {x: 30, y: 17, type: 'shop', name: 'Spice Merchant', class: 'building house shop'},
-        {x: 25, y: 22, type: 'temple', name: 'Sun Temple', class: 'building temple'},
-        {x: 18, y: 12, type: 'house', name: 'Nomad Camp', class: 'building house'},
-        {x: 32, y: 12, type: 'house', name: 'Caravan Station', class: 'building house'}
-    ],
-    npcs: [
-        {x: 26, y: 18, name: 'Keeper Rashid', class: 'npc npc-villager', dialogue: 'Welcome, traveler. Rest and refresh yourself at our oasis.'},
-        {x: 21, y: 18, name: 'Trader Amara', class: 'npc npc-merchant', dialogue: 'Rare goods from across the desert lands!'},
-        {x: 31, y: 18, name: 'Spice Master Zain', class: 'npc npc-merchant', dialogue: 'Exotic spices and desert treasures await.'},
-        {x: 26, y: 23, name: 'Sun Priest Khalil', class: 'npc npc-priest', dialogue: 'The sun guides all who wander the sands.'},
-        {x: 19, y: 13, name: 'Nomad Chief', class: 'npc npc-elder', dialogue: 'Sandstorms approach. Seek shelter soon.'}
-    ],
-    enemies: [
-        {x: 10, y: 10, name: 'Sand Scorpion', class: 'enemy-spawn enemy-goblin', hp: 55, maxHp: 55, attack: 15, xpReward: 40, goldReward: 28},
-        {x: 45, y: 8, name: 'Desert Bandit', class: 'enemy-spawn enemy-wolf', hp: 60, maxHp: 60, attack: 16, xpReward: 45, goldReward: 32},
-        {x: 8, y: 30, name: 'Sand Wraith', class: 'enemy-spawn enemy-dragon', hp: 75, maxHp: 75, attack: 20, xpReward: 55, goldReward: 38},
-        {x: 42, y: 28, name: 'Dune Serpent', class: 'enemy-spawn enemy-dragon', hp: 85, maxHp: 85, attack: 22, xpReward: 60, goldReward: 42}
-    ],
-    items: [
-        {x: 25, y: 19, type: 'health_potion', value: 2},
-        {x: 15, y: 15, type: 'gold', value: 90},
-        {x: 35, y: 20, type: 'mana_potion', value: 1},
-        {x: 25, y: 10, type: 'treasure', value: 250},
-        {x: 25, y: 28, type: 'gold', value: 70}
-    ],
-    areas: [
-        {id: 1, name: 'Oasis Settlement', x: 18, y: 14, width: 15, height: 12, color: 'rgba(16, 185, 129, 0.3)', description: 'Safe haven in the desert'},
-        {id: 2, name: 'Endless Dunes', x: 3, y: 3, width: 20, height: 15, color: 'rgba(234, 179, 8, 0.3)', description: 'Treacherous sands'}
-    ]
-},
-
-mountain_fortress: {
-    name: "Ironpeak Fortress",
-    width: 40,
-    height: 45,
-    terrain: generateSimpleGrid(40, 45, 'mountain'),
-    buildings: [
-        {x: 20, y: 22, type: 'castle', name: 'Fortress Keep', class: 'building castle'},
-        {x: 15, y: 18, type: 'shop', name: 'Armory', class: 'building house shop'},
-        {x: 25, y: 18, type: 'shop', name: 'Mining Supply', class: 'building house shop'},
-        {x: 20, y: 28, type: 'inn', name: 'Mountain Hall', class: 'building house inn'},
-        {x: 12, y: 25, type: 'house', name: 'Smithy', class: 'building house'},
-        {x: 28, y: 25, type: 'house', name: 'Miner Guild', class: 'building house'}
-    ],
-    npcs: [
-        {x: 21, y: 23, name: 'Commander Stone', class: 'npc npc-elder', dialogue: 'We guard the mountain passes against all threats.'},
-        {x: 16, y: 19, name: 'Weaponmaster Thora', class: 'npc npc-merchant', dialogue: 'Finest dwarven steel in all the realm!'},
-        {x: 26, y: 19, name: 'Supply Officer', class: 'npc npc-merchant', dialogue: 'Mining picks and climbing gear available.'},
-        {x: 21, y: 29, name: 'Keeper Borin', class: 'npc npc-villager', dialogue: 'Hot mead and warm beds for weary travelers.'},
-        {x: 13, y: 26, name: 'Master Smith Durin', class: 'npc npc-villager', dialogue: 'I forge the weapons that defend this fortress.'}
-    ],
-    enemies: [
-        {x: 10, y: 10, name: 'Mountain Troll', class: 'enemy-spawn enemy-dragon', hp: 100, maxHp: 100, attack: 25, xpReward: 70, goldReward: 50},
-        {x: 35, y: 15, name: 'Rock Golem', class: 'enemy-spawn enemy-dragon', hp: 95, maxHp: 95, attack: 23, xpReward: 65, goldReward: 45},
-        {x: 8, y: 35, name: 'Ice Drake', class: 'enemy-spawn enemy-dragon', hp: 120, maxHp: 120, attack: 28, xpReward: 80, goldReward: 60},
-        {x: 32, y: 38, name: 'Frost Giant', class: 'enemy-spawn enemy-dragon', hp: 110, maxHp: 110, attack: 26, xpReward: 75, goldReward: 55}
-    ],
-    items: [
-        {x: 20, y: 20, type: 'key', value: 1},
-        {x: 18, y: 30, type: 'health_potion', value: 3},
-        {x: 22, y: 30, type: 'mana_potion', value: 2},
-        {x: 15, y: 12, type: 'treasure', value: 400},
-        {x: 30, y: 35, type: 'gold', value: 120}
-    ],
-    areas: [
-        {id: 1, name: 'Fortress Interior', x: 14, y: 16, width: 13, height: 16, color: 'rgba(107, 114, 128, 0.3)', description: 'Protected stronghold'},
-        {id: 2, name: 'Mountain Peaks', x: 5, y: 5, width: 12, height: 15, color: 'rgba(156, 163, 175, 0.3)', description: 'Treacherous heights'}
-    ]
-},
-
-swamp_ruins: {
-    name: "Blackmarsh Ruins",
-    width: 48,
-    height: 42,
-    terrain: generateSimpleGrid(48, 42, 'swamp'),
-    buildings: [
-        {x: 24, y: 21, type: 'temple', name: 'Sunken Temple', class: 'building temple'},
-        {x: 18, y: 15, type: 'house', name: 'Abandoned Hut', class: 'building house'},
-        {x: 30, y: 15, type: 'house', name: 'Alchemist Lab', class: 'building house'},
-        {x: 24, y: 30, type: 'castle', name: 'Ruined Tower', class: 'building castle'},
-        {x: 15, y: 25, type: 'house', name: 'Witch Dwelling', class: 'building house'}
-    ],
-    npcs: [
-        {x: 25, y: 22, name: 'Hermit Sage Morrigan', class: 'npc npc-priest', dialogue: 'The swamp remembers the ancient kingdom that fell here.'},
-        {x: 19, y: 16, name: 'Scavenger Grim', class: 'npc npc-villager', dialogue: 'I find treasures in the ruins. For a price, I share my maps.'},
-        {x: 31, y: 16, name: 'Alchemist Vex', class: 'npc npc-merchant', dialogue: 'Rare ingredients grow only in cursed swamps like this.'},
-        {x: 16, y: 26, name: 'Swamp Witch', class: 'npc npc-merchant', dialogue: 'Potions and curses, I deal in both.'},
-        {x: 25, y: 31, name: 'Ghost Knight', class: 'npc npc-elder', dialogue: 'I am bound to guard these ruins until the curse is lifted.'}
-    ],
-    enemies: [
-        {x: 10, y: 12, name: 'Swamp Lurker', class: 'enemy-spawn enemy-wolf', hp: 65, maxHp: 65, attack: 17, xpReward: 48, goldReward: 33},
-        {x: 38, y: 18, name: 'Bog Zombie', class: 'enemy-spawn enemy-goblin', hp: 70, maxHp: 70, attack: 18, xpReward: 52, goldReward: 36},
-        {x: 12, y: 35, name: 'Plague Carrier', class: 'enemy-spawn enemy-dragon', hp: 80, maxHp: 80, attack: 20, xpReward: 58, goldReward: 40},
-        {x: 36, y: 35, name: 'Cursed Specter', class: 'enemy-spawn enemy-dragon', hp: 75, maxHp: 75, attack: 22, xpReward: 60, goldReward: 42}
-    ],
-    items: [
-        {x: 24, y: 24, type: 'treasure', value: 350},
-        {x: 20, y: 18, type: 'health_potion', value: 2},
-        {x: 28, y: 18, type: 'mana_potion', value: 2},
-        {x: 18, y: 32, type: 'gold', value: 95},
-        {x: 30, y: 32, type: 'key', value: 1}
-    ],
-    areas: [
-        {id: 1, name: 'Ruins Center', x: 20, y: 18, width: 10, height: 10, color: 'rgba(156, 163, 175, 0.3)', description: 'Crumbling structures'},
-        {id: 2, name: 'Deep Swamp', x: 8, y: 32, width: 15, height: 8, color: 'rgba(5, 150, 105, 0.3)', description: 'Murky waters'}
-    ]
-},
-
-coastal_port: {
-    name: "Saltwind Harbor",
-    width: 52,
-    height: 38,
-    terrain: generateSimpleGrid(52, 38, 'coastal'),
-    buildings: [
-        {x: 26, y: 15, type: 'castle', name: 'Harbor Master Tower', class: 'building castle'},
-        {x: 20, y: 12, type: 'shop', name: 'Maritime Trade Co.', class: 'building house shop'},
-        {x: 32, y: 12, type: 'shop', name: 'Ship Supplies', class: 'building house shop'},
-        {x: 20, y: 18, type: 'inn', name: 'Sailor\'s Respite', class: 'building house inn'},
-        {x: 32, y: 18, type: 'inn', name: 'Mermaid Tavern', class: 'building house inn'},
-        {x: 26, y: 22, type: 'temple', name: 'Sea Temple', class: 'building temple'},
-        {x: 15, y: 15, type: 'house', name: 'Fishmonger', class: 'building house'},
-        {x: 37, y: 15, type: 'house', name: 'Shipwright', class: 'building house'}
-    ],
-    npcs: [
-        {x: 27, y: 16, name: 'Harbor Master Vale', class: 'npc npc-elder', dialogue: 'All ships passing through these waters answer to me.'},
-        {x: 21, y: 13, name: 'Trader Isabella', class: 'npc npc-merchant', dialogue: 'Goods from across the seven seas! Best prices guaranteed.'},
-        {x: 33, y: 13, name: 'Supplier Marcus', class: 'npc npc-merchant', dialogue: 'Rope, canvas, tar - everything a ship needs.'},
-        {x: 21, y: 19, name: 'Barkeep Sal', class: 'npc npc-villager', dialogue: 'Every sailor has a tale. Care to hear some?'},
-        {x: 27, y: 23, name: 'Sea Priestess Luna', class: 'npc npc-priest', dialogue: 'The tides bring fortune and disaster alike.'},
-        {x: 16, y: 16, name: 'Fisher Jon', class: 'npc npc-villager', dialogue: 'Been fishing these waters for forty years.'},
-        {x: 38, y: 16, name: 'Shipwright Ada', class: 'npc npc-villager', dialogue: 'I build vessels that can weather any storm.'}
-    ],
-    enemies: [
-        {x: 10, y: 10, name: 'Sea Raider', class: 'enemy-spawn enemy-wolf', hp: 58, maxHp: 58, attack: 16, xpReward: 42, goldReward: 30},
-        {x: 45, y: 12, name: 'Smuggler', class: 'enemy-spawn enemy-goblin', hp: 52, maxHp: 52, attack: 14, xpReward: 38, goldReward: 28},
-        {x: 8, y: 30, name: 'Reef Shark', class: 'enemy-spawn enemy-wolf', hp: 62, maxHp: 62, attack: 18, xpReward: 46, goldReward: 32},
-        {x: 44, y: 32, name: 'Kraken Spawn', class: 'enemy-spawn enemy-dragon', hp: 90, maxHp: 90, attack: 24, xpReward: 65, goldReward: 48}
-    ],
-    items: [
-        {x: 26, y: 19, type: 'health_potion', value: 2},
-        {x: 24, y: 14, type: 'mana_potion', value: 2},
-        {x: 35, y: 20, type: 'gold', value: 85},
-        {x: 18, y: 25, type: 'treasure', value: 280},
-        {x: 40, y: 28, type: 'key', value: 1}
-    ],
-    areas: [
-        {id: 1, name: 'Harbor District', x: 18, y: 10, width: 18, height: 16, color: 'rgba(59, 130, 246, 0.3)', description: 'Busy port area'},
-        {id: 2, name: 'Docks', x: 10, y: 26, width: 35, height: 10, color: 'rgba(14, 165, 233, 0.3)', description: 'Ship moorings'}
-    ]
-}
-
-    };
-    
-    currentMapData = presets[presetName];
-    document.getElementById('importButton').disabled = false;
-    showStatus(`Loaded ${currentMapData.name} preset!`, 'success');
-}
-
-function generateSimpleGrid(width, height, type) {
-    const grid = [];
-    
-    // Initialize with base terrain
-    for (let y = 0; y < height; y++) {
-        grid[y] = [];
-        for (let x = 0; x < width; x++) {
-            grid[y][x] = 'grass';
-        }
-    }
-    
-if (type === 'village') {
-    // Add forest patches around edges
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-            if (x < 3 || x >= width - 3 || y < 2 || y >= height - 2) {
-                if (Math.random() < 0.4) grid[y][x] = 'forest';
-            }
-        }
-    }
-    
-    // Add a small pond
-    const pondX = Math.floor(width * 0.25);  // FIXED - added space
-    const pondY = Math.floor(height * 0.3);  // FIXED - added space
-    for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -2; dx <= 2; dx++) {
-            if (Math.abs(dx) + Math.abs(dy) <= 2) {
-                grid[pondY + dy][pondX + dx] = 'water';
-            }
-        }
-    }
-        
-        // Main road through center (horizontal)
-        const roadY = Math.floor(height / 2);
-        for (let x = 0; x < width; x++) {
-            grid[roadY][x] = 'road';
-            if (Math.random() < 0.3) grid[roadY - 1][x] = 'road';
-            if (Math.random() < 0.3) grid[roadY + 1][x] = 'road';
-        }
-        
-        // Vertical road intersection
-        const roadX = Math.floor(width / 2);
-        for (let y = Math.floor(height * 0.3); y < Math.floor(height * 0.8); y++) {
-            grid[y][roadX] = 'road';
-        }
-        
-    } else if (type === 'city') {
-        // Grid pattern roads
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-                if (x % 8 === 0 || x % 8 === 1 || y % 8 === 0 || y % 8 === 1) {
-                    grid[y][x] = 'road';
-                }
-            }
-        }
-        
-        // Harbor/water at bottom
-        for (let y = Math.floor(height * 0.85); y < height; y++) {
-            for (let x = 0; x < Math.floor(width * 0.4); x++) {
-                grid[y][x] = 'water';
-            }
-        }
-        
-        // Small park areas
-        const parkX = Math.floor(width * 0.7);
-        const parkY = Math.floor(height * 0.65);
-        for (let dy = 0; dy < 6; dy++) {
-            for (let dx = 0; dx < 8; dx++) {
-                if (dx > 0 && dx < 7 && dy > 0 && dy < 5) {
-                    grid[parkY + dy][parkX + dx] = 'forest';
-                }
-            }
-        }
-        
-    } else if (type === 'dungeon') {
-        // Start with mostly mountain/walls
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-                grid[y][x] = 'mountain';
-            }
-        }
-        
-        // Carve out cave chambers using cellular automata-like approach
-        const chambers = [
-            {cx: Math.floor(width * 0.5), cy: Math.floor(height * 0.15), r: 4},  // Entrance
-            {cx: Math.floor(width * 0.25), cy: Math.floor(height * 0.35), r: 5}, // Left chamber
-            {cx: Math.floor(width * 0.75), cy: Math.floor(height * 0.4), r: 5},  // Right chamber
-            {cx: Math.floor(width * 0.5), cy: Math.floor(height * 0.55), r: 6},  // Central hall
-            {cx: Math.floor(width * 0.5), cy: Math.floor(height * 0.8), r: 7}    // Dragon lair
-        ];
-        
-        // Create chambers
-        chambers.forEach(chamber => {
-            for (let y = chamber.cy - chamber.r; y <= chamber.cy + chamber.r; y++) {
-                for (let x = chamber.cx - chamber.r; x <= chamber.cx + chamber.r; x++) {
-                    if (y >= 0 && y < height && x >= 0 && x < width) {
-                        const dist = Math.sqrt((x - chamber.cx) ** 2 + (y - chamber.cy) ** 2);
-                        if (dist <= chamber.r) {
-                            grid[y][x] = 'grass';
-                        }
-                    }
-                }
-            }
-        });
-        
-        // Connect chambers with corridors
-        // Entrance to central
-        for (let y = chambers[0].cy; y < chambers[3].cy; y++) {
-            grid[y][chambers[0].cx] = 'grass';
-            grid[y][chambers[0].cx - 1] = 'grass';
-            grid[y][chambers[0].cx + 1] = 'grass';
-        }
-        
-        // Central to left chamber
-        for (let x = chambers[1].cx; x < chambers[3].cx; x++) {
-            grid[chambers[1].cy][x] = 'grass';
-            grid[chambers[1].cy - 1][x] = 'grass';
-        }
-        
-        // Central to right chamber
-        for (let x = chambers[3].cx; x < chambers[3].cx + (chambers[2].cx - chambers[3].cx); x++) {
-            grid[chambers[2].cy][x] = 'grass';
-            grid[chambers[2].cy + 1][x] = 'grass';
-        }
-        
-        // Central to dragon lair
-        for (let y = chambers[3].cy; y < chambers[4].cy; y++) {
-            grid[y][chambers[3].cx] = 'grass';
-            grid[y][chambers[3].cx - 1] = 'grass';
-            grid[y][chambers[3].cx + 1] = 'grass';
-        }
-        
-        // Add some scattered rubble/rocks in passages
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-                if (grid[y][x] === 'grass' && Math.random() < 0.05) {
-                    grid[y][x] = 'sand'; // Use sand as rubble
-                }
-            }
-        }
-    } else if (type === 'forest_temple') {
-    // Dense forest with clearings
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-            if (Math.random() < 0.6) grid[y][x] = 'forest';
-        }
-    }
-    
-    // Central clearing
-    const cx = Math.floor(width / 2);
-    const cy = Math.floor(height / 2);
-    for (let dy = -5; dy <= 5; dy++) {
-        for (let dx = -5; dx <= 5; dx++) {
-            if (Math.abs(dx) + Math.abs(dy) <= 7) {
-                grid[cy + dy][cx + dx] = 'grass';
-            }
-        }
-    }
-    
-    // Path through forest
-    for (let y = 0; y < height; y++) {
-        grid[y][cx] = 'road';
-    }
-    
-} else if (type === 'desert') {
-    // Mostly sand with occasional rocks
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-            grid[y][x] = 'sand';
-            if (Math.random() < 0.05) grid[y][x] = 'mountain';
-        }
-    }
-    
-    // Oasis in center
-    const ox = Math.floor(width / 2);
-    const oy = Math.floor(height / 2);
-    for (let dy = -3; dy <= 3; dy++) {
-        for (let dx = -4; dx <= 4; dx++) {
-            if (Math.abs(dx) + Math.abs(dy) <= 5) {
-                grid[oy + dy][ox + dx] = 'grass';
-                if (Math.abs(dx) + Math.abs(dy) <= 2) {
-                    grid[oy + dy][ox + dx] = 'water';
-                }
-            }
-        }
-    }
-    
-} else if (type === 'mountain') {
-    // Fill with mountains
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-            grid[y][x] = 'mountain';
-        }
-    }
-    
-    // Create valley path
-    const my = Math.floor(height / 2);
-    for (let x = 0; x < width; x++) {
-        for (let dy = -3; dy <= 3; dy++) {
-            grid[my + dy][x] = 'grass';
-        }
-    }
-    
-    // Fortress area
-    const fx = Math.floor(width / 2);
-    const fy = Math.floor(height / 2);
-    for (let dy = -6; dy <= 6; dy++) {
-        for (let dx = -6; dx <= 6; dx++) {
-            if (Math.abs(dx) + Math.abs(dy) <= 9) {
-                grid[fy + dy][fx + dx] = 'grass';
-            }
-        }
-    }
-    
-} else if (type === 'swamp') {
-    // Mix of grass and water
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-            if (Math.random() < 0.3) {
-                grid[y][x] = 'water';
-            } else if (Math.random() < 0.1) {
-                grid[y][x] = 'forest';
-            }
-        }
-    }
-    
-    // Paths of solid ground
-    const sy = Math.floor(height / 2);
-    for (let x = 5; x < width - 5; x++) {
-        grid[sy][x] = 'grass';
-    }
-    
-} else if (type === 'coastal') {
-    // Land and sea
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-            if (y > height * 0.65) {
-                grid[y][x] = 'water';
-            } else if (y > height * 0.6) {
-                grid[y][x] = 'sand';
-            }
-        }
-    }
-    
-    // Harbor roads
-    for (let x = 10; x < width - 10; x++) {
-        for (let y = Math.floor(height * 0.3); y < Math.floor(height * 0.6); y++) {
-            if (x % 6 === 0 || y % 6 === 0) {
-                grid[y][x] = 'road';
-            }
-        }
-    }
-}
-    
-    return grid;
-}
-
-function importMap() {
-    if (!currentMapData) {
-        showStatus('No valid map data to import', 'error');
-        return;
-    }
-
-    try {
-        // Update game world
-        gameState.world.width = currentMapData.width;
-        gameState.world.height = currentMapData.height;
-        gameState.world.areas = currentMapData.areas || []; // ADD THIS
-        
-        worldMap = currentMapData.terrain;
-        buildings = currentMapData.buildings || [];
-        npcs = currentMapData.npcs || [];
-        enemies = currentMapData.enemies || [];
-        items = currentMapData.items || [];
-        
-        // Reset player position to center
-        gameState.player.x = Math.floor(currentMapData.width / 2);
-        gameState.player.y = Math.floor(currentMapData.height / 2);
-        
-        // Update world grid dimensions
-        const worldGrid = document.getElementById('worldGrid');
-        worldGrid.style.width = `${currentMapData.width * 32}px`;
-        worldGrid.style.height = `${currentMapData.height * 32}px`;
-        
-        // Re-render everything with new dimensions
-        renderWorld();
-        
-        // Force immediate minimap update with new dimensions
-        setTimeout(() => {
-            initializeMinimap();
-            updateMinimapOptimized();
-        }, 0);
-        
-        centerCameraOnPlayer();
-        checkLocation();
-        updateUI();
-        
-        showStatus('🎉 Map imported successfully!', 'success');
-        showFloatingText('New map loaded!', 
-            gameState.player.x * 32 + 16, 
-            gameState.player.y * 32 - 40, 
-            '#10b981'
-        );
-        
-        setTimeout(closeImporter, 2000);
-        
-    } catch (error) {
-        showStatus('Import failed: ' + error.message, 'error');
-        console.error('Map import error:', error);
-    }
-}
-
-function showStatus(message, type) {
-    const statusEl = document.getElementById('importStatus');
-    statusEl.textContent = message;
-    statusEl.className = `import-status status-${type}`;
-    statusEl.style.display = 'block';
-}
-
-// Initialize when page loads
-window.addEventListener('load', initMapImporter);
-if (typeof initMapImporter === 'function') {
-    window.addEventListener('load', initMapImporter);
-}
-
-console.log('🗺️ Map Importer Plugin Ready!');
-</script>
-<!-- How to Play Button -->
-<div class="help-button" id="helpButton" title="How to Play">
-    ❓
-</div>
-
-<!-- How to Play Modal -->
-<div class="help-modal" id="helpModal">
-    <div class="help-content">
-        <h2 style="text-align: center; color: #fbbf24; margin-bottom: 24px;">🎮 How to Play Eternal Bliss</h2>
-        
-        <div class="help-section">
-            <h3>⌨️ Controls</h3>
-            <ul>
-                <li><span class="help-key">WASD</span> or <span class="help-key">Arrow Keys</span> - Move your character</li>
-                <li><span class="help-key">Space</span> or <span class="help-key">Enter</span> - Interact with NPCs, buildings, and enemies</li>
-                <li><span class="help-key">ESC</span> - Close dialogs and modals</li>
-                <li>On mobile: Use the on-screen D-pad to move</li>
-            </ul>
-        </div>
-
-        <div class="help-section">
-            <h3>🗺️ Navigation</h3>
-            <ul>
-                <li><strong>Water:</strong> Purchase boats (50 gold) from shops. Each boat gives 15 moves across water. If moves run out on water, you'll be auto-rescued to nearest land (-20 HP, -10 gold penalty)</li>
-                <li><strong>Mountains:</strong> Buy pickaxes (75 gold) to clear mountains. Each pickaxe has 10 uses and permanently removes mountain tiles</li>
-                <li><strong>Doors:</strong> Collect keys to unlock locked doors throughout the world</li>
-            </ul>
-        </div>
-
-        <div class="help-section">
-            <h3>⚔️ Combat</h3>
-            <ul>
-                <li>Click on enemies or walk into them to start battle</li>
-                <li><strong>Attack:</strong> Physical damage based on your ATK stat</li>
-                <li><strong>Magic:</strong> Spell damage (costs 12 MP) based on MAG stat</li>
-                <li><strong>Heal:</strong> Use health potions to restore HP during battle</li>
-                <li><strong>Flee:</strong> 75% chance to escape from battle</li>
-            </ul>
-        </div>
-
-        <div class="help-section">
-            <h3>🏪 Buildings & NPCs</h3>
-            <ul>
-                <li><strong>Inns:</strong> Rest for 20 gold to fully restore HP & MP</li>
-                <li><strong>Shops:</strong> Buy health potions (15g), mana potions (10g), boats (50g), pickaxes (75g)</li>
-                <li><strong>Temples:</strong> Free full healing - visit anytime!</li>
-                <li><strong>Castles:</strong> Accept quests for gold and XP rewards</li>
-                <li><strong>NPCs:</strong> Talk to villagers, merchants, and priests for dialogue and information</li>
-            </ul>
-        </div>
-
-        <div class="help-section">
-            <h3>📊 Progression</h3>
-            <ul>
-                <li>Defeat enemies to earn gold and XP</li>
-                <li>Level up to increase HP, MP, ATK, DEF, and MAG stats</li>
-                <li>Collect treasures scattered across the map</li>
-                <li>Your stats are shown in the left panel</li>
-                <li>Track sailing moves and pickaxe durability in inventory</li>
-            </ul>
-        </div>
-
-        <div class="help-section">
-            <h3>🔗 Algorand Features</h3>
-            <ul>
-                <li><strong>Connect Wallet:</strong> Enter your 25-word mnemonic to link your Algorand wallet</li>
-                <li><strong>Save Progress:</strong> Click "Save to Algorand" to store your hero data on-chain</li>
-                <li><strong>Sync Data:</strong> Click "Sync from Algorand" to load your saved progress</li>
-                <li><strong>Mint NFT:</strong> Create a permanent Hero NFT of your character</li>
-                <li><strong>Multiplayer:</strong> See other players exploring the same world</li>
-                <li><strong>Chat:</strong> Send messages that are stored permanently on the blockchain</li>
-            </ul>
-        </div>
-
-        <div class="help-section">
-            <h3>🗺️ Map System</h3>
-            <ul>
-                <li>Click the 🗺️ button (bottom-right) to import new maps</li>
-                <li>Choose from 8 preset worlds or paste custom JSON maps</li>
-                <li>Each map has unique NPCs, enemies, and challenges</li>
-                <li>Use the minimap (right side) to see your location</li>
-            </ul>
-        </div>
-
-        <div class="help-section">
-            <h3>💡 Tips</h3>
-            <ul>
-                <li>Always keep health potions in stock before venturing far</li>
-                <li>Temples offer free healing - remember their locations!</li>
-                <li>Buy boats before exploring water areas</li>
-                <li>Pickaxes create permanent paths - plan your routes</li>
-                <li>Talk to NPCs for hints about the world</li>
-                <li>Save your progress regularly to the blockchain</li>
-            </ul>
-        </div>
-
-        <button class="btn btn-primary help-close" onclick="closeHelp()">Got it! Start Playing</button>
-    </div>
-</div>
 <body>
     <div class="game-container">
         <div class="left-panel">
             <div class="wallet-section">
                 <h3>🔗 Algorand Wallet</h3>
-                <div class="wallet-methods">
-                    <div class="wallet-method active" onclick="setWalletMethod('mnemonic')" id="mnemonicMethod">
-                        Mnemonic Phrase
-                    </div>
-                </div>
                 <div id="walletInputSection">
                     <textarea class="wallet-input" id="walletInput" placeholder="Enter your 25-word Algorand mnemonic phrase..." rows="3"></textarea>
                     <button class="btn btn-primary" onclick="connectWallet()" style="width: 100%; margin-top: 8px;">
@@ -1177,7 +224,7 @@ console.log('🗺️ Map Importer Plugin Ready!');
                 <div id="walletConnected" style="display: none;">
                     <div style="font-size: 11px; margin-bottom: 6px;"><strong>Connected:</strong></div>
                     <div style="font-size: 10px; font-family: monospace; word-break: break-all;" id="connectedAddress"></div>
-                    <div style="font-size: 10px; margin-top: 4px; color: #10b981;">Algorand Mainnet</div>
+                    <div style="font-size: 10px; margin-top: 4px; color: #10b981;">Algorand Testnet</div>
                     <div style="font-size: 10px; margin-top: 4px;">Balance: <span id="algoBalance">0</span> ALGO</div>
                     <button class="btn btn-danger" onclick="disconnectWallet()" style="width: 100%; margin-top: 8px; font-size: 10px;">
                         Disconnect
@@ -1223,7 +270,6 @@ console.log('🗺️ Map Importer Plugin Ready!');
 
             <div class="inventory">
                 <h3>🎒 Inventory</h3>
-
                 <div class="inventory-item">
                     <span><span class="item-icon">💰</span>Gold</span>
                     <span id="goldAmount">100</span>
@@ -1252,7 +298,6 @@ console.log('🗺️ Map Importer Plugin Ready!');
                     <span><span class="item-icon">⛏️</span>Pickaxe Uses</span>
                     <span id="pickaxeStatus">0</span>
                 </div>
-
             </div>
 
             <div class="multiplayer-section">
@@ -1416,5 +461,208 @@ console.log('🗺️ Map Importer Plugin Ready!');
             <button class="btn btn-primary" onclick="closeTxModal()" style="margin-top: 20px; width: 100%;">Close</button>
         </div>
     </div>
+
+    <!-- Map Importer Button -->
+    <div class="trigger-button" id="mapImporterTrigger" title="Import New Map">
+        🗺️
+    </div>
+
+    <!-- Map Importer Modal -->
+    <div class="map-importer-overlay" id="mapImporterOverlay">
+        <div class="map-importer-modal">
+            <div class="importer-header">
+                🗺️ EternalBliss Map Importer
+            </div>
+
+            <!-- Import Method Tabs -->
+            <div class="import-method-tabs">
+                <div class="import-tab active" data-tab="json">JSON Data</div>
+                <div class="import-tab" data-tab="presets">Quick Presets</div>
+            </div>
+
+            <!-- JSON Import Section -->
+            <div class="import-section active" id="jsonSection">
+                <h4>Paste JSON Map Data</h4>
+                <textarea class="json-textarea" id="jsonInput" placeholder="Paste your generated map JSON data here..."></textarea>
+                <button class="btn btn-primary" onclick="validateJsonMap()">🔍 Validate JSON</button>
+            </div>
+
+            <!-- Presets Section -->
+            <div class="import-section" id="presetsSection">
+                <h4>Quick Load Presets</h4>
+                <div class="preset-grid">
+                    <div class="preset-card" onclick="loadPresetMap('starter_village')">
+                        <div class="preset-title">🏘️ Starter Village</div>
+                        <div class="preset-desc">Small beginner-friendly map</div>
+                    </div>
+                    <div class="preset-card" onclick="loadPresetMap('large_city')">
+                        <div class="preset-title">🏙️ Large City</div>
+                        <div class="preset-desc">Expansive urban map</div>
+                    </div>
+                    <div class="preset-card" onclick="loadPresetMap('dungeon')">
+                        <div class="preset-title">⚔️ Dungeon</div>
+                        <div class="preset-desc">Dangerous cave system</div>
+                    </div>
+                    <div class="preset-card" onclick="loadPresetMap('forest_temple')">
+                        <div class="preset-title">🌲 Forest Temple</div>
+                        <div class="preset-desc">Ancient sacred grove</div>
+                    </div>
+                    <div class="preset-card" onclick="loadPresetMap('desert_oasis')">
+                        <div class="preset-title">🏜️ Desert Oasis</div>
+                        <div class="preset-desc">Trading post in the sands</div>
+                    </div>
+                    <div class="preset-card" onclick="loadPresetMap('mountain_fortress')">
+                        <div class="preset-title">⛰️ Mountain Fortress</div>
+                        <div class="preset-desc">High altitude stronghold</div>
+                    </div>
+                    <div class="preset-card" onclick="loadPresetMap('swamp_ruins')">
+                        <div class="preset-title">🏚️ Swamp Ruins</div>
+                        <div class="preset-desc">Cursed marshlands</div>
+                    </div>
+                    <div class="preset-card" onclick="loadPresetMap('coastal_port')">
+                        <div class="preset-title">⚓ Coastal Port</div>
+                        <div class="preset-desc">Bustling harbor town</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Import Actions -->
+            <div class="import-actions">
+                <button class="import-btn import-btn-success" id="importButton" onclick="importMap()" disabled>
+                    ✅ Import Map
+                </button>
+                <button class="import-btn import-btn-danger" onclick="closeImporter()">
+                    ❌ Cancel
+                </button>
+            </div>
+
+            <!-- Status Message -->
+            <div class="import-status" id="importStatus"></div>
+        </div>
+    </div>
+
+    <!-- How to Play Button -->
+    <div class="help-button" id="helpButton" title="How to Play">
+        ❓
+    </div>
+
+    <!-- How to Play Modal -->
+    <div class="help-modal" id="helpModal">
+        <div class="help-content">
+            <h2 style="text-align: center; color: #fbbf24; margin-bottom: 24px;">🎮 How to Play Eternal Bliss</h2>
+            
+            <div class="help-section">
+                <h3>⌨️ Controls</h3>
+                <ul>
+                    <li><span class="help-key">WASD</span> or <span class="help-key">Arrow Keys</span> - Move your character</li>
+                    <li><span class="help-key">Space</span> or <span class="help-key">Enter</span> - Interact with NPCs, buildings, and enemies</li>
+                    <li><span class="help-key">ESC</span> - Close dialogs and modals</li>
+                    <li>On mobile: Use the on-screen D-pad to move</li>
+                </ul>
+            </div>
+
+            <div class="help-section">
+                <h3>🔗 Wallet Connection</h3>
+                <ul>
+                    <li><strong>25-word mnemonic:</strong> Enter your Algorand recovery phrase (25 words, not 24)</li>
+                    <li>Your wallet is needed to save progress on-chain and interact with other players</li>
+                    <li>Game uses Algorand Testnet - safe for testing!</li>
+                    <li><strong>Important:</strong> Algorand uses 25-word mnemonics (24 words + 1 checksum word)</li>
+                </ul>
+            </div>
+
+            <div class="help-section">
+                <h3>🗺️ Navigation</h3>
+                <ul>
+                    <li><strong>Water:</strong> Purchase boats (50 gold) from shops. Each boat gives 15 moves across water. If moves run out on water, you'll be auto-rescued to nearest land (-20 HP, -10 gold penalty)</li>
+                    <li><strong>Mountains:</strong> Buy pickaxes (75 gold) to clear mountains. Each pickaxe has 10 uses and permanently removes mountain tiles</li>
+                    <li><strong>Doors:</strong> Collect keys to unlock locked doors throughout the world</li>
+                </ul>
+            </div>
+
+            <div class="help-section">
+                <h3>⚔️ Combat</h3>
+                <ul>
+                    <li>Click on enemies or walk into them to start battle</li>
+                    <li><strong>Attack:</strong> Physical damage based on your ATK stat</li>
+                    <li><strong>Magic:</strong> Spell damage (costs 12 MP) based on MAG stat</li>
+                    <li><strong>Heal:</strong> Use health potions to restore HP during battle</li>
+                    <li><strong>Flee:</strong> 75% chance to escape from battle</li>
+                </ul>
+            </div>
+
+            <div class="help-section">
+                <h3>🏪 Buildings & NPCs</h3>
+                <ul>
+                    <li><strong>Inns:</strong> Rest for 20 gold to fully restore HP & MP</li>
+                    <li><strong>Shops:</strong> Buy health potions (15g), mana potions (10g), boats (50g), pickaxes (75g)</li>
+                    <li><strong>Temples:</strong> Free full healing - visit anytime!</li>
+                    <li><strong>Castles:</strong> Accept quests for gold and XP rewards</li>
+                    <li><strong>NPCs:</strong> Talk to villagers, merchants, and priests for dialogue and information</li>
+                </ul>
+            </div>
+
+            <div class="help-section">
+                <h3>📊 Progression</h3>
+                <ul>
+                    <li>Defeat enemies to earn gold and XP</li>
+                    <li>Level up to increase HP, MP, ATK, DEF, and MAG stats</li>
+                    <li>Collect treasures scattered across the map</li>
+                    <li>Your stats are shown in the left panel</li>
+                    <li>Track sailing moves and pickaxe durability in inventory</li>
+                </ul>
+            </div>
+
+            <div class="help-section">
+                <h3>🔗 Algorand Features</h3>
+                <ul>
+                    <li><strong>Connect Wallet:</strong> Use your 25-word Algorand mnemonic</li>
+                    <li><strong>Save Progress:</strong> Click "Save to Algorand" to store your hero data on-chain</li>
+                    <li><strong>Sync Data:</strong> Click "Sync from Algorand" to load your saved progress</li>
+                    <li><strong>Mint NFT:</strong> Create a permanent Hero NFT of your character</li>
+                    <li><strong>Multiplayer:</strong> See other players exploring the same world</li>
+                    <li><strong>Chat:</strong> Send messages that are stored permanently on the blockchain</li>
+                    <li><strong>Important:</strong> Algorand wallets always generate 25 words (not 24 like some other chains)</li>
+                </ul>
+            </div>
+
+            <div class="help-section">
+                <h3>🗺️ Map System</h3>
+                <ul>
+                    <li>Click the 🗺️ button (bottom-right) to import new maps</li>
+                    <li>Choose from 8 preset worlds or paste custom JSON maps</li>
+                    <li>Each map has unique NPCs, enemies, and challenges</li>
+                    <li>Use the minimap (right side) to see your location</li>
+                </ul>
+            </div>
+
+            <div class="help-section">
+                <h3>⚡ Performance</h3>
+                <ul>
+                    <li><strong>Optimized Rendering:</strong> Game now uses chunking system for better performance</li>
+                    <li>Only visible areas are rendered, reducing lag significantly</li>
+                    <li>Smooth movement even on large maps</li>
+                    <li>Memory efficient - tiles are cached and reused</li>
+                </ul>
+            </div>
+
+            <div class="help-section">
+                <h3>💡 Tips</h3>
+                <ul>
+                    <li>Always keep health potions in stock before venturing far</li>
+                    <li>Temples offer free healing - remember their locations!</li>
+                    <li>Buy boats before exploring water areas</li>
+                    <li>Pickaxes create permanent paths - plan your routes</li>
+                    <li>Talk to NPCs for hints about the world</li>
+                    <li>Save your progress regularly to the blockchain</li>
+                    <li>Use your 25-word mnemonic to connect your wallet</li>
+                </ul>
+            </div>
+
+            <button class="btn btn-primary help-close" onclick="closeHelp()">Got it! Start Playing</button>
+        </div>
+    </div>
+
+    <script src="map-importer-complete.js"></script>
 </body>
 </html>
