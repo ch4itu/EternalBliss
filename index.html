@@ -303,6 +303,22 @@
             <div class="multiplayer-section">
                 <h3>👥 Multiplayer</h3>
                 
+    <!-- PvP Ready Button -->
+    <button class="btn btn-danger" id="pvpReadyBtn" onclick="togglePvPReady()" 
+            style="width: 100%; margin-bottom: 16px; font-size: 14px;">
+        ⚔️ Ready for PvP
+    </button>
+    
+    <!-- PvP Broadcasts List -->
+    <div style="margin-bottom: 16px;">
+        <h4>🎯 Active PvP Challenges</h4>
+        <div id="pvpBroadcastsList" style="max-height: 300px; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 8px;">
+            <div style="text-align: center; opacity: 0.7; padding: 20px;">
+                No active PvP challenges
+            </div>
+        </div>
+    </div>
+
                 <div>
                     <p><strong>Online Players: <span id="onlineCount">1</span></strong></p>
                     <div class="online-players" id="onlinePlayersList">
@@ -310,6 +326,188 @@
                     </div>
                 </div>
                 
+<!-- ============================================ -->
+<!-- 2. PvP Wager Modal -->
+<!-- ============================================ -->
+<div class="modal" id="pvpWagerModal" style="display: none;">
+    <div class="modal-content" style="max-width: 500px;">
+        <h3 style="text-align: center; color: #fbbf24; margin-bottom: 20px;">
+            ⚔️ Set Your PvP Wager
+        </h3>
+        
+        <div style="background: rgba(220, 38, 38, 0.1); padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #dc2626;">
+            <strong style="color: #ef4444;">⚠️ Warning:</strong> Winner takes all! You will lose your wager if defeated.
+        </div>
+
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 8px;">
+                ⛵ Boats (Available: <span id="wagerBoatsAvailable">0</span>)
+            </label>
+            <input type="number" id="wagerBoats" min="0" value="0" 
+                   style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border: 2px solid #3d5a80; border-radius: 6px; color: #fff;">
+        </div>
+
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 8px;">
+                🗝️ Keys (Available: <span id="wagerKeysAvailable">0</span>)
+            </label>
+            <input type="number" id="wagerKeys" min="0" value="0" 
+                   style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border: 2px solid #3d5a80; border-radius: 6px; color: #fff;">
+        </div>
+
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 8px;">
+                ⛏️ Pickaxe Uses (Available: <span id="wagerPickaxeAvailable">0</span>)
+            </label>
+            <input type="number" id="wagerPickaxe" min="0" value="0" 
+                   style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border: 2px solid #3d5a80; border-radius: 6px; color: #fff;">
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px;">
+                💰 Gold (Available: <span id="wagerGoldAvailable">0</span>)
+            </label>
+            <input type="number" id="wagerGold" min="0" value="0" 
+                   style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border: 2px solid #3d5a80; border-radius: 6px; color: #fff;">
+        </div>
+
+        <div style="font-size: 12px; opacity: 0.8; text-align: center; margin-bottom: 16px;">
+            Minimum wager: 10 gold or any items
+        </div>
+
+        <div style="display: flex; gap: 12px;">
+            <button class="btn btn-success" onclick="confirmPvPWager()" style="flex: 1;">
+                ✅ Confirm & Broadcast
+            </button>
+            <button class="btn btn-danger" onclick="closePvPWagerModal()" style="flex: 1;">
+                ❌ Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================ -->
+<!-- 3. PvP Battle Modal -->
+<!-- ============================================ -->
+<div class="modal battle-modal" id="pvpBattleModal" style="display: none;">
+    <div class="modal-content" style="max-width: 700px;">
+        <h3 style="font-size: 28px; margin-bottom: 16px; text-align: center; color: #fbbf24;">
+            ⚔️ PVP BATTLE!
+        </h3>
+
+        <!-- Wager Display -->
+        <div id="pvpWagerDisplay" style="background: rgba(251, 191, 36, 0.2); padding: 12px; border-radius: 8px; text-align: center; margin-bottom: 16px; border: 2px solid #fbbf24; font-size: 13px;">
+            <strong>Winner Takes All:</strong><br>
+            Calculating...
+        </div>
+
+        <!-- Battle Arena -->
+        <div class="battle-arena" style="height: 200px;">
+            <div class="battle-character battle-player">🧙‍♂️</div>
+            <div style="font-size: 50px; animation: battle-lightning 0.8s ease-in-out infinite;">⚡</div>
+            <div class="battle-character battle-enemy">🛡️</div>
+        </div>
+
+        <!-- Opponent Info -->
+        <div style="margin-bottom: 16px; text-align: center;">
+            <div style="font-size: 18px; margin-bottom: 8px; color: #fbbf24;">
+                🎯 <span id="pvpOpponentName">Opponent</span> (Lv.<span id="pvpOpponentLevel">1</span>)
+            </div>
+            <div class="stat-bar" style="margin: 0 auto; width: 60%;">
+                <div class="stat-fill hp-fill" id="pvpOpponentHpBar" style="width: 100%"></div>
+            </div>
+            <div style="font-size: 12px; margin-top: 4px;">
+                HP: <span id="pvpOpponentHp">100</span>/<span id="pvpOpponentMaxHp">100</span>
+            </div>
+        </div>
+
+        <!-- Battle Actions -->
+        <div class="battle-actions" style="gap: 8px;">
+            <button class="btn btn-primary" onclick="pvpBattleAction('attack')" style="flex: 1;">
+                ⚔️ Attack
+            </button>
+            <button class="btn btn-primary" onclick="pvpBattleAction('magic')" style="flex: 1;">
+                ✨ Magic (-15 MP)
+            </button>
+            <button class="btn btn-primary" onclick="pvpBattleAction('defend')" style="flex: 1;">
+                🛡️ Defend
+            </button>
+            <button class="btn btn-success" onclick="pvpBattleAction('heal')" style="flex: 1;">
+                💚 Heal
+            </button>
+            <button class="btn btn-danger" onclick="pvpBattleAction('special')" style="flex: 1;">
+                🔥 Ultimate (-25 MP)
+            </button>
+        </div>
+
+        <!-- Battle Log -->
+        <div class="battle-log" id="pvpBattleLog" style="height: 140px; margin-top: 16px;">
+        </div>
+    </div>
+</div>
+<div class="modal" id="incomingChallengeModal" style="display: none; z-index: 10000;">
+    <div class="modal-content" style="max-width: 450px; border: 3px solid #dc2626; box-shadow: 0 0 30px rgba(220, 38, 38, 0.5); animation: challenge-pulse 1s ease-in-out infinite;">
+        
+        <!-- Header -->
+        <div style="text-align: center; margin-bottom: 20px;">
+            <div style="font-size: 48px; animation: challenge-bounce 0.6s ease-in-out infinite;">⚔️</div>
+            <h2 style="color: #dc2626; margin: 10px 0; text-transform: uppercase; letter-spacing: 2px;">
+                PVP CHALLENGE!
+            </h2>
+        </div>
+
+        <!-- Warning Box -->
+        <div style="background: rgba(220, 38, 38, 0.15); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #dc2626; text-align: center;">
+            <div style="font-size: 18px; font-weight: bold; color: #fbbf24; margin-bottom: 8px;">
+                <span id="challengerName">Player</span> (Lv.<span id="challengerLevel">1</span>)
+            </div>
+            <div style="font-size: 14px; opacity: 0.9;">
+                has challenged you to battle!
+            </div>
+        </div>
+
+        <!-- Wager Info -->
+        <div style="background: rgba(0, 0, 0, 0.3); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #3d5a80;">
+            <div style="font-weight: bold; margin-bottom: 10px; text-align: center; color: #fbbf24;">
+                💎 YOUR WAGER AT STAKE:
+            </div>
+            <div id="challengeWagerInfo" style="text-align: center; font-size: 14px; line-height: 1.8;">
+                ⛵ 0 Boats<br>
+                🗝️ 0 Keys<br>
+                ⛏️ 0 Pickaxe Uses<br>
+                💰 0 Gold
+            </div>
+        </div>
+
+        <!-- Warning Text -->
+        <div style="text-align: center; font-size: 13px; opacity: 0.8; margin-bottom: 20px; color: #fbbf24;">
+            ⚠️ Winner takes all! You will lose your wager if defeated.
+        </div>
+
+        <!-- Countdown Timer -->
+        <div style="text-align: center; font-size: 12px; opacity: 0.7; margin-bottom: 20px;">
+            ⏱️ Auto-decline in 30 seconds if no response
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 12px;">
+            <button class="btn btn-danger" onclick="acceptIncomingChallenge()" 
+                    style="flex: 1; font-size: 16px; padding: 12px; font-weight: bold; animation: accept-pulse 1.5s ease-in-out infinite;">
+                ⚔️ ACCEPT BATTLE
+            </button>
+            <button class="btn btn-secondary" onclick="declineIncomingChallenge()" 
+                    style="flex: 1; font-size: 16px; padding: 12px;">
+                🛡️ Decline
+            </button>
+        </div>
+
+        <!-- Tips -->
+        <div style="margin-top: 15px; padding: 10px; background: rgba(59, 130, 246, 0.1); border-radius: 6px; font-size: 11px; opacity: 0.8; text-align: center;">
+            💡 Tip: Make sure you have health potions and mana before accepting!
+        </div>
+    </div>
+</div>
+
                 <div style="margin-top: 20px;">
                     <h4>💬 World Chat</h4>
                     <div style="height: 120px; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 8px; margin: 10px 0; font-size: 0.8em;" id="chatMessages"></div>
