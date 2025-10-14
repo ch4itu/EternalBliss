@@ -1723,3 +1723,21 @@ html, body {
     position: relative;
     z-index: 1;
 }
+
+.entity-layer {
+  position: absolute;
+  left: 0; top: 0;
+  width: 1600px;       /* will be resized to map size in JS */
+  height: 1184px;
+  pointer-events: none;    /* entities themselves re-enable on each element */
+}
+
+.building { 
+  z-index: 40; 
+  pointer-events: auto;    /* clickable despite parent */
+}
+.npc-avatar      { z-index: 50; pointer-events: auto; }
+.enemy-avatar    { z-index: 30; pointer-events: auto; }
+.item-drop       { z-index: 35; pointer-events: auto; }
+.main-player-avatar, .other-player-avatar { z-index: 100; pointer-events: none; }
+

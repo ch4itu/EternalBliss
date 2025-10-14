@@ -165,20 +165,24 @@ function renderChunk(chunkX, chunkY) {
 
 function clearDistantChunks() {
     const visibleChunks = new Set(getVisibleChunks().map(c => getChunkKey(c.chunkX, c.chunkY)));
-    
+
     renderedChunks.forEach(chunkKey => {
         if (!visibleChunks.has(chunkKey)) {
             const tiles = document.querySelectorAll(`[data-chunk="${chunkKey}"]`);
             tiles.forEach(tile => {
-                const x = parseInt(tile.style.left) / 32;
-                const y = parseInt(tile.style.top) / 32;
-                tileCache.delete(`${x},${y}`);
-                tile.remove();
+                // ✅ Only remove terrain tiles, not entities
+                if (tile.classList.contains('tile')) {
+                    const x = parseInt(tile.style.left) / 32;
+                    const y = parseInt(tile.style.top) / 32;
+                    tileCache.delete(`${x},${y}`);
+                    tile.remove();
+                }
             });
             renderedChunks.delete(chunkKey);
         }
     });
 }
+
 
 // ============================================
 // BROWSER COMPATIBLE BUFFER UTILITIES
