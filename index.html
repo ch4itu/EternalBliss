@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EternalBliss - Algorand On-Chain RPG (Fixed)</title>
+    <title>EternalBliss - Algorand On-Chain RPG (Complete Fixed)</title>
     <script src="https://cdn.jsdelivr.net/npm/algosdk@2.7.0/dist/browser/algosdk.min.js"></script>
     <link rel="stylesheet" href="styles.css">
     <script src="bliss-map.js"></script>
@@ -303,21 +303,21 @@
             <div class="multiplayer-section">
                 <h3>👥 Multiplayer</h3>
                 
-    <!-- PvP Ready Button -->
-    <button class="btn btn-danger" id="pvpReadyBtn" onclick="togglePvPReady()" 
-            style="width: 100%; margin-bottom: 16px; font-size: 14px;">
-        ⚔️ Ready for PvP
-    </button>
-    
-    <!-- PvP Broadcasts List -->
-    <div style="margin-bottom: 16px;">
-        <h4>🎯 Active PvP Challenges</h4>
-        <div id="pvpBroadcastsList" style="max-height: 300px; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 8px;">
-            <div style="text-align: center; opacity: 0.7; padding: 20px;">
-                No active PvP challenges
-            </div>
-        </div>
-    </div>
+                <!-- PvP Ready Button -->
+                <button class="btn btn-danger" id="pvpReadyBtn" onclick="togglePvPReady()" 
+                        style="width: 100%; margin-bottom: 16px; font-size: 14px;">
+                    ⚔️ Ready for PvP
+                </button>
+                
+                <!-- PvP Broadcasts List -->
+                <div style="margin-bottom: 16px;">
+                    <h4>🎯 Active PvP Challenges</h4>
+                    <div id="pvpBroadcastsList" style="max-height: 300px; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 8px;">
+                        <div style="text-align: center; opacity: 0.7; padding: 20px;">
+                            No active PvP challenges
+                        </div>
+                    </div>
+                </div>
 
                 <div>
                     <p><strong>Online Players: <span id="onlineCount">1</span></strong></p>
@@ -326,188 +326,6 @@
                     </div>
                 </div>
                 
-<!-- ============================================ -->
-<!-- 2. PvP Wager Modal -->
-<!-- ============================================ -->
-<div class="modal" id="pvpWagerModal" style="display: none;">
-    <div class="modal-content" style="max-width: 500px;">
-        <h3 style="text-align: center; color: #fbbf24; margin-bottom: 20px;">
-            ⚔️ Set Your PvP Wager
-        </h3>
-        
-        <div style="background: rgba(220, 38, 38, 0.1); padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #dc2626;">
-            <strong style="color: #ef4444;">⚠️ Warning:</strong> Winner takes all! You will lose your wager if defeated.
-        </div>
-
-        <div style="margin-bottom: 16px;">
-            <label style="display: block; margin-bottom: 8px;">
-                ⛵ Boats (Available: <span id="wagerBoatsAvailable">0</span>)
-            </label>
-            <input type="number" id="wagerBoats" min="0" value="0" 
-                   style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border: 2px solid #3d5a80; border-radius: 6px; color: #fff;">
-        </div>
-
-        <div style="margin-bottom: 16px;">
-            <label style="display: block; margin-bottom: 8px;">
-                🗝️ Keys (Available: <span id="wagerKeysAvailable">0</span>)
-            </label>
-            <input type="number" id="wagerKeys" min="0" value="0" 
-                   style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border: 2px solid #3d5a80; border-radius: 6px; color: #fff;">
-        </div>
-
-        <div style="margin-bottom: 16px;">
-            <label style="display: block; margin-bottom: 8px;">
-                ⛏️ Pickaxe Uses (Available: <span id="wagerPickaxeAvailable">0</span>)
-            </label>
-            <input type="number" id="wagerPickaxe" min="0" value="0" 
-                   style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border: 2px solid #3d5a80; border-radius: 6px; color: #fff;">
-        </div>
-
-        <div style="margin-bottom: 20px;">
-            <label style="display: block; margin-bottom: 8px;">
-                💰 Gold (Available: <span id="wagerGoldAvailable">0</span>)
-            </label>
-            <input type="number" id="wagerGold" min="0" value="0" 
-                   style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border: 2px solid #3d5a80; border-radius: 6px; color: #fff;">
-        </div>
-
-        <div style="font-size: 12px; opacity: 0.8; text-align: center; margin-bottom: 16px;">
-            Minimum wager: 10 gold or any items
-        </div>
-
-        <div style="display: flex; gap: 12px;">
-            <button class="btn btn-success" onclick="confirmPvPWager()" style="flex: 1;">
-                ✅ Confirm & Broadcast
-            </button>
-            <button class="btn btn-danger" onclick="closePvPWagerModal()" style="flex: 1;">
-                ❌ Cancel
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- ============================================ -->
-<!-- 3. PvP Battle Modal -->
-<!-- ============================================ -->
-<div class="modal battle-modal" id="pvpBattleModal" style="display: none;">
-    <div class="modal-content" style="max-width: 700px;">
-        <h3 style="font-size: 28px; margin-bottom: 16px; text-align: center; color: #fbbf24;">
-            ⚔️ PVP BATTLE!
-        </h3>
-
-        <!-- Wager Display -->
-        <div id="pvpWagerDisplay" style="background: rgba(251, 191, 36, 0.2); padding: 12px; border-radius: 8px; text-align: center; margin-bottom: 16px; border: 2px solid #fbbf24; font-size: 13px;">
-            <strong>Winner Takes All:</strong><br>
-            Calculating...
-        </div>
-
-        <!-- Battle Arena -->
-        <div class="battle-arena" style="height: 200px;">
-            <div class="battle-character battle-player">🧙‍♂️</div>
-            <div style="font-size: 50px; animation: battle-lightning 0.8s ease-in-out infinite;">⚡</div>
-            <div class="battle-character battle-enemy">🛡️</div>
-        </div>
-
-        <!-- Opponent Info -->
-        <div style="margin-bottom: 16px; text-align: center;">
-            <div style="font-size: 18px; margin-bottom: 8px; color: #fbbf24;">
-                🎯 <span id="pvpOpponentName">Opponent</span> (Lv.<span id="pvpOpponentLevel">1</span>)
-            </div>
-            <div class="stat-bar" style="margin: 0 auto; width: 60%;">
-                <div class="stat-fill hp-fill" id="pvpOpponentHpBar" style="width: 100%"></div>
-            </div>
-            <div style="font-size: 12px; margin-top: 4px;">
-                HP: <span id="pvpOpponentHp">100</span>/<span id="pvpOpponentMaxHp">100</span>
-            </div>
-        </div>
-
-        <!-- Battle Actions -->
-        <div class="battle-actions" style="gap: 8px;">
-            <button class="btn btn-primary" onclick="pvpBattleAction('attack')" style="flex: 1;">
-                ⚔️ Attack
-            </button>
-            <button class="btn btn-primary" onclick="pvpBattleAction('magic')" style="flex: 1;">
-                ✨ Magic (-15 MP)
-            </button>
-            <button class="btn btn-primary" onclick="pvpBattleAction('defend')" style="flex: 1;">
-                🛡️ Defend
-            </button>
-            <button class="btn btn-success" onclick="pvpBattleAction('heal')" style="flex: 1;">
-                💚 Heal
-            </button>
-            <button class="btn btn-danger" onclick="pvpBattleAction('special')" style="flex: 1;">
-                🔥 Ultimate (-25 MP)
-            </button>
-        </div>
-
-        <!-- Battle Log -->
-        <div class="battle-log" id="pvpBattleLog" style="height: 140px; margin-top: 16px;">
-        </div>
-    </div>
-</div>
-<div class="modal" id="incomingChallengeModal" style="display: none; z-index: 10000;">
-    <div class="modal-content" style="max-width: 450px; border: 3px solid #dc2626; box-shadow: 0 0 30px rgba(220, 38, 38, 0.5); animation: challenge-pulse 1s ease-in-out infinite;">
-        
-        <!-- Header -->
-        <div style="text-align: center; margin-bottom: 20px;">
-            <div style="font-size: 48px; animation: challenge-bounce 0.6s ease-in-out infinite;">⚔️</div>
-            <h2 style="color: #dc2626; margin: 10px 0; text-transform: uppercase; letter-spacing: 2px;">
-                PVP CHALLENGE!
-            </h2>
-        </div>
-
-        <!-- Warning Box -->
-        <div style="background: rgba(220, 38, 38, 0.15); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #dc2626; text-align: center;">
-            <div style="font-size: 18px; font-weight: bold; color: #fbbf24; margin-bottom: 8px;">
-                <span id="challengerName">Player</span> (Lv.<span id="challengerLevel">1</span>)
-            </div>
-            <div style="font-size: 14px; opacity: 0.9;">
-                has challenged you to battle!
-            </div>
-        </div>
-
-        <!-- Wager Info -->
-        <div style="background: rgba(0, 0, 0, 0.3); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #3d5a80;">
-            <div style="font-weight: bold; margin-bottom: 10px; text-align: center; color: #fbbf24;">
-                💎 YOUR WAGER AT STAKE:
-            </div>
-            <div id="challengeWagerInfo" style="text-align: center; font-size: 14px; line-height: 1.8;">
-                ⛵ 0 Boats<br>
-                🗝️ 0 Keys<br>
-                ⛏️ 0 Pickaxe Uses<br>
-                💰 0 Gold
-            </div>
-        </div>
-
-        <!-- Warning Text -->
-        <div style="text-align: center; font-size: 13px; opacity: 0.8; margin-bottom: 20px; color: #fbbf24;">
-            ⚠️ Winner takes all! You will lose your wager if defeated.
-        </div>
-
-        <!-- Countdown Timer -->
-        <div style="text-align: center; font-size: 12px; opacity: 0.7; margin-bottom: 20px;">
-            ⏱️ Auto-decline in 30 seconds if no response
-        </div>
-
-        <!-- Action Buttons -->
-        <div style="display: flex; gap: 12px;">
-            <button class="btn btn-danger" onclick="acceptIncomingChallenge()" 
-                    style="flex: 1; font-size: 16px; padding: 12px; font-weight: bold; animation: accept-pulse 1.5s ease-in-out infinite;">
-                ⚔️ ACCEPT BATTLE
-            </button>
-            <button class="btn btn-secondary" onclick="declineIncomingChallenge()" 
-                    style="flex: 1; font-size: 16px; padding: 12px;">
-                🛡️ Decline
-            </button>
-        </div>
-
-        <!-- Tips -->
-        <div style="margin-top: 15px; padding: 10px; background: rgba(59, 130, 246, 0.1); border-radius: 6px; font-size: 11px; opacity: 0.8; text-align: center;">
-            💡 Tip: Make sure you have health potions and mana before accepting!
-        </div>
-    </div>
-</div>
-
                 <div style="margin-top: 20px;">
                     <h4>💬 World Chat</h4>
                     <div style="height: 120px; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 8px; margin: 10px 0; font-size: 0.8em;" id="chatMessages"></div>
@@ -542,11 +360,14 @@
                 <div class="desktop-controls-hint" style="font-size: 11px; opacity: 0.8; margin-top: 4px;">WASD/Arrows: Move | Space: Interact</div>
             </div>
 
+            <!-- FIXED: Enhanced Minimap -->
             <div class="minimap">
                 <div style="padding: 8px; font-size: 12px; font-weight: bold; border-bottom: 2px solid #3d5a80;">
                     🗺️ World Map
                 </div>
-                <div class="minimap-content" id="minimapContent"></div>
+                <div class="minimap-content" id="minimapContent">
+                    <!-- Canvas will be dynamically inserted here -->
+                </div>
             </div>
 
             <div class="world-view" id="worldView">
@@ -601,7 +422,7 @@
         </div>
     </div>
 
-    <!-- Battle Modal -->
+    <!-- Battle Modal (PvE) -->
     <div class="modal battle-modal" id="battleModal">
         <div class="modal-content">
             <h3 style="font-size: 24px; margin-bottom: 16px;">⚔️ BATTLE COMMENCED!</h3>
@@ -634,6 +455,186 @@
         </div>
     </div>
 
+    <!-- PvP Wager Modal -->
+    <div class="modal" id="pvpWagerModal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <h3 style="text-align: center; color: #fbbf24; margin-bottom: 20px;">
+                ⚔️ Set Your PvP Wager
+            </h3>
+            
+            <div style="background: rgba(220, 38, 38, 0.1); padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #dc2626;">
+                <strong style="color: #ef4444;">⚠️ Warning:</strong> Winner takes all! You will lose your wager if defeated.
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 8px;">
+                    ⛵ Boats (Available: <span id="wagerBoatsAvailable">0</span>)
+                </label>
+                <input type="number" id="wagerBoats" min="0" value="0" 
+                       style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border: 2px solid #3d5a80; border-radius: 6px; color: #fff;">
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 8px;">
+                    🗝️ Keys (Available: <span id="wagerKeysAvailable">0</span>)
+                </label>
+                <input type="number" id="wagerKeys" min="0" value="0" 
+                       style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border: 2px solid #3d5a80; border-radius: 6px; color: #fff;">
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 8px;">
+                    ⛏️ Pickaxe Uses (Available: <span id="wagerPickaxeAvailable">0</span>)
+                </label>
+                <input type="number" id="wagerPickaxe" min="0" value="0" 
+                       style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border: 2px solid #3d5a80; border-radius: 6px; color: #fff;">
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px;">
+                    💰 Gold (Available: <span id="wagerGoldAvailable">0</span>)
+                </label>
+                <input type="number" id="wagerGold" min="0" value="0" 
+                       style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border: 2px solid #3d5a80; border-radius: 6px; color: #fff;">
+            </div>
+
+            <div style="font-size: 12px; opacity: 0.8; text-align: center; margin-bottom: 16px;">
+                Minimum wager: 10 gold or any items
+            </div>
+
+            <div style="display: flex; gap: 12px;">
+                <button class="btn btn-success" onclick="confirmPvPWager()" style="flex: 1;">
+                    ✅ Confirm & Broadcast
+                </button>
+                <button class="btn btn-danger" onclick="closePvPWagerModal()" style="flex: 1;">
+                    ❌ Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PvP Battle Modal -->
+    <div class="modal battle-modal" id="pvpBattleModal" style="display: none;">
+        <div class="modal-content" style="max-width: 700px;">
+            <h3 style="font-size: 28px; margin-bottom: 16px; text-align: center; color: #fbbf24;">
+                ⚔️ PVP BATTLE!
+            </h3>
+
+            <!-- Wager Display -->
+            <div id="pvpWagerDisplay" style="background: rgba(251, 191, 36, 0.2); padding: 12px; border-radius: 8px; text-align: center; margin-bottom: 16px; border: 2px solid #fbbf24; font-size: 13px;">
+                <strong>Winner Takes All:</strong><br>
+                Calculating...
+            </div>
+
+            <!-- Battle Arena -->
+            <div class="battle-arena" style="height: 200px;">
+                <div class="battle-character battle-player">🧙‍♂️</div>
+                <div style="font-size: 50px; animation: battle-lightning 0.8s ease-in-out infinite;">⚡</div>
+                <div class="battle-character battle-enemy">🛡️</div>
+            </div>
+
+            <!-- Opponent Info -->
+            <div style="margin-bottom: 16px; text-align: center;">
+                <div style="font-size: 18px; margin-bottom: 8px; color: #fbbf24;">
+                    🎯 <span id="pvpOpponentName">Opponent</span> (Lv.<span id="pvpOpponentLevel">1</span>)
+                </div>
+                <div class="stat-bar" style="margin: 0 auto; width: 60%;">
+                    <div class="stat-fill hp-fill" id="pvpOpponentHpBar" style="width: 100%"></div>
+                </div>
+                <div style="font-size: 12px; margin-top: 4px;">
+                    HP: <span id="pvpOpponentHp">100</span>/<span id="pvpOpponentMaxHp">100</span>
+                </div>
+            </div>
+
+            <!-- Battle Actions -->
+            <div class="battle-actions" style="gap: 8px;">
+                <button class="btn btn-primary" onclick="pvpBattleAction('attack')" style="flex: 1;">
+                    ⚔️ Attack
+                </button>
+                <button class="btn btn-primary" onclick="pvpBattleAction('magic')" style="flex: 1;">
+                    ✨ Magic (-15 MP)
+                </button>
+                <button class="btn btn-primary" onclick="pvpBattleAction('defend')" style="flex: 1;">
+                    🛡️ Defend
+                </button>
+                <button class="btn btn-success" onclick="pvpBattleAction('heal')" style="flex: 1;">
+                    💚 Heal
+                </button>
+                <button class="btn btn-danger" onclick="pvpBattleAction('special')" style="flex: 1;">
+                    🔥 Ultimate (-25 MP)
+                </button>
+            </div>
+
+            <!-- Battle Log -->
+            <div class="battle-log" id="pvpBattleLog" style="height: 140px; margin-top: 16px;">
+            </div>
+        </div>
+    </div>
+
+    <!-- Incoming Challenge Modal -->
+    <div class="modal" id="incomingChallengeModal" style="display: none; z-index: 10000;">
+        <div class="modal-content" style="max-width: 450px; border: 3px solid #dc2626; box-shadow: 0 0 30px rgba(220, 38, 38, 0.5); animation: challenge-pulse 1s ease-in-out infinite;">
+            
+            <!-- Header -->
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="font-size: 48px; animation: challenge-bounce 0.6s ease-in-out infinite;">⚔️</div>
+                <h2 style="color: #dc2626; margin: 10px 0; text-transform: uppercase; letter-spacing: 2px;">
+                    PVP CHALLENGE!
+                </h2>
+            </div>
+
+            <!-- Warning Box -->
+            <div style="background: rgba(220, 38, 38, 0.15); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #dc2626; text-align: center;">
+                <div style="font-size: 18px; font-weight: bold; color: #fbbf24; margin-bottom: 8px;">
+                    <span id="challengerName">Player</span> (Lv.<span id="challengerLevel">1</span>)
+                </div>
+                <div style="font-size: 14px; opacity: 0.9;">
+                    has challenged you to battle!
+                </div>
+            </div>
+
+            <!-- Wager Info -->
+            <div style="background: rgba(0, 0, 0, 0.3); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #3d5a80;">
+                <div style="font-weight: bold; margin-bottom: 10px; text-align: center; color: #fbbf24;">
+                    💎 YOUR WAGER AT STAKE:
+                </div>
+                <div id="challengeWagerInfo" style="text-align: center; font-size: 14px; line-height: 1.8;">
+                    ⛵ 0 Boats<br>
+                    🗝️ 0 Keys<br>
+                    ⛏️ 0 Pickaxe Uses<br>
+                    💰 0 Gold
+                </div>
+            </div>
+
+            <!-- Warning Text -->
+            <div style="text-align: center; font-size: 13px; opacity: 0.8; margin-bottom: 20px; color: #fbbf24;">
+                ⚠️ Winner takes all! You will lose your wager if defeated.
+            </div>
+
+            <!-- Countdown Timer -->
+            <div style="text-align: center; font-size: 12px; opacity: 0.7; margin-bottom: 20px;">
+                ⏱️ Auto-decline in 30 seconds if no response
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 12px;">
+                <button class="btn btn-danger" onclick="acceptIncomingChallenge()" 
+                        style="flex: 1; font-size: 16px; padding: 12px; font-weight: bold; animation: accept-pulse 1.5s ease-in-out infinite;">
+                    ⚔️ ACCEPT BATTLE
+                </button>
+                <button class="btn btn-secondary" onclick="declineIncomingChallenge()" 
+                        style="flex: 1; font-size: 16px; padding: 12px;">
+                    🛡️ Decline
+                </button>
+            </div>
+
+            <!-- Tips -->
+            <div style="margin-top: 15px; padding: 10px; background: rgba(59, 130, 246, 0.1); border-radius: 6px; font-size: 11px; opacity: 0.8; text-align: center;">
+                💡 Tip: Make sure you have health potions and mana before accepting!
+            </div>
+        </div>
+    </div>
+
     <!-- Mobile Controls -->
     <div id="mobile-controls">
         <button data-dir="up" class="ctl-btn up">▲</button>
@@ -653,7 +654,7 @@
             <div id="txResult" style="display: none;">
                 <p id="txMessage"></p>
                 <div style="margin-top: 15px;">
-                    <a id="txLink" href="#" target="_blank" style="color: #10b981;">View on AlgoExplorer</a>
+                    <a id="txLink" href="#" target="_blank" style="color: #10b981;">View on Pera Explorer</a>
                 </div>
             </div>
             <button class="btn btn-primary" onclick="closeTxModal()" style="margin-top: 20px; width: 100%;">Close</button>
@@ -746,188 +747,198 @@
 
     <!-- How to Play Modal -->
     <div class="help-modal" id="helpModal">
-<div class="help-content">
-    <h2 style="text-align: center; color: #fbbf24; margin-bottom: 24px;">🎮 How to Play Eternal Bliss</h2>
-    
-    <div class="help-section">
-        <h3>⌨️ Controls</h3>
-        <ul>
-            <li><span class="help-key">WASD</span> or <span class="help-key">Arrow Keys</span> - Move your character</li>
-            <li><span class="help-key">Space</span> or <span class="help-key">Enter</span> - Interact with NPCs, buildings, and enemies</li>
-            <li><span class="help-key">ESC</span> - Close dialogs and modals</li>
-            <li><strong>Mobile:</strong> Use the on-screen D-pad (appears automatically on touch devices)</li>
-        </ul>
-    </div>
-
-    <div class="help-section">
-        <h3>🔗 Wallet Connection</h3>
-        <ul>
-            <li><strong>25-word mnemonic:</strong> Enter your Algorand recovery phrase (25 words, not 24)</li>
-            <li>Your wallet is needed to save progress on-chain and interact with other players</li>
-            <li>Game uses Algorand Testnet - safe for testing!</li>
-            <li><strong>Important:</strong> Algorand uses 25-word mnemonics (24 words + 1 checksum word)</li>
-        </ul>
-    </div>
-
-    <div class="help-section">
-        <h3>🗺️ Navigation</h3>
-        <ul>
-            <li><strong>Water:</strong> Purchase boats (50 gold) from shops. Each boat gives 15 moves across water. If moves run out on water, you'll be auto-rescued to nearest land (-20 HP, -10 gold penalty)</li>
-            <li><strong>Mountains:</strong> Buy pickaxes (75 gold) to clear mountains. Each pickaxe has 10 uses and permanently removes mountain tiles</li>
-            <li><strong>Doors:</strong> Collect keys to unlock locked doors throughout the world</li>
-        </ul>
-    </div>
-
-    <div class="help-section">
-        <h3>⚔️ Combat (PvE)</h3>
-        <ul>
-            <li>Click on enemies or walk into them to start battle</li>
-            <li><strong>Attack:</strong> Physical damage based on your ATK stat</li>
-            <li><strong>Magic:</strong> Spell damage (costs 12 MP) based on MAG stat</li>
-            <li><strong>Heal:</strong> Use health potions to restore HP during battle</li>
-            <li><strong>Flee:</strong> 75% chance to escape from battle</li>
-        </ul>
-    </div>
-
-    <div class="help-section">
-        <h3>⚔️ Player vs Player (PvP)</h3>
-        <ul>
-            <li><strong>Broadcasting Challenge:</strong>
-                <ul style="margin-left: 20px; margin-top: 8px;">
-                    <li>Click "⚔️ Ready for PvP" button</li>
-                    <li>Set wager: boats, keys, pickaxe uses, gold</li>
-                    <li>Minimum: 10 gold OR any items</li>
-                    <li>Broadcasts for 3 minutes to all players</li>
+        <div class="help-content">
+            <h2 style="text-align: center; color: #fbbf24; margin-bottom: 24px;">🎮 How to Play Eternal Bliss</h2>
+            
+            <div class="help-section">
+                <h3>⌨️ Controls</h3>
+                <ul>
+                    <li><span class="help-key">WASD</span> or <span class="help-key">Arrow Keys</span> - Move your character</li>
+                    <li><span class="help-key">Space</span> or <span class="help-key">Enter</span> - Interact with NPCs, buildings, and enemies</li>
+                    <li><span class="help-key">ESC</span> - Close dialogs and modals</li>
+                    <li><strong>Mobile:</strong> Use the on-screen D-pad (appears automatically on touch devices)</li>
                 </ul>
-            </li>
-            <li><strong>Accepting Challenge:</strong>
-                <ul style="margin-left: 20px; margin-top: 8px;">
-                    <li>View "🎯 Active PvP Challenges" list</li>
-                    <li>Must be within 5 tiles to challenge</li>
-                    <li>Use "📍 Navigate" if too far</li>
-                    <li>Match opponent's wager to fight</li>
+            </div>
+
+            <div class="help-section">
+                <h3>🔗 Wallet Connection</h3>
+                <ul>
+                    <li><strong>25-word mnemonic:</strong> Enter your Algorand recovery phrase (25 words, not 24)</li>
+                    <li>Your wallet is needed to save progress on-chain and interact with other players</li>
+                    <li>Game uses Algorand Testnet - safe for testing!</li>
+                    <li><strong>Important:</strong> Algorand uses 25-word mnemonics (24 words + 1 checksum word)</li>
                 </ul>
-            </li>
-            <li><strong>PvP Combat Actions:</strong>
-                <ul style="margin-left: 20px; margin-top: 8px;">
-                    <li>⚔️ <strong>Attack</strong> - Free, 15% crit chance</li>
-                    <li>✨ <strong>Magic</strong> - 15 MP, ignores armor</li>
-                    <li>🛡️ <strong>Defend</strong> - Free, +5 DEF temporarily</li>
-                    <li>💚 <strong>Heal</strong> - Uses 1 health potion</li>
-                    <li>🔥 <strong>Ultimate</strong> - 25 MP, 1.8x damage</li>
+            </div>
+
+            <div class="help-section">
+                <h3>🗺️ Navigation</h3>
+                <ul>
+                    <li><strong>Water:</strong> Purchase boats (50 gold) from shops. Each boat gives 15 moves across water. If moves run out on water, you'll be auto-rescued to nearest land (-20 HP, -10 gold penalty)</li>
+                    <li><strong>Mountains:</strong> Buy pickaxes (75 gold) to clear mountains. Each pickaxe has 10 uses and permanently removes mountain tiles</li>
+                    <li><strong>Doors:</strong> Collect keys to unlock locked doors throughout the world</li>
                 </ul>
-            </li>
-            <li><strong>Rewards:</strong> Winner gets 2x wager + bonus XP (opponent level × 50)</li>
-            <li><strong>Notifications:</strong> You'll be notified when someone accepts your challenge (30-sec timer)</li>
-        </ul>
-    </div>
+            </div>
 
-    <div class="help-section">
-        <h3>🏪 Buildings & NPCs</h3>
-        <ul>
-            <li><strong>Inns:</strong> Rest for 20 gold to fully restore HP & MP</li>
-            <li><strong>Shops:</strong> Buy health potions (15g), mana potions (10g), boats (50g), pickaxes (75g)</li>
-            <li><strong>Temples:</strong> Free full healing - visit anytime!</li>
-            <li><strong>Castles:</strong> Accept quests for gold and XP rewards</li>
-            <li><strong>NPCs:</strong> Talk to villagers, merchants, and priests for dialogue and information</li>
-        </ul>
-    </div>
-
-    <div class="help-section">
-        <h3>📊 Progression</h3>
-        <ul>
-            <li>Defeat enemies to earn gold and XP</li>
-            <li>Win PvP battles for massive rewards (2x wager)</li>
-            <li>Level up to increase HP, MP, ATK, DEF, and MAG stats</li>
-            <li>Collect treasures scattered across the map</li>
-            <li>Your stats are shown in the left panel</li>
-            <li>Track sailing moves and pickaxe durability in inventory</li>
-        </ul>
-    </div>
-
-    <div class="help-section">
-        <h3>🔗 Algorand Features</h3>
-        <ul>
-            <li><strong>Connect Wallet:</strong> Use your 25-word Algorand mnemonic</li>
-            <li><strong>Save Progress:</strong> Click "Save to Algorand" to store your hero data on-chain</li>
-            <li><strong>Sync Data:</strong> Click "Sync from Algorand" to load your saved progress</li>
-            <li><strong>Mint NFT:</strong> Create a permanent Hero NFT of your character</li>
-            <li><strong>Multiplayer:</strong> See other players exploring the same world</li>
-            <li><strong>PvP Challenges:</strong> All challenges recorded on Algorand blockchain</li>
-            <li><strong>Chat:</strong> Send messages that are stored permanently on the blockchain</li>
-            <li><strong>Important:</strong> Algorand wallets always generate 25 words (not 24 like some other chains)</li>
-        </ul>
-    </div>
-
-    <div class="help-section">
-        <h3>🗺️ Map System</h3>
-        <ul>
-            <li>Click the 🗺️ button (bottom-right) to import new maps</li>
-            <li>Choose from 8 preset worlds or paste custom JSON maps</li>
-            <li>Each map has unique NPCs, enemies, and challenges</li>
-            <li>Use the minimap (right side) to see your location</li>
-        </ul>
-    </div>
-
-    <div class="help-section">
-        <h3>📱 Mobile Support</h3>
-        <ul>
-            <li><strong>D-pad Controls:</strong> Touch-optimized controls appear automatically on mobile devices</li>
-            <li><strong>Responsive Design:</strong> Game scales to fit your screen perfectly</li>
-            <li><strong>Haptic Feedback:</strong> Feel button presses with device vibration (if supported)</li>
-            <li><strong>Touch Gestures:</strong> Tap enemies and NPCs to interact</li>
-            <li><strong>Performance:</strong> Optimized rendering for smooth mobile gameplay</li>
-        </ul>
-    </div>
-
-    <div class="help-section">
-        <h3>⚡ Performance</h3>
-        <ul>
-            <li><strong>Optimized Rendering:</strong> Game now uses chunking system for better performance</li>
-            <li>Only visible areas are rendered, reducing lag significantly</li>
-            <li>Smooth movement even on large maps</li>
-            <li>Memory efficient - tiles are cached and reused</li>
-            <li>Works great on both desktop and mobile devices</li>
-        </ul>
-    </div>
-
-    <div class="help-section">
-        <h3>💡 Tips & Strategy</h3>
-        <ul>
-            <li>Always keep health potions in stock before venturing far</li>
-            <li>Temples offer free healing - remember their locations!</li>
-            <li>Buy boats before exploring water areas</li>
-            <li>Pickaxes create permanent paths - plan your routes</li>
-            <li><strong>PvP Tips:</strong>
-                <ul style="margin-left: 20px; margin-top: 8px;">
-                    <li>Start with small wagers (10-25 gold) to learn</li>
-                    <li>Position near opponents before broadcasting</li>
-                    <li>Use defend before opponent's turn</li>
-                    <li>Save ultimate for critical moments</li>
-                    <li>Always bring health potions to PvP</li>
-                    <li>Check opponent's level before accepting</li>
+            <div class="help-section">
+                <h3>⚔️ Combat (PvE)</h3>
+                <ul>
+                    <li>Click on enemies or walk into them to start battle</li>
+                    <li><strong>Attack:</strong> Physical damage based on your ATK stat</li>
+                    <li><strong>Magic:</strong> Spell damage (costs 12 MP) based on MAG stat</li>
+                    <li><strong>Heal:</strong> Use health potions to restore HP during battle</li>
+                    <li><strong>Flee:</strong> 75% chance to escape from battle</li>
                 </ul>
-            </li>
-            <li>Talk to NPCs for hints about the world</li>
-            <li>Save your progress regularly to the blockchain</li>
-            <li>Use your 25-word mnemonic to connect your wallet</li>
-            <li>On mobile: Tap and hold for context menus</li>
-        </ul>
-    </div>
+            </div>
 
-    <div class="help-section" style="background: rgba(220, 38, 38, 0.1); border: 2px solid #dc2626; border-radius: 8px; padding: 16px;">
-        <h3 style="color: #ef4444;">⚠️ Important Notes</h3>
-        <ul>
-            <li><strong>TestNet Only:</strong> This game runs on Algorand TestNet - use test wallets only!</li>
-            <li><strong>PvP Wagers:</strong> Only wager what you can afford to lose</li>
-            <li><strong>Security:</strong> Never use wallets with real funds</li>
-            <li><strong>Blockchain Transactions:</strong> All PvP challenges cost a small transaction fee (0.001 ALGO)</li>
-            <li><strong>Permanent Records:</strong> Your actions are permanently recorded on Algorand</li>
-        </ul>
-    </div>
+            <div class="help-section">
+                <h3>⚔️ Player vs Player (PvP)</h3>
+                <ul>
+                    <li><strong>Broadcasting Challenge:</strong>
+                        <ul style="margin-left: 20px; margin-top: 8px;">
+                            <li>Click "⚔️ Ready for PvP" button</li>
+                            <li>Set wager: boats, keys, pickaxe uses, gold</li>
+                            <li>Minimum: 10 gold OR any items</li>
+                            <li>Broadcasts for 3 minutes to all players</li>
+                        </ul>
+                    </li>
+                    <li><strong>Accepting Challenge:</strong>
+                        <ul style="margin-left: 20px; margin-top: 8px;">
+                            <li>View "🎯 Active PvP Challenges" list</li>
+                            <li>Must be within 5 tiles to challenge</li>
+                            <li>Use "⚡ Teleport" if too far (NEW!)</li>
+                            <li>Match opponent's wager to fight</li>
+                        </ul>
+                    </li>
+                    <li><strong>PvP Combat Actions:</strong>
+                        <ul style="margin-left: 20px; margin-top: 8px;">
+                            <li>⚔️ <strong>Attack</strong> - Free, 15% crit chance</li>
+                            <li>✨ <strong>Magic</strong> - 15 MP, ignores armor</li>
+                            <li>🛡️ <strong>Defend</strong> - Free, +5 DEF temporarily</li>
+                            <li>💚 <strong>Heal</strong> - Uses 1 health potion</li>
+                            <li>🔥 <strong>Ultimate</strong> - 25 MP, 1.8x damage</li>
+                        </ul>
+                    </li>
+                    <li><strong>Rewards:</strong> Winner gets 2x wager + bonus XP (opponent level × 50)</li>
+                    <li><strong>Notifications:</strong> Auto-battle system starts when opponent accepts (NEW!)</li>
+                </ul>
+            </div>
 
-    <button class="btn btn-primary help-close" onclick="closeHelp()">Got it! Start Playing</button>
-</div>
+            <div class="help-section">
+                <h3>🏪 Buildings & NPCs</h3>
+                <ul>
+                    <li><strong>Inns:</strong> Rest for 20 gold to fully restore HP & MP</li>
+                    <li><strong>Shops:</strong> Buy health potions (15g), mana potions (10g), boats (50g), pickaxes (75g)</li>
+                    <li><strong>Temples:</strong> Free full healing - visit anytime!</li>
+                    <li><strong>Castles:</strong> Accept quests for gold and XP rewards</li>
+                    <li><strong>NPCs:</strong> Talk to villagers, merchants, and priests for dialogue and information</li>
+                    <li><strong>Moving NPCs:</strong> Some NPCs patrol around - they're not just standing still! (NEW!)</li>
+                </ul>
+            </div>
+
+            <div class="help-section">
+                <h3>📊 Progression</h3>
+                <ul>
+                    <li>Defeat enemies to earn gold and XP</li>
+                    <li>Win PvP battles for massive rewards (2x wager)</li>
+                    <li>Level up to increase HP, MP, ATK, DEF, and MAG stats</li>
+                    <li>Collect treasures scattered across the map</li>
+                    <li>Your stats are shown in the left panel</li>
+                    <li>Track sailing moves and pickaxe durability in inventory</li>
+                    <li><strong>Enemy Aggro:</strong> Enemies now chase you when you get close! (NEW!)</li>
+                </ul>
+            </div>
+
+            <div class="help-section">
+                <h3>🔗 Algorand Features</h3>
+                <ul>
+                    <li><strong>Connect Wallet:</strong> Use your 25-word Algorand mnemonic</li>
+                    <li><strong>Save Progress:</strong> Click "Save to Algorand" to store your hero data on-chain</li>
+                    <li><strong>Sync Data:</strong> Click "Sync from Algorand" to load your saved progress</li>
+                    <li><strong>Mint NFT:</strong> Create a permanent Hero NFT of your character</li>
+                    <li><strong>Multiplayer:</strong> See other players exploring the same world</li>
+                    <li><strong>PvP Challenges:</strong> All challenges recorded on Algorand blockchain</li>
+                    <li><strong>Chat:</strong> Send messages that are stored permanently on the blockchain</li>
+                    <li><strong>Important:</strong> Algorand wallets always generate 25 words (not 24 like some other chains)</li>
+                </ul>
+            </div>
+
+            <div class="help-section">
+                <h3>🗺️ Map System</h3>
+                <ul>
+                    <li>Click the 🗺️ button (bottom-right) to import new maps</li>
+                    <li>Choose from 8 preset worlds or paste custom JSON maps</li>
+                    <li>Each map has unique NPCs, enemies, and challenges</li>
+                    <li>Use the minimap (right side) to see your location - NOW FULLY FUNCTIONAL! (FIXED!)</li>
+                </ul>
+            </div>
+
+            <div class="help-section">
+                <h3>📱 Mobile Support</h3>
+                <ul>
+                    <li><strong>D-pad Controls:</strong> Touch-optimized controls appear automatically on mobile devices</li>
+                    <li><strong>Responsive Design:</strong> Game scales to fit your screen perfectly</li>
+                    <li><strong>Haptic Feedback:</strong> Feel button presses with device vibration (if supported)</li>
+                    <li><strong>Touch Gestures:</strong> Tap enemies and NPCs to interact</li>
+                    <li><strong>Performance:</strong> Optimized rendering for smooth mobile gameplay</li>
+                </ul>
+            </div>
+
+            <div class="help-section">
+                <h3>⚡ Performance</h3>
+                <ul>
+                    <li><strong>Optimized Rendering:</strong> Game now uses chunking system for better performance</li>
+                    <li>Only visible areas are rendered, reducing lag significantly</li>
+                    <li>Smooth movement even on large maps</li>
+                    <li>Memory efficient - tiles are cached and reused</li>
+                    <li>Works great on both desktop and mobile devices</li>
+                </ul>
+            </div>
+
+            <div class="help-section">
+                <h3>💡 Tips & Strategy</h3>
+                <ul>
+                    <li>Always keep health potions in stock before venturing far</li>
+                    <li>Temples offer free healing - remember their locations!</li>
+                    <li>Buy boats before exploring water areas</li>
+                    <li>Pickaxes create permanent paths - plan your routes</li>
+                    <li><strong>PvP Tips:</strong>
+                        <ul style="margin-left: 20px; margin-top: 8px;">
+                            <li>Start with small wagers (10-25 gold) to learn</li>
+                            <li>Use teleport button to reach challengers instantly (NEW!)</li>
+                            <li>Use defend before opponent's turn</li>
+                            <li>Save ultimate for critical moments</li>
+                            <li>Always bring health potions to PvP</li>
+                            <li>Check opponent's level before accepting</li>
+                        </ul>
+                    </li>
+                    <li><strong>Enemy Tactics:</strong>
+                        <ul style="margin-left: 20px; margin-top: 8px;">
+                            <li>Moving enemies will chase you when close (NEW!)</li>
+                            <li>Keep distance if low on HP</li>
+                            <li>Use terrain strategically</li>
+                        </ul>
+                    </li>
+                    <li>Talk to NPCs for hints about the world</li>
+                    <li>Save your progress regularly to the blockchain</li>
+                    <li>Use your 25-word mnemonic to connect your wallet</li>
+                    <li>On mobile: Tap and hold for context menus</li>
+                </ul>
+            </div>
+
+            <div class="help-section" style="background: rgba(220, 38, 38, 0.1); border: 2px solid #dc2626; border-radius: 8px; padding: 16px;">
+                <h3 style="color: #ef4444;">⚠️ Important Notes</h3>
+                <ul>
+                    <li><strong>TestNet Only:</strong> This game runs on Algorand TestNet - use test wallets only!</li>
+                    <li><strong>PvP Wagers:</strong> Only wager what you can afford to lose</li>
+                    <li><strong>Security:</strong> Never use wallets with real funds</li>
+                    <li><strong>Blockchain Transactions:</strong> All PvP challenges cost a small transaction fee (0.001 ALGO)</li>
+                    <li><strong>Permanent Records:</strong> Your actions are permanently recorded on Algorand</li>
+                </ul>
+            </div>
+
+            <button class="btn btn-primary help-close" onclick="closeHelp()">Got it! Start Playing</button>
+        </div>
+    </div>
 
     <script src="map-importer-complete.js"></script>
 </body>

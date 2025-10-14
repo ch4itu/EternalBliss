@@ -1,14 +1,15 @@
-// EternalBliss Algorand - Optimized Version with Chunking
+// EternalBliss Algorand - Complete Fixed Version
+// Fixes: 1) Minimap rendering, 2) PvP engagement, 3) Moving enemies/NPCs
 
 // ============================================
 // GAME STATE CONFIGURATION
 // ============================================
 
 const DEFAULT_MAP = null;
-const CHUNK_SIZE = 16; // Render chunks of 16x16 tiles
-const RENDER_DISTANCE = 2; // Render 2 chunks in each direction
-const PVP_BROADCAST_DURATION = 180000; // 3 minutes (180 seconds)
-const PVP_MATCH_RANGE = 5; // tiles - players must be within 5 tiles
+const CHUNK_SIZE = 16;
+const RENDER_DISTANCE = 2;
+const PVP_BROADCAST_DURATION = 180000; // 3 minutes
+const PVP_MATCH_RANGE = 5;
 
 let gameState = {
     player: {
@@ -61,22 +62,22 @@ let gameState = {
         keys: { w: false, a: false, s: false, d: false }
     },
     pvp: {
-    isReady: false,
-    broadcastStart: null,
-    currentChallenge: null,
-    inPvPBattle: false,
-    wager: {
-        boats: 0,
-        keys: 0,
-        pickaxe: 0,
-        gold: 0
-            }
+        isReady: false,
+        broadcastStart: null,
+        currentChallenge: null,
+        inPvPBattle: false,
+        wager: {
+            boats: 0,
+            keys: 0,
+            pickaxe: 0,
+            gold: 0
+        }
     },
     lastChallengeCheck: 0,
     challengeNotificationShown: false
 };
 
-let pvpBroadcasts = new Map(); // Map of address -> {name, level, x, y, timestamp, wager}
+let pvpBroadcasts = new Map();
 
 // ============================================
 // ALGORAND BLOCKCHAIN VARIABLES
@@ -98,11 +99,14 @@ const NOTE_PREFIXES = {
     CHAT_MESSAGE: 'CHRPG:CHAT:',
     POSITION: 'CHRPG:POS:',
     BATTLE: 'CHRPG:BATTLE:',
-    TRADE: 'CHRPG:TRADE:'
+    TRADE: 'CHRPG:TRADE:',
+    PVP_READY: 'CHRPG:PVP:',
+    PVP_ACCEPT: 'CHRPG:PVP_ACCEPT:',
+    PVP_START: 'CHRPG:PVP_START:'
 };
 
 // ============================================
-// CHUNKING SYSTEM FOR PERFORMANCE
+// CHUNKING SYSTEM
 // ============================================
 
 let renderedChunks = new Set();
@@ -170,7 +174,6 @@ function clearDistantChunks() {
         if (!visibleChunks.has(chunkKey)) {
             const tiles = document.querySelectorAll(`[data-chunk="${chunkKey}"]`);
             tiles.forEach(tile => {
-                // ✅ Only remove terrain tiles, not entities
                 if (tile.classList.contains('tile')) {
                     const x = parseInt(tile.style.left) / 32;
                     const y = parseInt(tile.style.top) / 32;
@@ -182,7 +185,6 @@ function clearDistantChunks() {
         }
     });
 }
-
 
 // ============================================
 // BROWSER COMPATIBLE BUFFER UTILITIES
@@ -212,23 +214,144 @@ let keyStates = {};
 let moveInterval = null;
 let chatUpdateInterval = null;
 let playerUpdateInterval = null;
+let entityMovementInterval = null;
 
 // ============================================
-// ALGORAND INITIALIZATION FUNCTIONS
+// MOVING ENTITIES SYSTEM (NEW!)
+// ============================================
+
+function initializeMovingEntities() {
+    // Add patrol routes to some enemies
+    enemies.forEach((enemy, index) => {
+        if (index % 3 === 0) { // Every 3rd enemy patrols
+            enemy.patrol = {
+                enabled: true,
+                originX: enemy.x,
+                originY: enemy.y,
+                radius: 3,
+                angle: Math.random() * Math.PI * 2,
+                speed: 0.02
+            };
+        }
+    });
+
+    // Add patrol routes to some NPCs
+    npcs.forEach((npc, index) => {
+        if (index % 4 === 0) { // Every 4th NPC walks around
+            npc.patrol = {
+                enabled: true,
+                originX: npc.x,
+                originY: npc.y,
+                radius: 2,
+                angle: Math.random() * Math.PI * 2,
+                speed: 0.015
+            };
+        }
+    });
+
+    // Start movement loop
+    entityMovementInterval = setInterval(updateMovingEntities, 100);
+}
+
+function updateMovingEntities() {
+    if (gameState.inBattle) return;
+
+    // Update patrolling enemies
+    enemies.forEach(enemy => {
+        if (!enemy.patrol || !enemy.patrol.enabled) return;
+
+        // Check if player is nearby (aggro range: 4 tiles)
+        const distToPlayer = Math.sqrt(
+            Math.pow(gameState.player.x - enemy.x, 2) + 
+            Math.pow(gameState.player.y - enemy.y, 2)
+        );
+
+        if (distToPlayer < 4) {
+            // AGGRO! Move towards player
+            const dx = gameState.player.x - enemy.x;
+            const dy = gameState.player.y - enemy.y;
+            const moveX = Math.sign(dx) * 0.3;
+            const moveY = Math.sign(dy) * 0.3;
+
+            const newX = enemy.x + moveX;
+            const newY = enemy.y + moveY;
+
+            if (canEntityMoveTo(newX, newY)) {
+                enemy.x = newX;
+                enemy.y = newY;
+            }
+
+            // Attack if very close
+            if (distToPlayer < 1.5 && !gameState.inBattle) {
+                startBattle(enemy);
+                return;
+            }
+        } else {
+            // Normal patrol
+            enemy.patrol.angle += enemy.patrol.speed;
+            const newX = enemy.patrol.originX + Math.cos(enemy.patrol.angle) * enemy.patrol.radius;
+            const newY = enemy.patrol.originY + Math.sin(enemy.patrol.angle) * enemy.patrol.radius;
+
+            if (canEntityMoveTo(newX, newY)) {
+                enemy.x = newX;
+                enemy.y = newY;
+            }
+        }
+    });
+
+    // Update patrolling NPCs (peaceful, don't aggro)
+    npcs.forEach(npc => {
+        if (!npc.patrol || !npc.patrol.enabled) return;
+
+        npc.patrol.angle += npc.patrol.speed;
+        const newX = npc.patrol.originX + Math.cos(npc.patrol.angle) * npc.patrol.radius;
+        const newY = npc.patrol.originY + Math.sin(npc.patrol.angle) * npc.patrol.radius;
+
+        if (canEntityMoveTo(newX, newY)) {
+            npc.x = newX;
+            npc.y = newY;
+        }
+    });
+
+    // Re-render entities only
+    renderEntitiesOnly();
+}
+
+function canEntityMoveTo(x, y) {
+    const tileX = Math.floor(x);
+    const tileY = Math.floor(y);
+    
+    if (tileX < 0 || tileX >= gameState.world.width || 
+        tileY < 0 || tileY >= gameState.world.height) {
+        return false;
+    }
+    
+    const tileType = worldMap[tileY][tileX];
+    return tileType !== 'water' && tileType !== 'mountain' && tileType !== 'door';
+}
+
+function renderEntitiesOnly() {
+    const worldGrid = document.getElementById('worldGrid');
+    
+    // Remove existing entities
+    const oldEntities = worldGrid.querySelectorAll('.building, .npc-avatar, .enemy-avatar, .item-drop, .other-player-avatar, .main-player-avatar, [style*="z-index: 19"]');
+    oldEntities.forEach(el => el.remove());
+    
+    // Re-render all entities
+    renderAllEntities();
+}
+
+// ============================================
+// ALGORAND INITIALIZATION
 // ============================================
 
 function initAlgorand() {
     try {
         algodClient = new algosdk.Algodv2(ALGOD_TOKEN, ALGOD_SERVER, ALGOD_PORT);
         indexerClient = new algosdk.Indexer(ALGOD_TOKEN, INDEXER_SERVER, ALGOD_PORT);
-        console.log('Algorand clients initialized');
+        console.log('✅ Algorand clients initialized');
     } catch (error) {
         console.error('Failed to initialize Algorand clients:', error);
-        showFloatingText('Failed to connect to Algorand network', 
-            gameState.player.x * 32 + 16, 
-            gameState.player.y * 32 - 40, 
-            '#ef4444'
-        );
     }
 }
 
@@ -248,7 +371,6 @@ async function connectWithMnemonic() {
         return;
     }
 
-    // Count words and validate
     const words = mnemonic.trim().split(/\s+/).filter(word => word.length > 0);
     
     if (words.length !== 25) {
@@ -260,7 +382,6 @@ async function connectWithMnemonic() {
         return;
     }
 
-    // Check if words contain only valid characters (letters)
     const hasInvalidChars = words.some(word => !/^[a-zA-Z]+$/.test(word));
     if (hasInvalidChars) {
         showFloatingText('Mnemonic contains invalid characters!', 
@@ -272,14 +393,8 @@ async function connectWithMnemonic() {
     }
 
     try {
-        // Clean the mnemonic - lowercase and join with single spaces
         const cleanMnemonic = words.map(w => w.toLowerCase()).join(' ');
-        
-        console.log('Attempting to connect with 25-word mnemonic...');
-        
-        // 25-word is Algorand standard, use directly
         const accountResult = algosdk.mnemonicToSecretKey(cleanMnemonic);
-        console.log('✅ 25-word Algorand mnemonic validated');
         
         account = accountResult;
         gameState.player.address = account.addr;
@@ -326,7 +441,6 @@ async function connectWithMnemonic() {
         );
     }
 }
-
 
 function disconnectWallet() {
     account = null;
@@ -445,7 +559,7 @@ async function saveToAlgorand() {
     }
     
     btn.disabled = false;
-    btn.innerHTML = 'Save to Algorand';
+    btn.innerHTML = '💾 Save to Algorand';
 }
 
 async function syncWithAlgorand() {
@@ -489,7 +603,7 @@ async function syncWithAlgorand() {
     }
     
     btn.disabled = false;
-    btn.innerHTML = 'Sync from Algorand';
+    btn.innerHTML = '🔄 Sync from Algorand';
 }
 
 async function waitForConfirmation(algodClient, txId, timeout) {
@@ -511,13 +625,14 @@ function startPeriodicUpdates() {
     chatUpdateInterval = setInterval(loadChatMessages, 10000);
     playerUpdateInterval = setInterval(loadOtherPlayers, 15000);
     setInterval(updateAccountBalance, 30000);
-    setInterval(loadPvPBroadcasts, 15000); // Check every 15 seconds
+    setInterval(loadPvPBroadcasts, 15000);
     setInterval(checkForIncomingChallenges, 5000);
 }
 
 function stopPeriodicUpdates() {
     if (chatUpdateInterval) clearInterval(chatUpdateInterval);
     if (playerUpdateInterval) clearInterval(playerUpdateInterval);
+    if (entityMovementInterval) clearInterval(entityMovementInterval);
 }
 
 // ============================================
@@ -622,7 +737,7 @@ async function loadOtherPlayers() {
                         lastUpdate: txn['round-time']
                     });
                 } catch (e) {
-                    console.log('Failed to parse position data:', e);
+                    // Ignore parsing errors
                 }
             }
         }
@@ -667,7 +782,7 @@ async function loadChatMessages() {
                     messageDiv.innerHTML = `<span style="color: ${isYou ? '#fbbf24' : '#74b9ff'};">${senderName}:</span> ${chatData.message}`;
                     chatDiv.appendChild(messageDiv);
                 } catch (e) {
-                    console.log('Failed to parse chat message:', e);
+                    // Ignore parsing errors
                 }
             }
         }
@@ -730,7 +845,6 @@ async function sendChatMessage() {
         );
         
         const signedTxn = txn.signTxn(account.sk);
-        
         const { txId } = await algodClient.sendRawTransaction(signedTxn).do();
         
         showFloatingText('Message sending...', 
@@ -876,7 +990,7 @@ async function createPlayerNFT() {
     }
     
     btn.disabled = false;
-    btn.innerHTML = 'Mint Player NFT';
+    btn.innerHTML = '🎨 Mint Player NFT';
 }
 
 // ============================================
@@ -912,7 +1026,7 @@ function updateTxModal(success, message, txId = null) {
     
     if (txId) {
         txLink.style.display = 'block';
-        txLink.href = `https://testnet.algoexplorer.io/tx/${txId}`;
+        txLink.href = `https://testnet.explorer.perawallet.app/tx/${txId}`;
     } else {
         txLink.style.display = 'none';
     }
@@ -1002,6 +1116,7 @@ function initGame() {
     
     setupEventListeners();
     setupMobileControls();
+    initializeMovingEntities(); // NEW!
 }
 
 function loadCustomMap(mapData) {
@@ -1096,20 +1211,16 @@ function spawnRandomItems() {
 function renderWorld() {
     const worldGrid = document.getElementById('worldGrid');
     
-    // Render visible chunks FIRST (terrain only)
     const visibleChunks = getVisibleChunks();
     visibleChunks.forEach(chunk => {
         renderChunk(chunk.chunkX, chunk.chunkY);
     });
     
-    // Clear distant chunks (terrain only)
     clearDistantChunks();
     
-    // Clear only entities, keep terrain chunks
     const entities = worldGrid.querySelectorAll('.building, .npc-avatar, .enemy-avatar, .item-drop, .other-player-avatar, .main-player-avatar, [style*="z-index: 19"]');
     entities.forEach(el => el.remove());
     
-    // RENDER ALL ENTITIES (they don't use chunking)
     renderAllEntities();
 }
 
@@ -1326,7 +1437,6 @@ function updatePlayerPositionOnly() {
         }
     }
     
-    // Update boat position if sailing
     if (gameState.sailingMoves && gameState.sailingMoves > 0) {
         const boatEl = document.querySelector('[style*="boat-bob"]');
         if (boatEl) {
@@ -1353,7 +1463,6 @@ function centerCameraOnPlayerOptimized() {
 
     worldGrid.style.transform = `translate3d(${finalX}px, ${finalY}px, 0)`;
     
-    // Check if we need to render new chunks
     const visibleChunks = getVisibleChunks();
     let needsRerender = false;
     
@@ -1365,12 +1474,10 @@ function centerCameraOnPlayerOptimized() {
     });
     
     if (needsRerender) {
-        // Only render new TERRAIN chunks - DON'T touch entities!
         visibleChunks.forEach(chunk => {
             renderChunk(chunk.chunkX, chunk.chunkY);
         });
         clearDistantChunks();
-        // CRITICAL FIX: Removed renderAllEntities() call - entities stay persistent!
     }
     
     updateMinimapOptimized();
@@ -1434,10 +1541,8 @@ function canMoveTo(x, y) {
             
             worldMap[tileY][tileX] = 'grass';
             
-            // Clear the old tile from cache
             tileCache.delete(`${tileX},${tileY}`);
             
-            // Force re-render of this chunk
             const chunk = worldToChunk(tileX, tileY);
             renderedChunks.delete(getChunkKey(chunk.chunkX, chunk.chunkY));
             
@@ -1469,10 +1574,8 @@ function canMoveTo(x, y) {
             gameState.inventory.keys--;
             worldMap[tileY][tileX] = 'road';
             
-            // Clear the old tile from cache
             tileCache.delete(`${tileX},${tileY}`);
             
-            // Force re-render of this chunk
             const chunk = worldToChunk(tileX, tileY);
             renderedChunks.delete(getChunkKey(chunk.chunkX, chunk.chunkY));
             
@@ -1671,15 +1774,24 @@ function collectItem(index) {
 }
 
 // ============================================
-// MINIMAP SYSTEM
+// FIXED MINIMAP SYSTEM
 // ============================================
 
 function initializeMinimap() {
+    // CRITICAL: Wait for worldMap to be loaded
+    if (!worldMap || worldMap.length === 0 || !BLISS_MAP_DATA) {
+        console.warn('⏳ WorldMap not ready, deferring minimap init...');
+        setTimeout(() => initializeMinimap(), 500);
+        return;
+    }
+
+    console.log(`🗺️ Initializing minimap for ${gameState.world.width}x${gameState.world.height} world...`);
+
     const minimapContent = document.getElementById('minimapContent');
     const minimapContainer = document.querySelector('.minimap');
     minimapContent.innerHTML = '';
     
-    // Calculate scale to fit entire world in minimap
+    // Calculate scale
     const targetWidth = 200;
     const targetHeight = 200;
     
@@ -1700,14 +1812,7 @@ function initializeMinimap() {
     minimapContainer.style.maxHeight = '400px';
     minimapContainer.style.overflow = 'hidden';
     
-    // CRITICAL FIX: Ensure worldMap is loaded
-    if (!worldMap || worldMap.length === 0) {
-        console.warn('WorldMap not loaded yet, deferring minimap init');
-        setTimeout(() => initializeMinimap(), 500);
-        return;
-    }
-    
-    // Use canvas for better performance - renders ALL tiles
+    // Create canvas
     const canvas = document.createElement('canvas');
     canvas.width = contentWidth;
     canvas.height = contentHeight;
@@ -1718,10 +1823,13 @@ function initializeMinimap() {
     
     const ctx = canvas.getContext('2d');
     
-    // Render EVERY single tile - this fixes the incomplete minimap
+    // RENDER EVERY TILE
     for (let y = 0; y < gameState.world.height; y++) {
         for (let x = 0; x < gameState.world.width; x++) {
-            if (!worldMap[y] || worldMap[y][x] === undefined) continue;
+            if (!worldMap[y] || worldMap[y][x] === undefined) {
+                console.warn(`Missing tile at (${x}, ${y})`);
+                continue;
+            }
             
             let color = '#2d5016';
             
@@ -1737,7 +1845,6 @@ function initializeMinimap() {
             }
             
             ctx.fillStyle = color;
-            // CRITICAL FIX: Fill with proper dimensions to avoid gaps
             ctx.fillRect(
                 Math.floor(x * scale), 
                 Math.floor(y * scale), 
@@ -1749,7 +1856,7 @@ function initializeMinimap() {
     
     minimapContent.appendChild(canvas);
     
-    // Add buildings to minimap
+    // Add buildings
     buildings.forEach(building => {
         const dot = document.createElement('div');
         dot.setAttribute('data-type', 'building');
@@ -1765,7 +1872,7 @@ function initializeMinimap() {
         minimapContent.appendChild(dot);
     });
     
-    // Add enemies to minimap
+    // Add enemies
     enemies.forEach(enemy => {
         const dot = document.createElement('div');
         dot.setAttribute('data-type', 'enemy');
@@ -1782,17 +1889,14 @@ function initializeMinimap() {
     
     minimapContent.dataset.scale = scale;
     
-    console.log(`✅ Minimap initialized: World ${gameState.world.width}x${gameState.world.height} -> Display ${contentWidth.toFixed(0)}x${contentHeight.toFixed(0)} (scale: ${scale.toFixed(3)})`);
-    console.log(`   Total tiles rendered: ${gameState.world.width * gameState.world.height}`);
+    console.log(`✅ Minimap initialized: ${contentWidth.toFixed(0)}x${contentHeight.toFixed(0)} (scale: ${scale.toFixed(3)})`);
 }
-
 
 function updateMinimapOptimized() {
     const minimapContent = document.getElementById('minimapContent');
     const scale = parseFloat(minimapContent.dataset.scale);
     
     if (!scale) {
-        console.warn('Minimap not initialized, initializing now...');
         initializeMinimap();
         return;
     }
@@ -1837,7 +1941,731 @@ function updateMinimap() {
 }
 
 // ============================================
-// INTERACTION SYSTEM
+// IMPROVED PVP SYSTEM
+// ============================================
+
+function togglePvPReady() {
+    if (!account || !algodClient) {
+        showFloatingText('Connect wallet to use PvP!', 
+            gameState.player.x * 32 + 16, 
+            gameState.player.y * 32 - 40, 
+            '#ef4444'
+        );
+        return;
+    }
+
+    if (gameState.inBattle) {
+        showFloatingText('Cannot enable PvP during battle!', 
+            gameState.player.x * 32 + 16, 
+            gameState.player.y * 32 - 40, 
+            '#ef4444'
+        );
+        return;
+    }
+
+    if (gameState.pvp.isReady) {
+        disablePvPReady();
+    } else {
+        showPvPWagerModal();
+    }
+}
+
+function showPvPWagerModal() {
+    document.getElementById('pvpWagerModal').style.display = 'flex';
+    
+    document.getElementById('wagerBoatsAvailable').textContent = gameState.inventory.boats || 0;
+    document.getElementById('wagerKeysAvailable').textContent = gameState.inventory.keys || 0;
+    document.getElementById('wagerPickaxeAvailable').textContent = gameState.inventory.pickaxe || 0;
+    document.getElementById('wagerGoldAvailable').textContent = gameState.inventory.gold || 0;
+    
+    document.getElementById('wagerBoats').value = 0;
+    document.getElementById('wagerKeys').value = 0;
+    document.getElementById('wagerPickaxe').value = 0;
+    document.getElementById('wagerGold').value = 0;
+}
+
+function closePvPWagerModal() {
+    document.getElementById('pvpWagerModal').style.display = 'none';
+}
+
+async function confirmPvPWager() {
+    const boatsWager = parseInt(document.getElementById('wagerBoats').value) || 0;
+    const keysWager = parseInt(document.getElementById('wagerKeys').value) || 0;
+    const pickaxeWager = parseInt(document.getElementById('wagerPickaxe').value) || 0;
+    const goldWager = parseInt(document.getElementById('wagerGold').value) || 0;
+
+    if (boatsWager > (gameState.inventory.boats || 0)) {
+        showFloatingText('Not enough boats!', gameState.player.x * 32 + 16, gameState.player.y * 32 - 40, '#ef4444');
+        return;
+    }
+    if (keysWager > (gameState.inventory.keys || 0)) {
+        showFloatingText('Not enough keys!', gameState.player.x * 32 + 16, gameState.player.y * 32 - 40, '#ef4444');
+        return;
+    }
+    if (pickaxeWager > (gameState.inventory.pickaxe || 0)) {
+        showFloatingText('Not enough pickaxe uses!', gameState.player.x * 32 + 16, gameState.player.y * 32 - 40, '#ef4444');
+        return;
+    }
+    if (goldWager > (gameState.inventory.gold || 0)) {
+        showFloatingText('Not enough gold!', gameState.player.x * 32 + 16, gameState.player.y * 32 - 40, '#ef4444');
+        return;
+    }
+
+    if (boatsWager === 0 && keysWager === 0 && pickaxeWager === 0 && goldWager < 10) {
+        showFloatingText('Minimum wager: 10 gold or items!', gameState.player.x * 32 + 16, gameState.player.y * 32 - 40, '#ef4444');
+        return;
+    }
+
+    gameState.pvp.wager = {
+        boats: boatsWager,
+        keys: keysWager,
+        pickaxe: pickaxeWager,
+        gold: goldWager
+    };
+
+    closePvPWagerModal();
+    
+    await enablePvPReady();
+}
+
+async function enablePvPReady() {
+    gameState.pvp.isReady = true;
+    gameState.pvp.broadcastStart = Date.now();
+
+    const pvpBtn = document.getElementById('pvpReadyBtn');
+    pvpBtn.textContent = '🛡️ PvP Active';
+    pvpBtn.classList.add('pvp-active');
+
+    showFloatingText('PvP Ready! Broadcasting...', 
+        gameState.player.x * 32 + 16, 
+        gameState.player.y * 32 - 40, 
+        '#10b981'
+    );
+    createParticleEffect(gameState.player.x * 32 + 16, gameState.player.y * 32, '#10b981');
+
+    await broadcastPvPStatus();
+
+    setTimeout(() => {
+        if (gameState.pvp.isReady && !gameState.pvp.inPvPBattle) {
+            disablePvPReady();
+            showFloatingText('PvP broadcast expired', 
+                gameState.player.x * 32 + 16, 
+                gameState.player.y * 32 - 40, 
+                '#f59e0b'
+            );
+        }
+    }, PVP_BROADCAST_DURATION);
+}
+
+function disablePvPReady() {
+    gameState.pvp.isReady = false;
+    gameState.pvp.broadcastStart = null;
+    gameState.pvp.wager = { boats: 0, keys: 0, pickaxe: 0, gold: 0 };
+
+    const pvpBtn = document.getElementById('pvpReadyBtn');
+    pvpBtn.textContent = '⚔️ Ready for PvP';
+    pvpBtn.classList.remove('pvp-active');
+
+    showFloatingText('PvP disabled', 
+        gameState.player.x * 32 + 16, 
+        gameState.player.y * 32 - 40, 
+        '#94a3b8'
+    );
+}
+
+async function broadcastPvPStatus() {
+    if (!account || !algodClient) return;
+
+    try {
+        const pvpData = {
+            type: 'PVP_READY',
+            name: gameState.player.name,
+            level: gameState.player.level,
+            x: gameState.player.x,
+            y: gameState.player.y,
+            hp: gameState.player.hp,
+            maxHp: gameState.player.maxHp,
+            attack: gameState.player.attack,
+            defense: gameState.player.defense,
+            wager: gameState.pvp.wager,
+            timestamp: Date.now()
+        };
+
+        const note = new TextEncoder().encode(
+            NOTE_PREFIXES.PVP_READY + JSON.stringify(pvpData)
+        );
+
+        const params = await algodClient.getTransactionParams().do();
+        
+        const txn = algosdk.makePaymentTxnWithSuggestedParams(
+            account.addr,
+            account.addr,
+            0,
+            undefined,
+            note,
+            params
+        );
+
+        const signedTxn = txn.signTxn(account.sk);
+        await algodClient.sendRawTransaction(signedTxn).do();
+
+        console.log('✅ PvP status broadcasted');
+    } catch (error) {
+        console.error('Failed to broadcast PvP status:', error);
+    }
+}
+
+async function loadPvPBroadcasts() {
+    if (!indexerClient) return;
+
+    try {
+        const minRound = (await algodClient.status().do())['last-round'] - 2000;
+        
+        const txns = await indexerClient
+            .searchForTransactions()
+            .notePrefix(createNotePrefix(NOTE_PREFIXES.PVP_READY))
+            .minRound(minRound)
+            .limit(50)
+            .do();
+
+        pvpBroadcasts.clear();
+
+        if (txns.transactions) {
+            const now = Date.now();
+            
+            for (const txn of txns.transactions) {
+                if (txn.sender === account.addr) continue;
+
+                try {
+                    const noteText = decodeBase64Note(txn.note);
+                    const jsonStr = noteText.replace(NOTE_PREFIXES.PVP_READY, '');
+                    const pvpData = JSON.parse(jsonStr);
+
+                    const age = now - pvpData.timestamp;
+                    if (age < PVP_BROADCAST_DURATION) {
+                        pvpBroadcasts.set(txn.sender, pvpData);
+                    }
+                } catch (e) {
+                    // Ignore parsing errors
+                }
+            }
+        }
+
+        updatePvPBroadcastsList();
+    } catch (error) {
+        console.error('Failed to load PvP broadcasts:', error);
+    }
+}
+
+function updatePvPBroadcastsList() {
+    const list = document.getElementById('pvpBroadcastsList');
+    list.innerHTML = '';
+
+    if (pvpBroadcasts.size === 0) {
+        list.innerHTML = '<div style="text-align: center; opacity: 0.7; padding: 20px;">No active PvP challenges</div>';
+        return;
+    }
+
+    pvpBroadcasts.forEach((data, address) => {
+        const distance = Math.sqrt(
+            Math.pow(gameState.player.x - data.x, 2) + 
+            Math.pow(gameState.player.y - data.y, 2)
+        );
+
+        const inRange = distance <= PVP_MATCH_RANGE;
+        const timeLeft = Math.max(0, PVP_BROADCAST_DURATION - (Date.now() - data.timestamp));
+        const minutesLeft = Math.floor(timeLeft / 60000);
+        const secondsLeft = Math.floor((timeLeft % 60000) / 1000);
+
+        const wagerText = `⛵${data.wager.boats} 🗝️${data.wager.keys} ⛏️${data.wager.pickaxe} 💰${data.wager.gold}`;
+
+        const item = document.createElement('div');
+        item.className = 'pvp-broadcast-item';
+        item.style.background = inRange ? 'rgba(16, 185, 129, 0.1)' : 'rgba(59, 130, 246, 0.1)';
+        item.style.border = inRange ? '2px solid #10b981' : '2px solid #3b82f6';
+        item.style.padding = '12px';
+        item.style.borderRadius = '8px';
+        item.style.marginBottom = '8px';
+
+        item.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div style="font-weight: bold; color: ${inRange ? '#10b981' : '#3b82f6'};">
+                        ${data.name} (Lv.${data.level})
+                    </div>
+                    <div style="font-size: 11px; opacity: 0.8;">
+                        📍 (${data.x}, ${data.y}) • ${distance.toFixed(1)} tiles away
+                    </div>
+                    <div style="font-size: 11px; margin-top: 4px;">
+                        💎 Wager: ${wagerText}
+                    </div>
+                    <div style="font-size: 10px; opacity: 0.7; margin-top: 4px;">
+                        ⏱️ ${minutesLeft}m ${secondsLeft}s left
+                    </div>
+                </div>
+                <div>
+                    ${inRange ? 
+                        `<button class="btn btn-danger" onclick="acceptPvPChallenge('${address}')" style="font-size: 11px; padding: 8px 12px;">⚔️ Challenge!</button>` :
+                        `<button class="btn btn-primary" onclick="teleportToChallenger('${address}')" style="font-size: 11px; padding: 8px 12px;">⚡ Teleport</button>`
+                    }
+                </div>
+            </div>
+        `;
+
+        list.appendChild(item);
+    });
+}
+
+// NEW: Instant teleport to challenger
+async function teleportToChallenger(targetAddress) {
+    const opponent = pvpBroadcasts.get(targetAddress);
+    if (!opponent) {
+        showFloatingText('Challenge expired!', 
+            gameState.player.x * 32 + 16, 
+            gameState.player.y * 32 - 40, 
+            '#ef4444'
+        );
+        return;
+    }
+
+    // Teleport player near opponent
+    gameState.player.x = opponent.x + 1;
+    gameState.player.y = opponent.y;
+
+    updateUI();
+    renderWorld();
+    centerCameraOnPlayer();
+    checkLocation();
+
+    showFloatingText(`Teleported to ${opponent.name}!`, 
+        gameState.player.x * 32 + 16, 
+        gameState.player.y * 32 - 40, 
+        '#3b82f6'
+    );
+    createParticleEffect(gameState.player.x * 32 + 16, gameState.player.y * 32, '#3b82f6');
+
+    // Auto-show challenge UI
+    setTimeout(() => {
+        showFloatingText('Click "Challenge!" to fight!', 
+            gameState.player.x * 32 + 16, 
+            gameState.player.y * 32 - 60, 
+            '#fbbf24'
+        );
+    }, 1000);
+}
+
+// IMPROVED: Direct PvP battle initiation
+async function acceptPvPChallenge(targetAddress) {
+    const opponent = pvpBroadcasts.get(targetAddress);
+    
+    if (!opponent) {
+        showFloatingText('Challenge expired!', 
+            gameState.player.x * 32 + 16, 
+            gameState.player.y * 32 - 40, 
+            '#ef4444'
+        );
+        return;
+    }
+
+    const distance = Math.sqrt(
+        Math.pow(gameState.player.x - opponent.x, 2) + 
+        Math.pow(gameState.player.y - opponent.y, 2)
+    );
+
+    if (distance > PVP_MATCH_RANGE) {
+        showFloatingText('Too far! Use teleport button.', 
+            gameState.player.x * 32 + 16, 
+            gameState.player.y * 32 - 40, 
+            '#ef4444'
+        );
+        return;
+    }
+
+    // Check wager matching
+    if (opponent.wager.boats > (gameState.inventory.boats || 0)) {
+        showFloatingText(`Need ${opponent.wager.boats} boats to match wager!`, 
+            gameState.player.x * 32 + 16, gameState.player.y * 32 - 40, '#ef4444');
+        return;
+    }
+    if (opponent.wager.keys > (gameState.inventory.keys || 0)) {
+        showFloatingText(`Need ${opponent.wager.keys} keys to match wager!`, 
+            gameState.player.x * 32 + 16, gameState.player.y * 32 - 40, '#ef4444');
+        return;
+    }
+    if (opponent.wager.pickaxe > (gameState.inventory.pickaxe || 0)) {
+        showFloatingText(`Need ${opponent.wager.pickaxe} pickaxe uses to match wager!`, 
+            gameState.player.x * 32 + 16, gameState.player.y * 32 - 40, '#ef4444');
+        return;
+    }
+    if (opponent.wager.gold > (gameState.inventory.gold || 0)) {
+        showFloatingText(`Need ${opponent.wager.gold} gold to match wager!`, 
+            gameState.player.x * 32 + 16, gameState.player.y * 32 - 40, '#ef4444');
+        return;
+    }
+
+    // Broadcast battle start
+    try {
+        const battleData = {
+            type: 'PVP_START',
+            targetAddress: targetAddress,
+            challengerName: gameState.player.name,
+            challengerLevel: gameState.player.level,
+            timestamp: Date.now()
+        };
+
+        const note = new TextEncoder().encode(
+            NOTE_PREFIXES.PVP_START + JSON.stringify(battleData)
+        );
+
+        const params = await algodClient.getTransactionParams().do();
+        
+        const txn = algosdk.makePaymentTxnWithSuggestedParams(
+            account.addr,
+            account.addr,
+            0,
+            undefined,
+            note,
+            params
+        );
+
+        const signedTxn = txn.signTxn(account.sk);
+        await algodClient.sendRawTransaction(signedTxn).do();
+
+        console.log('✅ PvP battle start broadcasted');
+    } catch (error) {
+        console.error('Failed to broadcast battle start:', error);
+    }
+
+    // Start battle immediately
+    await startPvPBattle(opponent, targetAddress);
+}
+
+async function checkForIncomingChallenges() {
+    if (!gameState.pvp.isReady || gameState.pvp.inPvPBattle) return;
+    
+    const now = Date.now();
+    if (now - gameState.lastChallengeCheck < 5000) return;
+    gameState.lastChallengeCheck = now;
+    
+    if (!indexerClient || !account) return;
+    
+    try {
+        const minRound = (await algodClient.status().do())['last-round'] - 500;
+        
+        const txns = await indexerClient
+            .searchForTransactions()
+            .notePrefix(createNotePrefix(NOTE_PREFIXES.PVP_START))
+            .minRound(minRound)
+            .limit(20)
+            .do();
+        
+        if (txns.transactions) {
+            for (const txn of txns.transactions) {
+                if (txn.sender === account.addr) continue;
+                
+                try {
+                    const noteText = decodeBase64Note(txn.note);
+                    const jsonStr = noteText.replace(NOTE_PREFIXES.PVP_START, '');
+                    const challengeData = JSON.parse(jsonStr);
+                    
+                    if (challengeData.targetAddress === account.addr) {
+                        const age = now - challengeData.timestamp;
+                        if (age < 10000) { // Within 10 seconds
+                            await handleIncomingChallenge(challengeData, txn.sender);
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    // Ignore parsing errors
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Failed to check for incoming challenges:', error);
+    }
+}
+
+async function handleIncomingChallenge(challengeData, challengerAddress) {
+    if (gameState.pvp.inPvPBattle) return;
+    
+    showFloatingText('⚔️ PVP CHALLENGE!', 
+        gameState.player.x * 32 + 16, 
+        gameState.player.y * 32 - 40, 
+        '#dc2626'
+    );
+    
+    setTimeout(() => {
+        showFloatingText(`${challengeData.challengerName} wants to fight!`, 
+            gameState.player.x * 32 + 16, 
+            gameState.player.y * 32 - 60, 
+            '#fbbf24'
+        );
+    }, 1000);
+    
+    createParticleEffect(gameState.player.x * 32 + 16, gameState.player.y * 32, '#dc2626');
+    
+    // Get opponent data from broadcasts
+    const opponent = pvpBroadcasts.get(challengerAddress);
+    if (!opponent) {
+        console.warn('Opponent data not found in broadcasts');
+        return;
+    }
+
+    // Auto-start battle after 2 seconds
+    setTimeout(async () => {
+        await startPvPBattle(opponent, challengerAddress);
+    }, 2000);
+}
+
+async function startPvPBattle(opponent, opponentAddress) {
+    gameState.pvp.inPvPBattle = true;
+    gameState.inBattle = true;
+
+    // Deduct wagers
+    gameState.inventory.boats -= opponent.wager.boats;
+    gameState.inventory.keys -= opponent.wager.keys;
+    gameState.inventory.pickaxe -= opponent.wager.pickaxe;
+    gameState.inventory.gold -= opponent.wager.gold;
+
+    updateUI();
+
+    gameState.pvp.currentChallenge = {
+        opponent: opponent,
+        address: opponentAddress,
+        totalWager: {
+            boats: opponent.wager.boats * 2,
+            keys: opponent.wager.keys * 2,
+            pickaxe: opponent.wager.pickaxe * 2,
+            gold: opponent.wager.gold * 2
+        }
+    };
+
+    showPvPBattleModal(opponent);
+}
+
+function showPvPBattleModal(opponent) {
+    const modal = document.getElementById('pvpBattleModal');
+    
+    document.getElementById('pvpOpponentName').textContent = opponent.name;
+    document.getElementById('pvpOpponentLevel').textContent = opponent.level;
+    document.getElementById('pvpOpponentHp').textContent = opponent.hp;
+    document.getElementById('pvpOpponentMaxHp').textContent = opponent.maxHp;
+    document.getElementById('pvpOpponentHpBar').style.width = `${(opponent.hp / opponent.maxHp) * 100}%`;
+
+    const wager = gameState.pvp.currentChallenge.totalWager;
+    document.getElementById('pvpWagerDisplay').innerHTML = `
+        <strong>Winner Takes All:</strong><br>
+        ⛵ ${wager.boats} Boats | 🗝️ ${wager.keys} Keys | ⛏️ ${wager.pickaxe} Pickaxe Uses | 💰 ${wager.gold} Gold
+    `;
+
+    document.getElementById('pvpBattleLog').innerHTML = '';
+    addPvPBattleLog(`⚔️ PvP Battle: ${gameState.player.name} vs ${opponent.name}!`, 'log-info');
+    addPvPBattleLog(`💎 Fighting for ${wager.gold}g, ${wager.boats} boats, ${wager.keys} keys, ${wager.pickaxe} pickaxe!`, 'log-info');
+
+    modal.style.display = 'flex';
+    
+    createParticleEffect(gameState.player.x * 32 + 16, gameState.player.y * 32, '#dc2626');
+}
+
+function pvpBattleAction(action) {
+    const opponent = gameState.pvp.currentChallenge.opponent;
+    
+    if (!opponent || opponent.hp <= 0) return;
+
+    let playerDamage = 0;
+    let playerUsedTurn = true;
+
+    switch (action) {
+        case 'attack':
+            playerDamage = Math.floor(Math.random() * gameState.player.attack) + 8;
+            const critChance = Math.random();
+            if (critChance < 0.15) {
+                playerDamage = Math.floor(playerDamage * 1.5);
+                addPvPBattleLog(`💥 CRITICAL HIT! ${playerDamage} damage!`, 'log-damage');
+            } else {
+                addPvPBattleLog(`⚔️ You attack for ${playerDamage} damage!`, 'log-damage');
+            }
+            opponent.hp = Math.max(0, opponent.hp - playerDamage);
+            break;
+
+        case 'magic':
+            if (gameState.player.mp >= 15) {
+                playerDamage = Math.floor(Math.random() * gameState.player.magic) + 12;
+                gameState.player.mp -= 15;
+                opponent.hp = Math.max(0, opponent.hp - playerDamage);
+                addPvPBattleLog(`✨ Magic blast deals ${playerDamage} damage!`, 'log-damage');
+                flashStatBar('mp', 'damage');
+            } else {
+                addPvPBattleLog(`⚠️ Insufficient mana!`, 'log-info');
+                playerUsedTurn = false;
+            }
+            break;
+
+        case 'defend':
+            gameState.player.defense += 5;
+            addPvPBattleLog(`🛡️ You raise your defenses! (+5 DEF for this turn)`, 'log-heal');
+            setTimeout(() => {
+                gameState.player.defense -= 5;
+            }, 2000);
+            break;
+
+        case 'heal':
+            if (gameState.inventory.healthPotions > 0) {
+                const healAmount = Math.floor(Math.random() * 25) + 35;
+                gameState.player.hp = Math.min(gameState.player.maxHp, gameState.player.hp + healAmount);
+                gameState.inventory.healthPotions--;
+                addPvPBattleLog(`💚 You heal for ${healAmount} HP!`, 'log-heal');
+                flashStatBar('hp', 'heal');
+            } else {
+                addPvPBattleLog(`⚠️ No health potions!`, 'log-info');
+                playerUsedTurn = false;
+            }
+            break;
+
+        case 'special':
+            if (gameState.player.mp >= 25) {
+                playerDamage = Math.floor(gameState.player.attack * 1.8 + Math.random() * 20);
+                gameState.player.mp -= 25;
+                opponent.hp = Math.max(0, opponent.hp - playerDamage);
+                addPvPBattleLog(`🔥 ULTIMATE ATTACK! ${playerDamage} massive damage!`, 'log-damage');
+                flashStatBar('mp', 'damage');
+                createParticleEffect(gameState.player.x * 32 + 16, gameState.player.y * 32, '#fbbf24');
+            } else {
+                addPvPBattleLog(`⚠️ Need 25 MP for special attack!`, 'log-info');
+                playerUsedTurn = false;
+            }
+            break;
+    }
+
+    updatePvPBattleUI();
+    updateUI();
+
+    if (opponent.hp <= 0) {
+        pvpPlayerVictory();
+        return;
+    }
+
+    if (playerUsedTurn) {
+        setTimeout(pvpOpponentTurn, 1500);
+    }
+}
+
+function pvpOpponentTurn() {
+    const opponent = gameState.pvp.currentChallenge.opponent;
+    if (!opponent || opponent.hp <= 0) return;
+
+    const actionRoll = Math.random();
+    let opponentAction = '';
+    let damage = 0;
+
+    if (actionRoll < 0.6) {
+        const baseDamage = Math.floor(Math.random() * opponent.attack) + 8;
+        const defense = Math.floor(gameState.player.defense / 3);
+        damage = Math.max(1, baseDamage - defense);
+        opponentAction = 'attacks';
+    } else if (actionRoll < 0.8) {
+        const baseDamage = Math.floor(Math.random() * opponent.attack * 1.3) + 12;
+        const defense = Math.floor(gameState.player.defense / 3);
+        damage = Math.max(1, baseDamage - defense);
+        opponentAction = 'uses a powerful strike';
+    } else {
+        const baseDamage = Math.floor(Math.random() * 25) + 15;
+        const defense = Math.floor(gameState.player.defense / 4);
+        damage = Math.max(1, baseDamage - defense);
+        opponentAction = 'casts a spell';
+    }
+
+    gameState.player.hp = Math.max(0, gameState.player.hp - damage);
+    addPvPBattleLog(`⚡ ${opponent.name} ${opponentAction} for ${damage} damage!`, 'log-damage');
+
+    flashStatBar('hp', 'damage');
+    updatePvPBattleUI();
+    updateUI();
+
+    if (gameState.player.hp <= 0) {
+        pvpPlayerDefeat();
+    }
+}
+
+function pvpPlayerVictory() {
+    const wager = gameState.pvp.currentChallenge.totalWager;
+    
+    gameState.inventory.boats += wager.boats;
+    gameState.inventory.keys += wager.keys;
+    gameState.inventory.pickaxe += wager.pickaxe;
+    gameState.inventory.gold += wager.gold;
+    
+    const xpGain = Math.floor(gameState.pvp.currentChallenge.opponent.level * 50);
+    gameState.player.xp += xpGain;
+
+    addPvPBattleLog(`🎉 VICTORY! You defeated ${gameState.pvp.currentChallenge.opponent.name}!`, 'log-heal');
+    addPvPBattleLog(`💰 You won: ${wager.boats}⛵ ${wager.keys}🗝️ ${wager.pickaxe}⛏️ ${wager.gold}💰`, 'log-heal');
+    addPvPBattleLog(`⭐ Gained ${xpGain} XP!`, 'log-heal');
+
+    checkLevelUp();
+    updateUI();
+
+    setTimeout(() => endPvPBattle(true), 3000);
+}
+
+function pvpPlayerDefeat() {
+    addPvPBattleLog(`💀 DEFEAT! You were bested by ${gameState.pvp.currentChallenge.opponent.name}!`, 'log-damage');
+    addPvPBattleLog(`💸 You lost your wager...`, 'log-damage');
+    
+    gameState.player.hp = Math.floor(gameState.player.maxHp * 0.25);
+    updateUI();
+
+    setTimeout(() => endPvPBattle(false), 3000);
+}
+
+function endPvPBattle(victory) {
+    gameState.pvp.inPvPBattle = false;
+    gameState.inBattle = false;
+    gameState.pvp.currentChallenge = null;
+
+    document.getElementById('pvpBattleModal').style.display = 'none';
+
+    if (victory) {
+        showFloatingText('PvP VICTORY!', 
+            gameState.player.x * 32 + 16, 
+            gameState.player.y * 32 - 40, 
+            '#10b981'
+        );
+        createParticleEffect(gameState.player.x * 32 + 16, gameState.player.y * 32, '#fbbf24');
+    } else {
+        showFloatingText('PvP Defeat...', 
+            gameState.player.x * 32 + 16, 
+            gameState.player.y * 32 - 40, 
+            '#ef4444'
+        );
+    }
+
+    if (gameState.pvp.isReady) {
+        disablePvPReady();
+    }
+
+    updateUI();
+}
+
+function updatePvPBattleUI() {
+    const opponent = gameState.pvp.currentChallenge.opponent;
+    if (!opponent) return;
+
+    document.getElementById('pvpOpponentHp').textContent = opponent.hp;
+    document.getElementById('pvpOpponentHpBar').style.width = `${(opponent.hp / opponent.maxHp) * 100}%`;
+}
+
+function addPvPBattleLog(message, type) {
+    const log = document.getElementById('pvpBattleLog');
+    const entry = document.createElement('div');
+    entry.className = `log-entry ${type}`;
+    entry.textContent = message;
+    log.appendChild(entry);
+    log.scrollTop = log.scrollHeight;
+}
+
+// ============================================
+// INTERACTION SYSTEM (REMAINING FUNCTIONS)
 // ============================================
 
 function interact() {
@@ -1900,352 +2728,8 @@ function interactWithPlayer(address, player) {
                 Address: ${address.slice(0, 6)}...${address.slice(-4)}
             </div>
         </div>
-        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
-            <button class="btn btn-primary" onclick="challengePlayer('${address}')">⚔️ Challenge</button>
-            <button class="btn btn-success" onclick="tradeWithPlayer('${address}')">💰 Trade ALGOs</button>
-        </div>
     `;
     document.getElementById('interactionModal').style.display = 'flex';
-}
-
-async function challengePlayer(targetAddress) {
-    closeModal(); // Close the player info modal first
-    
-    // Check if we already have this player's broadcast
-    const opponent = pvpBroadcasts.get(targetAddress);
-    
-    if (opponent) {
-        // They have an active PvP broadcast - challenge them!
-        await acceptPvPChallenge(targetAddress);
-    } else {
-        // They don't have an active PvP broadcast
-        showFloatingText('Player is not ready for PvP', 
-            gameState.player.x * 32 + 16, 
-            gameState.player.y * 32 - 40, 
-            '#f59e0b'
-        );
-        
-        // Show them how to challenge
-        setTimeout(() => {
-            showFloatingText('Check "Active PvP Challenges" list!', 
-                gameState.player.x * 32 + 16, 
-                gameState.player.y * 32 - 60, 
-                '#3b82f6'
-            );
-        }, 1500);
-    }
-}
-
-async function checkForIncomingChallenges() {
-    // Only check if we're ready for PvP
-    if (!gameState.pvp.isReady || gameState.pvp.inPvPBattle) return;
-    
-    // Don't check too frequently (every 5 seconds max)
-    const now = Date.now();
-    if (now - gameState.pvp.lastChallengeCheck < 5000) return;
-    gameState.pvp.lastChallengeCheck = now;
-    
-    if (!indexerClient || !account) return;
-    
-    try {
-        const minRound = (await algodClient.status().do())['last-round'] - 500;
-        
-        // Search for PvP challenge acceptance targeting us
-        const txns = await indexerClient
-            .searchForTransactions()
-            .notePrefix(createNotePrefix('CHRPG:PVP_ACCEPT:'))
-            .minRound(minRound)
-            .limit(20)
-            .do();
-        
-        if (txns.transactions) {
-            for (const txn of txns.transactions) {
-                // Skip our own transactions
-                if (txn.sender === account.addr) continue;
-                
-                try {
-                    const noteText = decodeBase64Note(txn.note);
-                    const jsonStr = noteText.replace('CHRPG:PVP_ACCEPT:', '');
-                    const challengeData = JSON.parse(jsonStr);
-                    
-                    // Check if this challenge is for us
-                    if (challengeData.targetAddress === account.addr) {
-                        // Check if it's recent (within last 30 seconds)
-                        const age = now - challengeData.timestamp;
-                        if (age < 30000) {
-                            // Someone challenged us!
-                            await handleIncomingChallenge(challengeData, txn.sender);
-                            return; // Handle one challenge at a time
-                        }
-                    }
-                } catch (e) {
-                    console.log('Failed to parse challenge acceptance:', e);
-                }
-            }
-        }
-    } catch (error) {
-        console.error('Failed to check for incoming challenges:', error);
-    }
-}
-
-// ============================================
-// NEW FUNCTION: HANDLE INCOMING CHALLENGE
-// ============================================
-
-async function handleIncomingChallenge(challengeData, challengerAddress) {
-    // Don't show notification if already in battle
-    if (gameState.pvp.inPvPBattle) return;
-    
-    // Vibrant notification
-    showFloatingText('⚔️ PVP CHALLENGE!', 
-        gameState.player.x * 32 + 16, 
-        gameState.player.y * 32 - 40, 
-        '#dc2626'
-    );
-    
-    setTimeout(() => {
-        showFloatingText(`${challengeData.challengerName} wants to fight!`, 
-            gameState.player.x * 32 + 16, 
-            gameState.player.y * 32 - 60, 
-            '#fbbf24'
-        );
-    }, 1000);
-    
-    createParticleEffect(gameState.player.x * 32 + 16, gameState.player.y * 32, '#dc2626');
-    
-    // Play sound if available
-    if (typeof playSound === 'function') {
-        playSound('challenge');
-    }
-    
-    // Show modal to accept or decline
-    setTimeout(() => {
-        showIncomingChallengeModal(challengeData, challengerAddress);
-    }, 2000);
-}
-
-// ============================================
-// NEW FUNCTION: SHOW INCOMING CHALLENGE MODAL
-// ============================================
-
-function showIncomingChallengeModal(challengeData, challengerAddress) {
-    const modal = document.getElementById('incomingChallengeModal');
-    if (!modal) {
-        console.error('Incoming challenge modal not found!');
-        return;
-    }
-    
-    document.getElementById('challengerName').textContent = challengeData.challengerName;
-    document.getElementById('challengerLevel').textContent = challengeData.challengerLevel;
-    
-    const wager = gameState.pvp.wager;
-    document.getElementById('challengeWagerInfo').innerHTML = `
-        ⛵ ${wager.boats} Boats<br>
-        🗝️ ${wager.keys} Keys<br>
-        ⛏️ ${wager.pickaxe} Pickaxe Uses<br>
-        💰 ${wager.gold} Gold
-    `;
-    
-    // Store challenger data for acceptance
-    modal.dataset.challengerAddress = challengerAddress;
-    modal.dataset.challengerName = challengeData.challengerName;
-    modal.dataset.challengerLevel = challengeData.challengerLevel;
-    modal.dataset.challengerHp = challengeData.challengerHp;
-    modal.dataset.challengerMaxHp = challengeData.challengerMaxHp;
-    modal.dataset.challengerAttack = challengeData.challengerAttack;
-    modal.dataset.challengerDefense = challengeData.challengerDefense;
-    
-    modal.style.display = 'flex';
-    
-    // Auto-decline after 30 seconds
-    setTimeout(() => {
-        if (modal.style.display === 'flex') {
-            declineIncomingChallenge();
-        }
-    }, 30000);
-}
-
-function closeIncomingChallengeModal() {
-    document.getElementById('incomingChallengeModal').style.display = 'none';
-}
-
-async function acceptIncomingChallenge() {
-    const modal = document.getElementById('incomingChallengeModal');
-    const challengerAddress = modal.dataset.challengerAddress;
-    
-    // Prepare opponent data
-    const opponent = {
-        name: modal.dataset.challengerName,
-        level: parseInt(modal.dataset.challengerLevel),
-        hp: parseInt(modal.dataset.challengerHp),
-        maxHp: parseInt(modal.dataset.challengerMaxHp),
-        attack: parseInt(modal.dataset.challengerAttack),
-        defense: parseInt(modal.dataset.challengerDefense),
-        x: gameState.player.x, // They're nearby
-        y: gameState.player.y
-    };
-    
-    closeIncomingChallengeModal();
-    
-    // Start the battle
-    await startPvPBattle(opponent, challengerAddress);
-}
-
-function declineIncomingChallenge() {
-    closeIncomingChallengeModal();
-    
-    showFloatingText('Challenge declined', 
-        gameState.player.x * 32 + 16, 
-        gameState.player.y * 32 - 40, 
-        '#94a3b8'
-    );
-    
-    // Disable PvP ready since we declined
-    if (gameState.pvp.isReady) {
-        disablePvPReady();
-    }
-}
-
-// ============================================
-// UPDATED: BROADCAST CHALLENGE ACCEPTANCE
-// ============================================
-
-// UPDATE the acceptPvPChallenge function to broadcast the challenge acceptance
-// FIND the existing acceptPvPChallenge function and ADD this broadcast at the start:
-
-async function acceptPvPChallenge(targetAddress) {
-    const opponent = pvpBroadcasts.get(targetAddress);
-    
-    if (!opponent) {
-        showFloatingText('Challenge expired!', 
-            gameState.player.x * 32 + 16, 
-            gameState.player.y * 32 - 40, 
-            '#ef4444'
-        );
-        return;
-    }
-
-    // Check distance
-    const distance = Math.sqrt(
-        Math.pow(gameState.player.x - opponent.x, 2) + 
-        Math.pow(gameState.player.y - opponent.y, 2)
-    );
-
-    if (distance > PVP_MATCH_RANGE) {
-        showFloatingText('Too far! Move closer.', 
-            gameState.player.x * 32 + 16, 
-            gameState.player.y * 32 - 40, 
-            '#ef4444'
-        );
-        return;
-    }
-
-    // Check if player can match wager
-    if (opponent.wager.boats > (gameState.inventory.boats || 0)) {
-        showFloatingText(`Need ${opponent.wager.boats} boats to match wager!`, 
-            gameState.player.x * 32 + 16, gameState.player.y * 32 - 40, '#ef4444');
-        return;
-    }
-    if (opponent.wager.keys > (gameState.inventory.keys || 0)) {
-        showFloatingText(`Need ${opponent.wager.keys} keys to match wager!`, 
-            gameState.player.x * 32 + 16, gameState.player.y * 32 - 40, '#ef4444');
-        return;
-    }
-    if (opponent.wager.pickaxe > (gameState.inventory.pickaxe || 0)) {
-        showFloatingText(`Need ${opponent.wager.pickaxe} pickaxe uses to match wager!`, 
-            gameState.player.x * 32 + 16, gameState.player.y * 32 - 40, '#ef4444');
-        return;
-    }
-    if (opponent.wager.gold > (gameState.inventory.gold || 0)) {
-        showFloatingText(`Need ${opponent.wager.gold} gold to match wager!`, 
-            gameState.player.x * 32 + 16, gameState.player.y * 32 - 40, '#ef4444');
-        return;
-    }
-
-    // ========================================
-    // ADD THIS: Broadcast challenge acceptance
-    // ========================================
-    try {
-        const acceptanceData = {
-            type: 'PVP_ACCEPT',
-            targetAddress: targetAddress,
-            challengerName: gameState.player.name,
-            challengerLevel: gameState.player.level,
-            challengerHp: gameState.player.hp,
-            challengerMaxHp: gameState.player.maxHp,
-            challengerAttack: gameState.player.attack,
-            challengerDefense: gameState.player.defense,
-            timestamp: Date.now()
-        };
-
-        const note = new TextEncoder().encode(
-            'CHRPG:PVP_ACCEPT:' + JSON.stringify(acceptanceData)
-        );
-
-        const params = await algodClient.getTransactionParams().do();
-        
-        const txn = algosdk.makePaymentTxnWithSuggestedParams(
-            account.addr,
-            account.addr,
-            0,
-            undefined,
-            note,
-            params
-        );
-
-        const signedTxn = txn.signTxn(account.sk);
-        await algodClient.sendRawTransaction(signedTxn).do();
-
-        console.log('PvP challenge acceptance broadcasted');
-    } catch (error) {
-        console.error('Failed to broadcast challenge acceptance:', error);
-    }
-
-// Broadcast challenge acceptance to notify the target player
-    try {
-        const acceptanceData = {
-            type: 'PVP_ACCEPT',
-            targetAddress: targetAddress,
-            challengerName: gameState.player.name,
-            challengerLevel: gameState.player.level,
-            challengerHp: gameState.player.hp,
-            challengerMaxHp: gameState.player.maxHp,
-            challengerAttack: gameState.player.attack,
-            challengerDefense: gameState.player.defense,
-            timestamp: Date.now()
-        };
-
-        const note = new TextEncoder().encode(
-            'CHRPG:PVP_ACCEPT:' + JSON.stringify(acceptanceData)
-        );
-
-        const params = await algodClient.getTransactionParams().do();
-        
-        const txn = algosdk.makePaymentTxnWithSuggestedParams(
-            account.addr,
-            account.addr,
-            0,
-            undefined,
-            note,
-            params
-        );
-
-        const signedTxn = txn.signTxn(account.sk);
-        await algodClient.sendRawTransaction(signedTxn).do();
-
-        console.log('PvP challenge acceptance broadcasted');
-    } catch (error) {
-        console.error('Failed to broadcast challenge acceptance:', error);
-    }
-
-
-    // Start PvP battle
-    await startPvPBattle(opponent, targetAddress);
-}
-
-function tradeWithPlayer(targetAddress) {
-    showFloatingText('P2P trading coming soon!', gameState.player.x * 32 + 16, gameState.player.y * 32 - 40, '#fbbf24');
-    closeModal();
 }
 
 function talkToNPC(npc) {
@@ -2272,9 +2756,9 @@ function interactWithBuilding(building) {
                 <p style="margin-bottom: 20px;">A warm blockchain validator node hums in the corner. The innkeeper offers rest for weary crypto travelers.</p>
                 <div style="background: rgba(16, 185, 129, 0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
                     <strong>Rest Service:</strong> Fully restore HP & MP
-                    <br><small>Cost: 0.02 ALGO (transaction fee)</small>
+                    <br><small>Cost: 20 gold</small>
                 </div>
-                <button class="btn btn-primary" onclick="restAtInn()">💤 Rest (20 gold + tx fee)</button>
+                <button class="btn btn-primary" onclick="restAtInn()">💤 Rest (20 gold)</button>
             `;
             break;
         case 'shop':
@@ -2420,7 +2904,7 @@ function closeModal() {
 }
 
 // ============================================
-// BATTLE SYSTEM
+// BATTLE SYSTEM (PvE - CONTINUED FROM BEFORE)
 // ============================================
 
 function tryBattleEnemy(enemy) {
@@ -2522,7 +3006,7 @@ function battleAction(action) {
             
         case 'flee':
             if (Math.random() < 0.75) {
-                addBattleLog(`🏃 You successfully escaped!`, 'log-info');
+                addBattleLog(`🃏 You successfully escaped!`, 'log-info');
                 endBattle(false);
                 return;
             } else {
@@ -2822,11 +3306,6 @@ function performMove(key) {
     }
 }
 
-// ============================================
-// ENHANCED MOBILE CONTROLS - FIXED VERSION
-// ============================================
-// Replace the setupMobileControls() function in script.js (around line 2470)
-
 function setupMobileControls() {
     const buttons = document.querySelectorAll('#mobile-controls .ctl-btn');
     
@@ -2845,19 +3324,15 @@ function setupMobileControls() {
             return;
         }
         
-        // Touch events for mobile
         btn.addEventListener('touchstart', e => {
             e.preventDefault();
             e.stopPropagation();
             btn.classList.add('active');
             handleDirection(dir);
             
-            // Haptic feedback if available
             if (navigator.vibrate) {
                 navigator.vibrate(10);
             }
-            
-            console.log('Mobile control touched:', dir);
         }, { passive: false });
         
         btn.addEventListener('touchend', e => {
@@ -2866,18 +3341,15 @@ function setupMobileControls() {
             btn.classList.remove('active');
         }, { passive: false });
         
-        // Prevent touch move (stops scrolling)
         btn.addEventListener('touchmove', e => {
             e.preventDefault();
             e.stopPropagation();
         }, { passive: false });
         
-        // Mouse events for desktop testing
         btn.addEventListener('mousedown', e => {
             e.preventDefault();
             btn.classList.add('active');
             handleDirection(dir);
-            console.log('Mobile control clicked:', dir);
         });
         
         btn.addEventListener('mouseup', e => {
@@ -2885,120 +3357,23 @@ function setupMobileControls() {
             btn.classList.remove('active');
         });
         
-        // Prevent context menu on long press
         btn.addEventListener('contextmenu', e => {
             e.preventDefault();
             return false;
         });
     });
     
-    console.log('Mobile controls setup complete! Buttons:', buttons.length);
+    console.log('✅ Mobile controls setup complete!');
 }
 
-// Keep the existing handleDirection function as is
 function handleDirection(dir) {
     switch(dir) {
         case 'up':    movePlayer( 0,-1); break;
         case 'down':  movePlayer( 0, 1); break;
         case 'left':  movePlayer(-1, 0); break;
         case 'right': movePlayer( 1, 0); break;
-        default:
-            console.warn('Unknown direction:', dir);
     }
 }
-
-// ============================================
-// Continuous movement (hold to move)
-// ============================================
-
-
-
-let movementInterval = null;
-let currentDirection = null;
-
-function setupMobileControls() {
-    const buttons = document.querySelectorAll('#mobile-controls .ctl-btn');
-    
-    buttons.forEach(btn => {
-        const dir = btn.dataset.dir;
-        
-        btn.addEventListener('touchstart', e => {
-            e.preventDefault();
-            e.stopPropagation();
-            btn.classList.add('active');
-            
-            // Start continuous movement
-            currentDirection = dir;
-            handleDirection(dir); // First move
-            
-            // Continue moving while held
-            movementInterval = setInterval(() => {
-                if (currentDirection === dir) {
-                    handleDirection(dir);
-                }
-            }, 150); // Move every 150ms
-            
-            if (navigator.vibrate) {
-                navigator.vibrate(10);
-            }
-        }, { passive: false });
-        
-        btn.addEventListener('touchend', e => {
-            e.preventDefault();
-            e.stopPropagation();
-            btn.classList.remove('active');
-            
-            // Stop continuous movement
-            currentDirection = null;
-            if (movementInterval) {
-                clearInterval(movementInterval);
-                movementInterval = null;
-            }
-        }, { passive: false });
-        
-        btn.addEventListener('touchmove', e => {
-            e.preventDefault();
-            e.stopPropagation();
-        }, { passive: false });
-        
-        btn.addEventListener('contextmenu', e => {
-            e.preventDefault();
-        });
-    });
-}
-
-
-// ============================================
-// DEBUGGING HELPER
-// ============================================
-// Add this temporarily to help debug mobile controls
-
-function debugMobileControls() {
-    console.log('=== Mobile Controls Debug ===');
-    
-    const controlsDiv = document.getElementById('mobile-controls');
-    console.log('Controls div found:', !!controlsDiv);
-    console.log('Controls display:', controlsDiv ? window.getComputedStyle(controlsDiv).display : 'N/A');
-    
-    const buttons = document.querySelectorAll('#mobile-controls .ctl-btn');
-    console.log('Button count:', buttons.length);
-    
-    buttons.forEach((btn, i) => {
-        console.log(`Button ${i}:`, {
-            dir: btn.dataset.dir,
-            visible: window.getComputedStyle(btn).display !== 'none',
-            text: btn.textContent
-        });
-    });
-    
-    console.log('Touch support:', 'ontouchstart' in window);
-    console.log('Screen width:', window.innerWidth);
-    console.log('Screen height:', window.innerHeight);
-    console.log('=========================');
-}
-
-// Call this in browser console to debug:
-// debugMobileControls();
 
 // ============================================
 // HELP SYSTEM
@@ -3035,641 +3410,18 @@ function initHelpSystem() {
 }
 
 // ============================================
-// PVP BROADCASTING SYSTEM
-// ============================================
-
-function togglePvPReady() {
-    if (!account || !algodClient) {
-        showFloatingText('Connect wallet to use PvP!', 
-            gameState.player.x * 32 + 16, 
-            gameState.player.y * 32 - 40, 
-            '#ef4444'
-        );
-        return;
-    }
-
-    if (gameState.inBattle) {
-        showFloatingText('Cannot enable PvP during battle!', 
-            gameState.player.x * 32 + 16, 
-            gameState.player.y * 32 - 40, 
-            '#ef4444'
-        );
-        return;
-    }
-
-    if (gameState.pvp.isReady) {
-        // Disable PvP ready
-        disablePvPReady();
-    } else {
-        // Show wager selection modal
-        showPvPWagerModal();
-    }
-}
-
-function showPvPWagerModal() {
-    document.getElementById('pvpWagerModal').style.display = 'flex';
-    
-    // Update available amounts
-    document.getElementById('wagerBoatsAvailable').textContent = gameState.inventory.boats || 0;
-    document.getElementById('wagerKeysAvailable').textContent = gameState.inventory.keys || 0;
-    document.getElementById('wagerPickaxeAvailable').textContent = gameState.inventory.pickaxe || 0;
-    document.getElementById('wagerGoldAvailable').textContent = gameState.inventory.gold || 0;
-    
-    // Reset wager amounts
-    document.getElementById('wagerBoats').value = 0;
-    document.getElementById('wagerKeys').value = 0;
-    document.getElementById('wagerPickaxe').value = 0;
-    document.getElementById('wagerGold').value = 0;
-}
-
-function closePvPWagerModal() {
-    document.getElementById('pvpWagerModal').style.display = 'none';
-}
-
-async function confirmPvPWager() {
-    const boatsWager = parseInt(document.getElementById('wagerBoats').value) || 0;
-    const keysWager = parseInt(document.getElementById('wagerKeys').value) || 0;
-    const pickaxeWager = parseInt(document.getElementById('wagerPickaxe').value) || 0;
-    const goldWager = parseInt(document.getElementById('wagerGold').value) || 0;
-
-    // Validate wagers
-    if (boatsWager > (gameState.inventory.boats || 0)) {
-        showFloatingText('Not enough boats!', gameState.player.x * 32 + 16, gameState.player.y * 32 - 40, '#ef4444');
-        return;
-    }
-    if (keysWager > (gameState.inventory.keys || 0)) {
-        showFloatingText('Not enough keys!', gameState.player.x * 32 + 16, gameState.player.y * 32 - 40, '#ef4444');
-        return;
-    }
-    if (pickaxeWager > (gameState.inventory.pickaxe || 0)) {
-        showFloatingText('Not enough pickaxe uses!', gameState.player.x * 32 + 16, gameState.player.y * 32 - 40, '#ef4444');
-        return;
-    }
-    if (goldWager > (gameState.inventory.gold || 0)) {
-        showFloatingText('Not enough gold!', gameState.player.x * 32 + 16, gameState.player.y * 32 - 40, '#ef4444');
-        return;
-    }
-
-    // Check minimum wager
-    if (boatsWager === 0 && keysWager === 0 && pickaxeWager === 0 && goldWager < 10) {
-        showFloatingText('Minimum wager: 10 gold or items!', gameState.player.x * 32 + 16, gameState.player.y * 32 - 40, '#ef4444');
-        return;
-    }
-
-    // Set wager
-    gameState.pvp.wager = {
-        boats: boatsWager,
-        keys: keysWager,
-        pickaxe: pickaxeWager,
-        gold: goldWager
-    };
-
-    closePvPWagerModal();
-    
-    // Enable PvP ready
-    await enablePvPReady();
-}
-
-async function enablePvPReady() {
-    gameState.pvp.isReady = true;
-    gameState.pvp.broadcastStart = Date.now();
-
-    // Update UI
-    const pvpBtn = document.getElementById('pvpReadyBtn');
-    pvpBtn.textContent = '🛡️ PvP Active';
-    pvpBtn.classList.add('pvp-active');
-
-    // Show status
-    showFloatingText('PvP Ready! Broadcasting for 3 minutes...', 
-        gameState.player.x * 32 + 16, 
-        gameState.player.y * 32 - 40, 
-        '#10b981'
-    );
-    createParticleEffect(gameState.player.x * 32 + 16, gameState.player.y * 32, '#10b981');
-
-    // Broadcast to blockchain
-    await broadcastPvPStatus();
-
-    // Start timer
-    setTimeout(() => {
-        if (gameState.pvp.isReady && !gameState.pvp.inPvPBattle) {
-            disablePvPReady();
-            showFloatingText('PvP broadcast expired', 
-                gameState.player.x * 32 + 16, 
-                gameState.player.y * 32 - 40, 
-                '#f59e0b'
-            );
-        }
-    }, PVP_BROADCAST_DURATION);
-}
-
-function disablePvPReady() {
-    gameState.pvp.isReady = false;
-    gameState.pvp.broadcastStart = null;
-    gameState.pvp.wager = { boats: 0, keys: 0, pickaxe: 0, gold: 0 };
-
-    const pvpBtn = document.getElementById('pvpReadyBtn');
-    pvpBtn.textContent = '⚔️ Ready for PvP';
-    pvpBtn.classList.remove('pvp-active');
-
-    showFloatingText('PvP disabled', 
-        gameState.player.x * 32 + 16, 
-        gameState.player.y * 32 - 40, 
-        '#94a3b8'
-    );
-}
-
-async function broadcastPvPStatus() {
-    if (!account || !algodClient) return;
-
-    try {
-        const pvpData = {
-            type: 'PVP_READY',
-            name: gameState.player.name,
-            level: gameState.player.level,
-            x: gameState.player.x,
-            y: gameState.player.y,
-            hp: gameState.player.hp,
-            maxHp: gameState.player.maxHp,
-            attack: gameState.player.attack,
-            defense: gameState.player.defense,
-            wager: gameState.pvp.wager,
-            timestamp: Date.now()
-        };
-
-        const note = new TextEncoder().encode(
-            'CHRPG:PVP:' + JSON.stringify(pvpData)
-        );
-
-        const params = await algodClient.getTransactionParams().do();
-        
-        const txn = algosdk.makePaymentTxnWithSuggestedParams(
-            account.addr,
-            account.addr,
-            0,
-            undefined,
-            note,
-            params
-        );
-
-        const signedTxn = txn.signTxn(account.sk);
-        await algodClient.sendRawTransaction(signedTxn).do();
-
-        console.log('PvP status broadcasted to blockchain');
-    } catch (error) {
-        console.error('Failed to broadcast PvP status:', error);
-    }
-}
-
-async function loadPvPBroadcasts() {
-    if (!indexerClient) return;
-
-    try {
-        const minRound = (await algodClient.status().do())['last-round'] - 2000;
-        
-        const txns = await indexerClient
-            .searchForTransactions()
-            .notePrefix(createNotePrefix('CHRPG:PVP:'))
-            .minRound(minRound)
-            .limit(50)
-            .do();
-
-        pvpBroadcasts.clear();
-
-        if (txns.transactions) {
-            const now = Date.now();
-            
-            for (const txn of txns.transactions) {
-                if (txn.sender === account.addr) continue;
-
-                try {
-                    const noteText = decodeBase64Note(txn.note);
-                    const jsonStr = noteText.replace('CHRPG:PVP:', '');
-                    const pvpData = JSON.parse(jsonStr);
-
-                    // Check if broadcast is still valid (within 3 minutes)
-                    const age = now - pvpData.timestamp;
-                    if (age < PVP_BROADCAST_DURATION) {
-                        pvpBroadcasts.set(txn.sender, pvpData);
-                    }
-                } catch (e) {
-                    console.log('Failed to parse PvP broadcast:', e);
-                }
-            }
-        }
-
-        updatePvPBroadcastsList();
-    } catch (error) {
-        console.error('Failed to load PvP broadcasts:', error);
-    }
-}
-
-function updatePvPBroadcastsList() {
-    const list = document.getElementById('pvpBroadcastsList');
-    list.innerHTML = '';
-
-    if (pvpBroadcasts.size === 0) {
-        list.innerHTML = '<div style="text-align: center; opacity: 0.7; padding: 20px;">No active PvP challenges</div>';
-        return;
-    }
-
-    pvpBroadcasts.forEach((data, address) => {
-        const distance = Math.sqrt(
-            Math.pow(gameState.player.x - data.x, 2) + 
-            Math.pow(gameState.player.y - data.y, 2)
-        );
-
-        const inRange = distance <= PVP_MATCH_RANGE;
-        const timeLeft = Math.max(0, PVP_BROADCAST_DURATION - (Date.now() - data.timestamp));
-        const minutesLeft = Math.floor(timeLeft / 60000);
-        const secondsLeft = Math.floor((timeLeft % 60000) / 1000);
-
-        const wagerText = `⛵${data.wager.boats} 🗝️${data.wager.keys} ⛏️${data.wager.pickaxe} 💰${data.wager.gold}`;
-
-        const item = document.createElement('div');
-        item.className = 'pvp-broadcast-item';
-        item.style.background = inRange ? 'rgba(16, 185, 129, 0.1)' : 'rgba(59, 130, 246, 0.1)';
-        item.style.border = inRange ? '2px solid #10b981' : '2px solid #3b82f6';
-        item.style.padding = '12px';
-        item.style.borderRadius = '8px';
-        item.style.marginBottom = '8px';
-
-        item.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <div style="font-weight: bold; color: ${inRange ? '#10b981' : '#3b82f6'};">
-                        ${data.name} (Lv.${data.level})
-                    </div>
-                    <div style="font-size: 11px; opacity: 0.8;">
-                        📍 (${data.x}, ${data.y}) • ${distance.toFixed(1)} tiles away
-                    </div>
-                    <div style="font-size: 11px; margin-top: 4px;">
-                        💎 Wager: ${wagerText}
-                    </div>
-                    <div style="font-size: 10px; opacity: 0.7; margin-top: 4px;">
-                        ⏱️ ${minutesLeft}m ${secondsLeft}s left
-                    </div>
-                </div>
-                <div>
-                    ${inRange ? 
-                        `<button class="btn btn-danger" onclick="acceptPvPChallenge('${address}')" style="font-size: 11px; padding: 8px 12px;">⚔️ Challenge!</button>` :
-                        `<button class="btn btn-primary" onclick="navigateToPvP(${data.x}, ${data.y})" style="font-size: 11px; padding: 8px 12px;">📍 Navigate</button>`
-                    }
-                </div>
-            </div>
-        `;
-
-        list.appendChild(item);
-    });
-}
-
-function navigateToPvP(x, y) {
-    showFloatingText(`Navigate to (${x}, ${y})`, 
-        gameState.player.x * 32 + 16, 
-        gameState.player.y * 32 - 40, 
-        '#3b82f6'
-    );
-    
-    // Show direction arrow (optional enhancement)
-    const dx = x - gameState.player.x;
-    const dy = y - gameState.player.y;
-    const direction = Math.atan2(dy, dx);
-    const dirText = direction > -0.785 && direction < 0.785 ? '→' :
-                    direction >= 0.785 && direction < 2.356 ? '↓' :
-                    direction >= 2.356 || direction < -2.356 ? '←' : '↑';
-    
-    showFloatingText(`Go ${dirText}`, 
-        gameState.player.x * 32 + 16, 
-        gameState.player.y * 32, 
-        '#fbbf24'
-    );
-}
-
-// ============================================
-// PVP BATTLE SYSTEM
-// ============================================
-
-async function acceptPvPChallenge(targetAddress) {
-    const opponent = pvpBroadcasts.get(targetAddress);
-    
-    if (!opponent) {
-        showFloatingText('Challenge expired!', 
-            gameState.player.x * 32 + 16, 
-            gameState.player.y * 32 - 40, 
-            '#ef4444'
-        );
-        return;
-    }
-
-    // Check distance
-    const distance = Math.sqrt(
-        Math.pow(gameState.player.x - opponent.x, 2) + 
-        Math.pow(gameState.player.y - opponent.y, 2)
-    );
-
-    if (distance > PVP_MATCH_RANGE) {
-        showFloatingText('Too far! Move closer.', 
-            gameState.player.x * 32 + 16, 
-            gameState.player.y * 32 - 40, 
-            '#ef4444'
-        );
-        return;
-    }
-
-    // Check if player can match wager
-    if (opponent.wager.boats > (gameState.inventory.boats || 0)) {
-        showFloatingText(`Need ${opponent.wager.boats} boats to match wager!`, 
-            gameState.player.x * 32 + 16, gameState.player.y * 32 - 40, '#ef4444');
-        return;
-    }
-    if (opponent.wager.keys > (gameState.inventory.keys || 0)) {
-        showFloatingText(`Need ${opponent.wager.keys} keys to match wager!`, 
-            gameState.player.x * 32 + 16, gameState.player.y * 32 - 40, '#ef4444');
-        return;
-    }
-    if (opponent.wager.pickaxe > (gameState.inventory.pickaxe || 0)) {
-        showFloatingText(`Need ${opponent.wager.pickaxe} pickaxe uses to match wager!`, 
-            gameState.player.x * 32 + 16, gameState.player.y * 32 - 40, '#ef4444');
-        return;
-    }
-    if (opponent.wager.gold > (gameState.inventory.gold || 0)) {
-        showFloatingText(`Need ${opponent.wager.gold} gold to match wager!`, 
-            gameState.player.x * 32 + 16, gameState.player.y * 32 - 40, '#ef4444');
-        return;
-    }
-
-    // Start PvP battle
-    await startPvPBattle(opponent, targetAddress);
-}
-
-async function startPvPBattle(opponent, opponentAddress) {
-    gameState.pvp.inPvPBattle = true;
-    gameState.inBattle = true;
-
-    // Deduct wagers from both players
-    gameState.inventory.boats -= opponent.wager.boats;
-    gameState.inventory.keys -= opponent.wager.keys;
-    gameState.inventory.pickaxe -= opponent.wager.pickaxe;
-    gameState.inventory.gold -= opponent.wager.gold;
-
-    updateUI();
-
-    // Setup opponent
-    gameState.pvp.currentChallenge = {
-        opponent: opponent,
-        address: opponentAddress,
-        totalWager: {
-            boats: opponent.wager.boats * 2,
-            keys: opponent.wager.keys * 2,
-            pickaxe: opponent.wager.pickaxe * 2,
-            gold: opponent.wager.gold * 2
-        }
-    };
-
-    // Show PvP battle modal
-    showPvPBattleModal(opponent);
-}
-
-function showPvPBattleModal(opponent) {
-    const modal = document.getElementById('pvpBattleModal');
-    
-    // Setup UI
-    document.getElementById('pvpOpponentName').textContent = opponent.name;
-    document.getElementById('pvpOpponentLevel').textContent = opponent.level;
-    document.getElementById('pvpOpponentHp').textContent = opponent.hp;
-    document.getElementById('pvpOpponentMaxHp').textContent = opponent.maxHp;
-    document.getElementById('pvpOpponentHpBar').style.width = `${(opponent.hp / opponent.maxHp) * 100}%`;
-
-    // Show wager
-    const wager = gameState.pvp.currentChallenge.totalWager;
-    document.getElementById('pvpWagerDisplay').innerHTML = `
-        <strong>Winner Takes All:</strong><br>
-        ⛵ ${wager.boats} Boats | 🗝️ ${wager.keys} Keys | ⛏️ ${wager.pickaxe} Pickaxe Uses | 💰 ${wager.gold} Gold
-    `;
-
-    // Clear battle log
-    document.getElementById('pvpBattleLog').innerHTML = '';
-    addPvPBattleLog(`⚔️ PvP Battle: ${gameState.player.name} vs ${opponent.name}!`, 'log-info');
-    addPvPBattleLog(`💎 Fighting for ${wager.gold}g, ${wager.boats} boats, ${wager.keys} keys, ${wager.pickaxe} pickaxe!`, 'log-info');
-
-    modal.style.display = 'flex';
-    
-    createParticleEffect(gameState.player.x * 32 + 16, gameState.player.y * 32, '#dc2626');
-}
-
-function pvpBattleAction(action) {
-    const opponent = gameState.pvp.currentChallenge.opponent;
-    
-    if (!opponent || opponent.hp <= 0) return;
-
-    let playerDamage = 0;
-    let playerUsedTurn = true;
-
-    switch (action) {
-        case 'attack':
-            playerDamage = Math.floor(Math.random() * gameState.player.attack) + 8;
-            const critChance = Math.random();
-            if (critChance < 0.15) {
-                playerDamage = Math.floor(playerDamage * 1.5);
-                addPvPBattleLog(`💥 CRITICAL HIT! ${playerDamage} damage!`, 'log-damage');
-            } else {
-                addPvPBattleLog(`⚔️ You attack for ${playerDamage} damage!`, 'log-damage');
-            }
-            opponent.hp = Math.max(0, opponent.hp - playerDamage);
-            break;
-
-        case 'magic':
-            if (gameState.player.mp >= 15) {
-                playerDamage = Math.floor(Math.random() * gameState.player.magic) + 12;
-                gameState.player.mp -= 15;
-                opponent.hp = Math.max(0, opponent.hp - playerDamage);
-                addPvPBattleLog(`✨ Magic blast deals ${playerDamage} damage!`, 'log-damage');
-                flashStatBar('mp', 'damage');
-            } else {
-                addPvPBattleLog(`⚠️ Insufficient mana!`, 'log-info');
-                playerUsedTurn = false;
-            }
-            break;
-
-        case 'defend':
-            gameState.player.defense += 5;
-            addPvPBattleLog(`🛡️ You raise your defenses! (+5 DEF for this turn)`, 'log-heal');
-            setTimeout(() => {
-                gameState.player.defense -= 5;
-            }, 2000);
-            break;
-
-        case 'heal':
-            if (gameState.inventory.healthPotions > 0) {
-                const healAmount = Math.floor(Math.random() * 25) + 35;
-                gameState.player.hp = Math.min(gameState.player.maxHp, gameState.player.hp + healAmount);
-                gameState.inventory.healthPotions--;
-                addPvPBattleLog(`💚 You heal for ${healAmount} HP!`, 'log-heal');
-                flashStatBar('hp', 'heal');
-            } else {
-                addPvPBattleLog(`⚠️ No health potions!`, 'log-info');
-                playerUsedTurn = false;
-            }
-            break;
-
-        case 'special':
-            if (gameState.player.mp >= 25) {
-                playerDamage = Math.floor(gameState.player.attack * 1.8 + Math.random() * 20);
-                gameState.player.mp -= 25;
-                opponent.hp = Math.max(0, opponent.hp - playerDamage);
-                addPvPBattleLog(`🔥 ULTIMATE ATTACK! ${playerDamage} massive damage!`, 'log-damage');
-                flashStatBar('mp', 'damage');
-                createParticleEffect(gameState.player.x * 32 + 16, gameState.player.y * 32, '#fbbf24');
-            } else {
-                addPvPBattleLog(`⚠️ Need 25 MP for special attack!`, 'log-info');
-                playerUsedTurn = false;
-            }
-            break;
-    }
-
-    updatePvPBattleUI();
-    updateUI();
-
-    if (opponent.hp <= 0) {
-        pvpPlayerVictory();
-        return;
-    }
-
-    if (playerUsedTurn) {
-        setTimeout(pvpOpponentTurn, 1500);
-    }
-}
-
-function pvpOpponentTurn() {
-    const opponent = gameState.pvp.currentChallenge.opponent;
-    if (!opponent || opponent.hp <= 0) return;
-
-    // Opponent AI - varied actions
-    const actionRoll = Math.random();
-    let opponentAction = '';
-    let damage = 0;
-
-    if (actionRoll < 0.6) {
-        // Normal attack
-        const baseDamage = Math.floor(Math.random() * opponent.attack) + 8;
-        const defense = Math.floor(gameState.player.defense / 3);
-        damage = Math.max(1, baseDamage - defense);
-        opponentAction = 'attacks';
-    } else if (actionRoll < 0.8) {
-        // Strong attack
-        const baseDamage = Math.floor(Math.random() * opponent.attack * 1.3) + 12;
-        const defense = Math.floor(gameState.player.defense / 3);
-        damage = Math.max(1, baseDamage - defense);
-        opponentAction = 'uses a powerful strike';
-    } else {
-        // Magic attack
-        const baseDamage = Math.floor(Math.random() * 25) + 15;
-        const defense = Math.floor(gameState.player.defense / 4);
-        damage = Math.max(1, baseDamage - defense);
-        opponentAction = 'casts a spell';
-    }
-
-    gameState.player.hp = Math.max(0, gameState.player.hp - damage);
-    addPvPBattleLog(`⚡ ${opponent.name} ${opponentAction} for ${damage} damage!`, 'log-damage');
-
-    flashStatBar('hp', 'damage');
-    updatePvPBattleUI();
-    updateUI();
-
-    if (gameState.player.hp <= 0) {
-        pvpPlayerDefeat();
-    }
-}
-
-function pvpPlayerVictory() {
-    const wager = gameState.pvp.currentChallenge.totalWager;
-    
-    // Award all winnings
-    gameState.inventory.boats += wager.boats;
-    gameState.inventory.keys += wager.keys;
-    gameState.inventory.pickaxe += wager.pickaxe;
-    gameState.inventory.gold += wager.gold;
-    
-    // Bonus XP
-    const xpGain = Math.floor(gameState.pvp.currentChallenge.opponent.level * 50);
-    gameState.player.xp += xpGain;
-
-    addPvPBattleLog(`🎉 VICTORY! You defeated ${gameState.pvp.currentChallenge.opponent.name}!`, 'log-heal');
-    addPvPBattleLog(`💰 You won: ${wager.boats}⛵ ${wager.keys}🗝️ ${wager.pickaxe}⛏️ ${wager.gold}💰`, 'log-heal');
-    addPvPBattleLog(`⭐ Gained ${xpGain} XP!`, 'log-heal');
-
-    checkLevelUp();
-    updateUI();
-
-    setTimeout(() => endPvPBattle(true), 3000);
-}
-
-function pvpPlayerDefeat() {
-    addPvPBattleLog(`💀 DEFEAT! You were bested by ${gameState.pvp.currentChallenge.opponent.name}!`, 'log-damage');
-    addPvPBattleLog(`💸 You lost your wager...`, 'log-damage');
-    
-    // Small penalty
-    gameState.player.hp = Math.floor(gameState.player.maxHp * 0.25);
-    updateUI();
-
-    setTimeout(() => endPvPBattle(false), 3000);
-}
-
-function endPvPBattle(victory) {
-    gameState.pvp.inPvPBattle = false;
-    gameState.inBattle = false;
-    gameState.pvp.currentChallenge = null;
-
-    document.getElementById('pvpBattleModal').style.display = 'none';
-
-    if (victory) {
-        showFloatingText('PvP VICTORY!', 
-            gameState.player.x * 32 + 16, 
-            gameState.player.y * 32 - 40, 
-            '#10b981'
-        );
-        createParticleEffect(gameState.player.x * 32 + 16, gameState.player.y * 32, '#fbbf24');
-    } else {
-        showFloatingText('PvP Defeat...', 
-            gameState.player.x * 32 + 16, 
-            gameState.player.y * 32 - 40, 
-            '#ef4444'
-        );
-    }
-
-    // Disable PvP ready if it was active
-    if (gameState.pvp.isReady) {
-        disablePvPReady();
-    }
-
-    updateUI();
-}
-
-function updatePvPBattleUI() {
-    const opponent = gameState.pvp.currentChallenge.opponent;
-    if (!opponent) return;
-
-    document.getElementById('pvpOpponentHp').textContent = opponent.hp;
-    document.getElementById('pvpOpponentHpBar').style.width = `${(opponent.hp / opponent.maxHp) * 100}%`;
-}
-
-function addPvPBattleLog(message, type) {
-    const log = document.getElementById('pvpBattleLog');
-    const entry = document.createElement('div');
-    entry.className = `log-entry ${type}`;
-    entry.textContent = message;
-    log.appendChild(entry);
-    log.scrollTop = log.scrollHeight;
-}
-
-// ============================================
 // GAME INITIALIZATION AND STARTUP
 // ============================================
 
 window.addEventListener('load', () => {
     initGame();
     renderWorld();
-    initializeMinimap();
+    
+    // CRITICAL FIX: Delay minimap init to ensure map is loaded
+    setTimeout(() => {
+        initializeMinimap();
+    }, 1000);
+    
     initHelpSystem();
     
     setTimeout(() => {
@@ -3678,15 +3430,12 @@ window.addEventListener('load', () => {
             gameState.player.y * 32 - 40, 
             '#fbbf24'
         );
-        console.log('EternalBliss Algorand v1.1 - Optimized & Enhanced');
-        console.log('Built on Algorand - The Carbon-Negative Blockchain');
-        console.log('');
-        console.log('NEW Features:');
-        console.log('   • Optimized rendering with chunking system');
-        console.log('   • Support for 25-word mnemonics');
-        console.log('   • Improved performance & reduced lag');
-        console.log('');
-        console.log('Connect your Algorand wallet to start playing!');
+        console.log('✅ EternalBliss Algorand v1.2 - Complete Fixed Version');
+        console.log('📝 Changes:');
+        console.log('   • Fixed minimap to show complete game area');
+        console.log('   • Improved PvP with instant teleport & auto-battle');
+        console.log('   • Added moving enemies with aggro detection');
+        console.log('   • Added patrolling NPCs for dynamic world');
     }, 1000);
 });
 
@@ -3699,7 +3448,7 @@ window.addEventListener('unhandledrejection', (event) => {
 });
 
 // ============================================
-// DEBUG HELPERS (Development Only)
+// DEBUG HELPERS
 // ============================================
 
 window.gameState = gameState;
@@ -3749,111 +3498,30 @@ window.healFull = () => {
     );
 };
 
-window.addPotions = (health = 5, mana = 5) => {
-    gameState.inventory.healthPotions += health;
-    gameState.inventory.manaPotions += mana;
-    updateUI();
-    showFloatingText(`Added potions!`, 
-        gameState.player.x * 32 + 16, 
-        gameState.player.y * 32 - 40, 
-        '#3b82f6'
-    );
-};
-
-window.clearEnemies = () => {
-    enemies = [];
-    renderWorld();
-    showFloatingText('All enemies cleared!', 
-        gameState.player.x * 32 + 16, 
-        gameState.player.y * 32 - 40, 
-        '#10b981'
-    );
-};
-
 window.debugInfo = () => {
     console.log('=== DEBUG INFORMATION ===');
-    console.log('Player Stats:', {
-        level: gameState.player.level,
-        hp: `${gameState.player.hp}/${gameState.player.maxHp}`,
-        mp: `${gameState.player.mp}/${gameState.player.maxMp}`,
-        xp: `${gameState.player.xp}/${gameState.player.xpToNext}`,
-        attack: gameState.player.attack,
-        defense: gameState.player.defense,
-        magic: gameState.player.magic
-    });
+    console.log('Player:', gameState.player);
     console.log('Inventory:', gameState.inventory);
-    console.log('Statistics:', gameState.stats);
-    console.log('Position:', `(${gameState.player.x}, ${gameState.player.y})`);
-    console.log('Location:', gameState.currentLocation);
-    console.log('Rendered Chunks:', renderedChunks.size);
-    console.log('Cached Tiles:', tileCache.size);
-    console.log('Buildings Array:', buildings.length);
-    console.log('NPCs Array:', npcs.length);
-    console.log('Enemies Array:', enemies.length);
-    console.log('Items Array:', items.length);
-    console.log('Buildings in DOM:', document.querySelectorAll('.building').length);
-    console.log('NPCs in DOM:', document.querySelectorAll('.npc-avatar').length);
-    console.log('Enemies in DOM:', document.querySelectorAll('.enemy-avatar').length);
-    console.log('Items in DOM:', document.querySelectorAll('.item-drop').length);
-    console.log('Wallet Connected:', !!account);
-    console.log('Wallet Type:', 'Mnemonic');
-    console.log('AlgoSDK Available:', typeof algosdk !== 'undefined');
-
+    console.log('World:', gameState.world);
+    console.log('Entities:', {
+        buildings: buildings.length,
+        npcs: npcs.length,
+        enemies: enemies.length,
+        items: items.length
+    });
+    console.log('Rendered chunks:', renderedChunks.size);
+    console.log('Minimap scale:', document.getElementById('minimapContent').dataset.scale);
 };
 
 window.forceRender = () => {
     console.log('Forcing full render...');
     renderWorld();
+    initializeMinimap();
     console.log('Render complete!');
-    debugInfo();
 };
 
-window.generateTestMnemonic = () => {
-    if (typeof algosdk === 'undefined') {
-        console.error('AlgoSDK not loaded!');
-        return;
-    }
-    const account = algosdk.generateAccount();
-    const mnemonic = algosdk.secretKeyToMnemonic(account.sk);
-    console.log('=== TEST MNEMONIC (Testnet) ===');
-    console.log(mnemonic);
-    console.log('Address:', account.addr);
-    console.log('Copy the mnemonic above to test wallet connection!');
-    return mnemonic;
-};
-
-function playSound(soundType) {
-    // You can add actual sound files later
-    // For now, this is just a placeholder
-    if (soundType === 'challenge') {
-        console.log('🔊 Playing challenge sound');
-        // Example: new Audio('sounds/challenge.mp3').play();
-    }
-}
-
-console.log('EternalBliss Algorand Ready!');
-console.log('Optimized with chunking system for better performance');
-console.log('');
-console.log('SDK STATUS:');
-console.log('   • AlgoSDK:', typeof algosdk !== 'undefined' ? '✅ Loaded' : '❌ Not Loaded');
-
-
-console.log('');
-console.log('CONTROLS:');
-console.log('   • WASD or Arrow Keys - Move');
-console.log('   • Space or Enter - Interact');
-console.log('   • Escape - Close modals');
-console.log('');
-console.log('WALLET OPTIONS:');
-console.log('   • 25-word mnemonic (Algorand standard)');
-console.log('   • Note: Algorand always uses 25 words (not 24)');
-console.log('');
-console.log('DEBUG COMMANDS:');
-console.log('   • debugInfo() - Show detailed debug info');
-console.log('   • generateTestMnemonic() - Create test 25-word mnemonic');
-console.log('   • addGold(100) - Add gold');
-console.log('   • addXP(50) - Add experience');
-console.log('   • teleport(x, y) - Teleport to coordinates');
-console.log('   • healFull() - Restore HP/MP');
-console.log('');
-console.log('Ready to explore the optimized Algorand-powered realm!');
+console.log('🎮 EternalBliss Algorand Ready!');
+console.log('✅ All fixes applied:');
+console.log('   1. Minimap shows complete map');
+console.log('   2. PvP instant teleport & auto-battle');
+console.log('   3. Moving enemies with aggro');
