@@ -10,7 +10,7 @@ Everything – your hero, assets, stats, battles, progress, economy, maps, and e
 **No servers.  
 No external databases.  
 No hidden sync layers.  
-The blockchain itself is the game engine and source of truth.
+The blockchain itself is the game engine, data server, sync server and source of truth.
 Connections through RPCs.**
 
 Unlike many blockchain games that have **sunsetted** and erased all player progress and assets, Eternal Bliss is designed so that **nothing can vanish**. Heroes, items, maps, and stories remain permanent on Algorand – independent of developers or companies.
