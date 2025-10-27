@@ -8,7 +8,11 @@
     <script src="https://cdn.jsdelivr.net/npm/algosdk@2.7.0/dist/browser/algosdk.min.js"></script>
     <link rel="stylesheet" href="styles.css">
     <script src="bliss-map.js"></script>
-    <script src="script.js"></script>
+    
+    <script src="js/constants.js"></script>
+    <script src="js/world.js"></script>
+    <script src="js/pvp.js"></script>
+    <script src="js/blockchain.js"></script>
 </head>
 
 <style>
@@ -566,6 +570,13 @@
                 </button>
                 <button class="btn btn-danger" onclick="pvpBattleAction('special')" style="flex: 1;">
                     🔥 Ultimate (-25 MP)
+                </button>
+            </div>
+
+            <!-- Resign Button -->
+            <div style="margin-top: 12px; text-align: center;">
+                <button class="btn btn-secondary" onclick="resignPvPBattle()" style="width: 100%; font-size: 13px;">
+                    🏳️ Resign (Forfeit Wager)
                 </button>
             </div>
 

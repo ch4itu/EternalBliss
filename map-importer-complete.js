@@ -1,5 +1,5 @@
-// EternalBliss Map Importer Plugin - REALISTIC ENHANCED VERSION
-// Features: Organic terrain generation, realistic layouts, detailed content
+// EternalBliss Map Importer Plugin
+
 
 let currentMapData = null;
 
@@ -1444,10 +1444,3 @@ function showStatus(message, type) {
 }
 
 window.addEventListener('load', initMapImporter);
-
-console.log('🗺️ REALISTIC Map Importer Ready!');
-console.log('   ✅ All 8 presets with organic terrain generation');
-console.log('   ✅ Natural rivers, forests, roads, and settlements');
-console.log('   ✅ Detailed NPCs with lore-rich dialogue');
-console.log('   ✅ Strategic enemy placement');
-console.log('   ✅ Immersive world building');

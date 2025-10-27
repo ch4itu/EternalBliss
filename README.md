@@ -1,370 +1,79 @@
-# 🌟 Eternal Bliss – A Fully On-Chain P2P RPG on Algorand
+# ETERNAL BLISS — FULLY ON‑CHAIN P2P RPG GAME
+### Built on a **Universal On‑Chain State‑Machine Framework** (Algorand TestNet)
 
-https://ch4itu.github.io/EternalBliss/
+Eternal Bliss is a **peer‑to‑peer RPG** where **gameplay, player state, PvP signals, and chat** are all designed to be **on‑chain**.  
+The same contract and client pattern form a **domain‑agnostic framework** you can reuse for **supply‑chain tracking, AI‑agent coordination, and education credentials or even simple blogs**.
 
-## 📖 Overview
-
-Eternal Bliss is a **fully on-chain P2P RPG** built natively on the Algorand blockchain.  
-Everything – your hero, assets, stats, battles, progress, economy, maps, and even chat – is stored and executed directly on-chain.
-
-**No servers.  
-No external databases.  
-No hidden sync layers.  
-The blockchain itself is the game engine, data server, sync server and source of truth.
-Connections through RPCs.**
-
-Unlike many blockchain games that have **sunsetted** and erased all player progress and assets, Eternal Bliss is designed so that **nothing can vanish**. Heroes, items, maps, and stories remain permanent on Algorand – independent of developers or companies.
-
-Eternal Bliss demonstrates that decentralized games can be **fun, fair, permanent, and player-owned**.
+> TL;DR — The game is the flagship **proof‑of‑concept** for a reusable, sunset‑proof state‑machine framework.
 
 ---
 
-## 🎮 Gameplay Loop
+## ❗ Problem We Solve — *“The Sunset Issue”*
+Most apps and games **die when servers or sponsors disappear** as most of the data is centralized. That causes:
+- **Lost progress/data** or unverifiable history.
+- **Centralized trust & single points of failure** (ops, auth, storage, sync servers).
+- **Lock‑in**: data and logic stuck behind private APIs.
+- **High ops burden** just to keep basic features online.
 
-- **Create Hero** → Opt-in mints your Hero NFT and initializes stats.  
-- **Explore** → Move across forests, villages, mountains, lakes, and more (browser-rendered map).  
-- **Battle** → Fight enemies, earn gold & XP using transparent on-chain formulas:  
-  - Gold = `enemyLevel * 10 + 15`  
-  - XP = `enemyLevel * 15 + 20`  
-- **Navigate** → Use boats to cross water bodies (15 moves per boat) or pickaxes to clear mountains (10 uses per pickaxe).
-- **PvP Combat** → Challenge other players to real-time battles with wagering system (boats, keys, pickaxe, gold).
-- **Progress** → Spend gold on items, trade with peers using atomic transfers.  
-- **Offline Play** → The game can be played completely offline; local state is stored, then synced back to Algorand in one efficient transaction.  
-- **Immortality** → Your Hero NFT is forever etched on-chain – your story can't be lost.  
+**Our answer:** put the *minimum viable substrate* **on‑chain** — entities, transitions, and audit trail — so the experience **keeps working without us**, clients stay thin, and anyone can rebuild richer UX on the same verifiable state using **Algorand Box Storage**.
 
 ---
 
-## 🪙 On-Chain Assets
-
-- **Hero NFT** → unique character identity.  
-- **Gold ASA** → fungible currency earned in battles.  
-- **Player Stats** → stored in smart contract local state:  
-  - HP, MP, XP, Level, Location, Battles Won.  
-- **Maps** → The game map itself is stored on-chain. Player-created maps can also be uploaded on-chain using the Mapmaker.  
-- **PvP Challenges** → Challenge broadcasts stored on Algorand blockchain with wager details.
-- **Trustless Trading** → powered by Algorand atomic transfers.  
+## 🎮 Game Overview (What you can do right now)
+- **Offline Exploration**; **On‑Chain Save/Restore** of `level, HP/MP, location, inventory`.
+- **P2P Challenges (PvP scaffold)**; **World Chat (On‑Chain)**; **No Servers** (HTML/JS + public RPC).
+- **Deployed (TestNet)** App ID: **748592697** — demo via **Lora DApp Lab**.
 
 ---
 
-## ⚡ Why Algorand?
+## 🧩 The Universal Framework (Used by the Game)
 
-- ⏱️ Instant finality (<3s) → smooth, responsive battles and PvP challenges.  
-- 💸 Fixed 0.001 ALGO fee → scalable micro-interactions.  
-- 🌱 Pure Proof-of-Stake (PPoS) → secure and eco-friendly.  
-- 🐍 PyTeal contracts → readable, auditable, and efficient.  
-- 🔗 ASAs + Atomic Transfers → bug-free and secure economy.  
+Everything is a **state machine**:
 
----
+- **Entity** → uniquely identified object (e.g., `player:addr`, `battle:id`, `post:id`, `shipment:uuid`, `task:id`).  
+- **State** → JSON payload (bytes) stored in **App Boxes** under keys: `b:<type>:<id>`.
+- **Transition** → ARC‑4 method call that mutates/creates the entity (e.g., `save_entity`, `transition`, domain helpers).
+- **Clients** → use **AtomicTransactionComposer** against **public RPC** (no servers).
 
-## 🛠️ Architecture
+### Industries / Use‑Cases this Reaches
+- **Gaming** — players, battles, items, chat, map state (flagship POC).
+- **Supply Chain** — shipments & hand‑offs: `CREATE → PICKUP → IN_TRANSIT → DELIVERED`.
+- **AI Agent Coordination** — tasks & workflows: `QUEUED → ASSIGNED → WORKING → DONE` with agent‑signed actions.
+- **EdTech** — learner progress, modules, and **on‑chain credentials**.
+- **Personal Blog / Publishing** — posts/comments as entities, permanent, verifiable, censorship‑resistant.
 
-- **Frontend**: `index.html`, `styles.css`, `script.js`  
-  - Browser-only client.  
-  - No external dependencies (no APIs, CDNs, or servers).  
-  - **The full code bundle (HTML/CSS/JS) is stored on-chain** and can be accessed by referencing a transaction ID (via Algorand note field or ARC-69/ARC-3 style storage).  
-- **Smart Contract**: `algorand-rpg-smart-contract.py`  
-  - Written in PyTeal.  
-  - Manages hero creation, battles, XP/gold formulas, inventory, and NFT minting.  
-- **Offline Mode**: Local progress stored in browser storage, later synced on-chain.  
-- **Multiplayer & Chat**:  
-  - Peer-to-peer play enabled via Algorand transactions.  
-  - Global chat stored in Algorand note fields – permanent, verifiable, censorship-resistant.  
-- **PvP System**:
-  - Real-time player vs player combat with blockchain-verified challenges.
-  - Coordinate-based matchmaking (5-tile range).
-  - Wagering system with winner-takes-all rewards.
-  - Challenge broadcasts stored on-chain for transparency.
-- **Mapmaker**:  
-  - `mapmaker.html` + tools for creating terrains, NPCs, enemies, castles, and temples.  
-  - Export/import maps to extend the world and create new adventures.  
-  - **Maps can be stored on-chain**, and user-created maps can be uploaded to become part of the permanent world.  
+> Swap the `type` and define transitions — the same contract powers all of the above.
 
 ---
 
-## 🎒 Game Features
-
-### Navigation & Exploration
-- **Boat System**: Purchase boats (50 gold) to cross water bodies. Each boat provides 15 water tiles of movement. When moves run out while on water, an automatic rescue system teleports you to the nearest land with a small penalty (-20 HP, -10 gold).
-- **Pickaxe System**: Buy pickaxes (75 gold) to clear mountain obstacles. Each pickaxe has 10 uses and permanently converts mountain tiles to grass, creating new pathways.
-- **Dynamic Map Import**: Load preset maps (Starter Village, Large City, Dungeon, Forest Temple, Desert Oasis, Mountain Fortress, Swamp Ruins, Coastal Port) or create custom maps using the integrated Mapmaker.
-
-### Inventory Management
-- **Consumable Items**: Health potions (15 gold), Mana potions (10 gold)
-- **Tools**: Boats (reusable with move limits), Pickaxes (durability-based), Keys (unlock doors)
-- **Real-time UI**: Track boat sailing moves, pickaxe durability, and all inventory items
-
-### Player vs Player Combat (PvP)
-- **Ready for PvP**: Click the "Ready for PvP" button to broadcast your challenge to all players for 3 minutes
-- **Wager System**: Stake boats, keys, pickaxe uses, and gold – winner takes all (2x the wager)
-- **Coordinate-Based Matching**: Must be within 5 tiles of opponent to challenge
-- **Real-Time Notifications**: Get notified when someone accepts your challenge
-- **5-Action Combat**:
-  - ⚔️ **Attack** - Free, normal damage with 15% critical hit chance
-  - ✨ **Magic** - 15 MP, ignores armor, powerful spell damage
-  - 🛡️ **Defend** - Free, +5 DEF temporarily for defensive play
-  - 💚 **Heal** - Uses 1 health potion to restore HP mid-battle
-  - 🔥 **Ultimate** - 25 MP, massive 1.8x ATK damage for finishers
-- **Challenge List**: View all active PvP challenges with distance indicators and navigation arrows
-- **Blockchain Verified**: All challenges and outcomes recorded on Algorand
-- **Fair Rewards**: Winner gets 2x wager + bonus XP (opponent level × 50)
-- **Smart Matchmaking**: Distance-based system ensures strategic positioning matters
-
-### Visual Enhancements
-- **Avatar System**: Emoji-based character representations with level tiers (Novice, Veteran, Expert, Master, Legendary)
-- **Terrain Variety**: Grass, water, mountains, forests, roads, sand, and more
-- **Building Types**: Inns (rest/heal), Shops (buy items), Temples (free healing), Castles (quests)
-- **Particle Effects**: Visual feedback for item collection, battles, level-ups, PvP challenges, and interactions
-- **Mobile Support**: Responsive D-pad controls for touch devices with haptic feedback
-
-### Safety Features
-- **Water Rescue**: Prevents players from getting stuck on water tiles
-- **PvP Notifications**: 30-second response timer with auto-decline for incoming challenges
-- **Auto-save**: Progress automatically syncs to Algorand blockchain
-- **Offline Compatibility**: Play without connection, sync when ready
+## 🧱 Contract & Client Architecture
+- **Smart Contract (Algorand Python / ARC‑4)**: Boxes `b:<type>:<id>`, generic ABI (`save_entity`, `load_entity`) + helpers, optional index boxes. Everything built using AlgoSDK.
+- **Client (Static HTML/JS)**: wallet + **AtomicTransactionComposer**; UIs for **Game** & **Blog** included.
 
 ---
 
-## 🎮 How to Play
-
-### Controls
-- **Movement**: `WASD` or `Arrow Keys` to move your character
-- **Interact**: `Space` or `Enter` to interact with NPCs, buildings, and enemies
-- **Close Dialogs**: `ESC` to close modals and dialogs
-- **Mobile**: Use the on-screen D-pad for touch controls (hidden on desktop)
-
-### Getting Started
-1. **Connect Wallet**: Enter your 25-word Algorand mnemonic phrase (use a test wallet!)
-2. **Explore the World**: Move around using WASD or arrow keys
-3. **Talk to NPCs**: Press Space near villagers, merchants, and priests
-4. **Visit Buildings**: Enter inns, shops, temples, and castles
-
-### Navigation
-- **Water**: Purchase boats (50 gold) from shops. Each boat gives 15 moves across water. Auto-rescue activates if you run out of moves while on water (penalty: -20 HP, -10 gold)
-- **Mountains**: Buy pickaxes (75 gold) to clear mountains. Each pickaxe has 10 uses
-- **Doors**: Collect keys to unlock special areas
-
-### Combat (PvE)
-- Click on enemies or walk into them to start battle
-- **Attack**: Physical damage (based on ATK stat)
-- **Magic**: Spell damage - costs 12 MP (based on MAG stat)
-- **Heal**: Use health potions during battle
-- **Flee**: 75% chance to escape
-
-### PvP Combat
-**Broadcasting Your Challenge:**
-1. Click "⚔️ Ready for PvP" button in the multiplayer section
-2. Set your wager (boats, keys, pickaxe uses, gold)
-3. Minimum wager: 10 gold OR any items
-4. Challenge broadcasts for 3 minutes to all players
-5. Wait for opponents to accept your challenge
-
-**Accepting Challenges:**
-1. View "🎯 Active PvP Challenges" list
-2. See opponent's level, distance, and wager
-3. Must be within 5 tiles to challenge
-4. Use "📍 Navigate" if too far away
-5. Click "⚔️ Challenge!" to start battle
-6. Match their wager to participate
-
-**During PvP Battle:**
-- Choose from 5 strategic actions each turn
-- Watch HP bars update in real-time
-- Use healing and defend strategically
-- First to reach 0 HP loses
-- Winner takes 2x the wager + bonus XP
-
-**Challenge Notifications:**
-- Receive animated notification when challenged
-- Modal appears with Accept/Decline options
-- 30-second timer to respond
-- Auto-declines if no response
-- Particle effects and haptic feedback
-
-### Buildings
-- **Inns**: Rest for 20 gold → full HP & MP restore
-- **Shops**: Buy health potions (15g), mana potions (10g), boats (50g), pickaxes (75g)
-- **Temples**: Free full healing anytime
-- **Castles**: Accept quests for gold and XP rewards
-
-### Progression
-- Defeat enemies to earn gold and experience
-- Level up increases HP, MP, ATK, DEF, and MAG
-- Collect treasures scattered across the map
-- Win PvP battles for massive rewards
-- Track stats in the left panel
-
-### Algorand Features
-- **Save Progress**: Click "Save to Algorand" to store hero data on-chain
-- **Sync Data**: Click "Sync from Algorand" to load saved progress
-- **Mint NFT**: Create a permanent Hero NFT
-- **Multiplayer**: See other players in real-time
-- **PvP Challenges**: Challenge other players with blockchain-verified wagers
-- **Chat**: Send blockchain-stored messages
-
-### Maps
-- Click the 🗺️ button (bottom-right) to import new worlds
-- Choose from 8 preset maps or create custom maps
-- Each map has unique NPCs, enemies, and challenges
-
-### Tips
-- Always stock health potions before exploring
-- Remember temple locations for free healing
-- Buy boats before water exploration
-- Pickaxes create permanent paths
-- Start with small PvP wagers (10-25 gold)
-- Position strategically near opponents for PvP
-- Use defend action before opponent's strong attacks
-- Save ultimate attack for critical moments
-- Bring health potions to PvP battles
-- Save progress regularly to blockchain
-- Click the ❓ button for in-game help
+## 🔐 Security & Privacy (Active Work)
+- Prefer **Box storage with client‑side encryption** (e.g., XChaCha20‑Poly1305); avoid public txn notes.  
+- **Integrity**: signed payloads; optional on‑chain signature checks.  
+- Per‑entity access policies: public / shared / private.
 
 ---
 
-## 🔒 The Sunset Problem
-
-Most "on-chain" games today are only partially decentralized. They shut down servers, stop maintaining contracts, or remove frontends – and player assets effectively disappear.
-
-**Eternal Bliss is different.**  
-- Heroes and stats are written directly on Algorand.  
-- Items, gold, and maps are ASAs or note-field data, secured at Layer-1.  
-- PvP challenges and outcomes are permanently recorded on-chain.
-- The game client is static HTML/JS, portable and forkable by anyone.  
-
-Even if the original team steps away, the world of Eternal Bliss will **never sunset**. Players can always rebuild the frontend and continue their journey, because the game itself lives on the blockchain.  
+## 🧪 How to Demo (Quick Paths)
+- **Game**: Clone the repository and use index.html or go to https://ch4itu.github.io/EternalBliss/. Please check GAME_README.md.
+- **Blog**: `blog.html` + `blog.js` → publish/read posts via same ABI.
+- **Lora App Lab**: Lora App Lab → App ID `748592697` → `save_entity` / `save_player` → read back.
 
 ---
 
-## 🗺️ Roadmap
-
-- ✅ Core smart contract deployed on TestNet.  
-- ✅ Boat navigation system with auto-rescue.
-- ✅ Pickaxe tool with durability system.
-- ✅ Dynamic map importer with 8 preset worlds.
-- ✅ Enhanced avatar and visual systems.
-- ✅ Mobile D-pad controls with haptic feedback.
-- ✅ **PvP Battle System** - Real-time player vs player combat.
-- ✅ **Wager System** - Stake items and gold, winner takes all.
-- ✅ **Challenge Broadcasting** - Blockchain-based matchmaking.
-- ✅ **PvP Notifications** - Real-time challenge acceptance alerts.
-- ✅ **5-Action Combat** - Strategic turn-based PvP battles.
-- ✅ In-game help system and comprehensive documentation.
-- 🔨 Frontend enhancements (UI polish, animations, fog of war) – IN PROGRESS.  
-- 🔨 **PvP Leaderboards** - Rankings and season rewards – COMING SOON.
-- 🔨 **Tournament System** - Organized PvP brackets – COMING SOON.
-- 🛒 In-game marketplace (ASA-based trading) – SOON.  
-- 🌍 Mainnet launch + community-driven expansion – SOON.  
+## 🗺️ Roadmap (near‑term)
+Encrypted box schema • Pagination/index boxes • PvP escrow + dispute • Tiny JS SDK + domain templates • Better wallet UX • Tests/docs/audits.
 
 ---
 
-## ⚠️ Security
+## ⚠️ Notes
+Use **TestNet** for demos; mind Box **MBR/size**; design access policies before storing sensitive data.
 
-Eternal Bliss is a **prototype demo for hackathons**.  
-- Always use throwaway wallets.  
-- Do not import keys that hold real funds.
-- PvP wagers are real on TestNet - only wager what you can afford to lose.
-
----
-
-## 🚀 How to Run
-
-1. Clone this repository.  
-2. Open `index.html` in your browser.  
-3. Connect via mnemonic/private key (demo input).  
-4. Play, explore, battle – offline or online.  
-5. Purchase boats and pickaxes from shops to navigate terrain.
-6. Click "Ready for PvP" to challenge other players to combat.
-7. Sync progress to Algorand TestNet when ready.  
-8. Use `mapmaker.html` to design or extend maps and plug them into the main game.  
-9. Click the ❓ help button in-game for detailed gameplay instructions.
-
----
-
-## 🎯 What Makes Eternal Bliss Unique
-
-### True Blockchain Gaming
-- **No Servers**: Everything runs on Algorand blockchain
-- **Permanent Progress**: Your hero and achievements never disappear
-- **Transparent Mechanics**: All formulas and logic visible on-chain
-- **Player Ownership**: You truly own your NFT hero and assets
-
-### Innovative PvP System
-- **Blockchain-Verified Challenges**: All PvP matches recorded on-chain
-- **Fair Matchmaking**: Distance-based system prevents griefing
-- **Strategic Depth**: 5 unique combat actions for varied tactics
-- **Real Stakes**: Wager actual items and gold with winner-takes-all
-- **Real-Time Notifications**: Know instantly when challenged
-
-### Performance & Mobile
-- **Optimized Rendering**: Chunking system for smooth gameplay
-- **Mobile-First**: Touch controls with haptic feedback
-- **Offline Support**: Play without connection, sync later
-- **Cross-Platform**: Works on desktop and mobile browsers
-
-### Community-Driven
-- **Open Source**: Fork and improve the game
-- **Custom Maps**: Create and share your own worlds
-- **Player Markets**: Trade items peer-to-peer
-- **Decentralized Chat**: Permanent, censorship-resistant messaging
-
----
-
-✨ Eternal Bliss isn't just a game. It's a **proof-of-concept** that shows what happens when the blockchain itself **hosts the entire world**:  
-- play offline,  
-- sync on-chain,  
-- challenge players to PvP with real stakes,
-- receive real-time notifications via blockchain,
-- chat peer-to-peer,  
-- store maps on-chain,  
-- access the full client via a transaction ID,  
-- navigate with consumable tools (boats, pickaxes),
-- import community-created worlds,
-- keep progress forever,  
-- **never sunset**.  
-
----
-
-## 📊 Technical Achievements
-
-- ✅ **Full On-Chain Storage**: Hero data, stats, maps, chat all on Algorand
-- ✅ **PvP Broadcasting**: Challenge system using Algorand note fields
-- ✅ **Real-Time Multiplayer**: See other players without servers
-- ✅ **Blockchain Notifications**: Challenge alerts via on-chain monitoring
-- ✅ **Wagering System**: Secure winner-takes-all with blockchain verification
-- ✅ **Mobile Optimization**: Touch controls and responsive design
-- ✅ **Chunked Rendering**: Performance optimization for large maps
-- ✅ **Offline Mode**: Play disconnected, sync when ready
-
----
-
-## 🏆 PvP Statistics & Balance
-
-### Combat Actions
-- **Attack**: Base damage + 15% crit chance (1.5x damage)
-- **Magic**: MAG-based damage, 15 MP cost, ignores armor
-- **Defend**: +5 DEF for one turn, strategic timing crucial
-- **Heal**: Restores 35-60 HP, requires health potion
-- **Ultimate**: 1.8x ATK + bonus damage, 25 MP cost
-
-### Wager Guidelines by Level
-- **Lv 1-5**: 10-25 gold, 0-1 boats/keys
-- **Lv 6-10**: 25-50 gold, 1-2 boats/keys, 0-5 pickaxe
-- **Lv 11-15**: 50-100 gold, 2-3 boats/keys, 5-10 pickaxe
-- **Lv 16+**: 100+ gold, 3+ boats/keys, 10+ pickaxe
-
-### Victory Rewards
-- Winner gets: 2x wager (both players' stakes)
-- Bonus XP: Opponent level × 50
-- Example: Beat level 15 → +750 XP
-
-### Challenge System
-- Broadcast duration: 3 minutes
-- Match range: 5 tiles
-- Check frequency: Every 15 seconds
-- Notification response: 30 seconds
-- Minimum wager: 10 gold OR any items
-
----
 
 ## HEAVILY BORROWED FROM CHATGPT/CLAUDE/GEMINI/GROK
 

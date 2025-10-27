@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EternalBliss Map Maker</title>
+    <link rel="stylesheet" href="mapmaker-styles.css">
+</head>
+<body>
+    <div class="mapmaker-container">
+        <div class="left-panel">
+            <div class="section">
+                <h3>🎨 Terrain Palette</h3>
+                <div class="terrain-palette">
+                    <div class="palette-item grass active" data-terrain="grass" title="Grass"></div>
+                    <div class="palette-item water" data-terrain="water" title="Water"></div>
+                    <div class="palette-item mountain" data-terrain="mountain" title="Mountain"></div>
+                    <div class="palette-item forest" data-terrain="forest" title="Forest"></div>
+                    <div class="palette-item road" data-terrain="road" title="Road"></div>
+                    <div class="palette-item sand" data-terrain="sand" title="Sand"></div>
+                    <div class="palette-item door" data-terrain="door" title="Door (Locked)"></div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>🏗️ Buildings</h3>
+                <div class="object-palette">
+                    <div class="palette-item building-item house" data-building="house" title="House"></div>
+                    <div class="palette-item building-item shop" data-building="shop" title="Shop"></div>
+                    <div class="palette-item building-item inn" data-building="inn" title="Inn"></div>
+                    <div class="palette-item building-item temple" data-building="temple" title="Temple"></div>
+                    <div class="palette-item castle-item castle" data-building="castle" title="Castle"></div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>👥 NPCs</h3>
+                <div class="npc-palette">
+                    <div class="palette-item npc-item villager active" data-npc="villager" title="Villager">🧑</div>
+                    <div class="palette-item npc-item merchant" data-npc="merchant" title="Merchant">🛒</div>
+                    <div class="palette-item npc-item priest" data-npc="priest" title="Priest">⛪</div>
+                    <div class="palette-item npc-item elder" data-npc="elder" title="Elder">👴</div>
+                    <div class="palette-item npc-item guard" data-npc="guard" title="Guard">🛡️</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>👹 Enemies</h3>
+                <div class="enemy-palette">
+                    <div class="palette-item enemy-item goblin active" data-enemy="goblin" title="Goblin">👹</div>
+                    <div class="palette-item enemy-item wolf" data-enemy="wolf" title="Wolf">🐺</div>
+                    <div class="palette-item enemy-item dragon" data-enemy="dragon" title="Dragon">🐉</div>
+                    <div class="palette-item enemy-item orc" data-enemy="orc" title="Orc">👺</div>
+                    <div class="palette-item enemy-item skeleton" data-enemy="skeleton" title="Skeleton">💀</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>💰 Items</h3>
+                <div class="item-palette">
+                    <div class="palette-item item-item gold active" data-item="gold" title="Gold">💰</div>
+                    <div class="palette-item item-item health-potion" data-item="health_potion" title="Health Potion">🧪</div>
+                    <div class="palette-item item-item mana-potion" data-item="mana_potion" title="Mana Potion">🔮</div>
+                    <div class="palette-item item-item key" data-item="key" title="Key">🗝️</div>
+                    <div class="palette-item item-item treasure" data-item="treasure" title="Treasure Chest">📦</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>🖌️ Brush Settings</h3>
+                <div class="brush-size">
+                    <div class="brush-btn active" data-size="1">1x1</div>
+                    <div class="brush-btn" data-size="3">3x3</div>
+                    <div class="brush-btn" data-size="5">5x5</div>
+                </div>
+                <div style="margin-top: 12px;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
+                        <input type="checkbox" id="showGrid" checked>
+                        Show Grid
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; margin-top: 8px;">
+                        <input type="checkbox" id="showAreas" checked>
+                        Show Areas
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-canvas">
+<div class="toolbar">
+    <div class="tool-btn active" data-tool="paint" title="Paint Terrain">🎨 Paint</div>
+    <div class="tool-btn" data-tool="building" title="Place Buildings">🏗️ Build</div>
+    <div class="tool-btn" data-tool="npc" title="Place NPCs">👥 NPCs</div>
+    <div class="tool-btn" data-tool="enemy" title="Place Enemies">👹 Enemies</div>
+    <div class="tool-btn" data-tool="item" title="Place Items">💰 Items</div>
+    <div class="tool-btn" data-tool="erase" title="Erase">🗑️ Erase</div>
+    <div class="tool-btn" data-tool="pan" title="Pan View">✋ Pan</div>
+    <div class="tool-btn" data-tool="fill" title="Fill Area">🪣 Fill</div>
+    <div class="tool-btn" data-tool="area" title="Define Areas">📍 Area</div>
+    <div class="coordinates" id="coordinates">X: 0, Y: 0</div>
+</div>
+
+            <div class="canvas-view" id="canvasView">
+                <div class="canvas-grid" id="canvasGrid"></div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="section">
+                <h3>📝 Map Settings</h3>
+                <div class="input-group">
+                    <label>Map Name</label>
+                    <input type="text" id="mapName" value="Custom Map" placeholder="Enter map name">
+                </div>
+                <div class="input-group">
+                    <label>Width</label>
+                    <input type="number" id="mapWidth" value="50" min="10" max="200">
+                </div>
+                <div class="input-group">
+                    <label>Height</label>
+                    <input type="number" id="mapHeight" value="37" min="10" max="150">
+                </div>
+                <button class="btn btn-primary" onclick="resizeMap()">📏 Resize Map</button>
+                <button class="btn btn-danger" onclick="clearMap()">🗑️ Clear All</button>
+            </div>
+
+            <div class="section">
+                <h3>💾 Import/Export</h3>
+                <button class="btn btn-success" onclick="exportMap()">📤 Export Map</button>
+                <button class="btn btn-primary" onclick="exportCode()">📋 Export Code</button>
+                <button class="btn btn-primary" onclick="showImportModal()">📥 Import Map</button>
+                <button class="btn btn-primary" onclick="generateRandom()">🎲 Random Map</button>
+            </div>
+
+            <div class="section">
+                <h3>🗺️ Mini Map</h3>
+                <div class="minimap">
+                    <div class="minimap-content" id="minimapContent"></div>
+                </div>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #2d5016;"></div>
+                        <span>Grass</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #1e40af;"></div>
+                        <span>Water</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #9ca3af;"></div>
+                        <span>Mountain</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #166534;"></div>
+                        <span>Forest</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #8b5a2b;"></div>
+                        <span>Road</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #eab308;"></div>
+                        <span>Sand</span>
+                    </div>
+
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #92400e;"></div>
+                        <span>Door</span>
+                    </div>
+
+                </div>
+                <div class="legend" style="margin-top: 8px;">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #fbbf24;"></div>
+                        <span>Buildings</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #10b981;"></div>
+                        <span>NPCs</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #dc2626;"></div>
+                        <span>Enemies</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>📊 Map Stats</h3>
+                <div style="font-size: 11px; line-height: 1.4;">
+                    <div>Tiles: <span id="tileCount">0</span></div>
+                    <div>Buildings: <span id="buildingCount">0</span></div>
+                    <div>NPCs: <span id="npcCount">0</span></div>
+                    <div>Enemies: <span id="enemyCount">0</span></div>
+                    <div>Items: <span id="itemCount">0</span></div>
+                    <div>Areas: <span id="areaCount">0</span></div>
+                    <div>Terrain Types: <span id="terrainTypes">0</span></div>
+                    <div>Last Action: <span id="lastAction">Ready</span></div>
+                </div>
+            </div>
+
+    <div class="modal" id="exportModal">
+        <div class="modal-content">
+            <h3>📤 Export Map Data</h3>
+            <p>Copy this code and paste it into your EternalBliss game:</p>
+            <div class="code-output" id="exportOutput"></div>
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button class="btn btn-success" onclick="copyToClipboard()">📋 Copy to Clipboard</button>
+                <button class="btn btn-primary" onclick="closeModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="importModal">
+        <div class="modal-content">
+            <h3>📥 Import Map Data</h3>
+            <p>Paste your map data here:</p>
+            <textarea style="width: 100%; height: 200px; background: #000; color: #10b981; border: 2px solid #3d5a80; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 11px;" id="importData" placeholder="Paste map JSON data here..."></textarea>
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button class="btn btn-success" onclick="importMap()">📥 Import</button>
+                <button class="btn btn-primary" onclick="closeModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="status" id="status">Ready • Click to start painting</div>
+
+    <script src="mapmaker-script.js"></script>
+</body>
+</html>
