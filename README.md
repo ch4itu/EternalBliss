@@ -22,7 +22,7 @@ Most apps and games **die when servers or sponsors disappear** as most of the da
 ## 🎮 Game Overview (What you can do right now)
 - **Offline Exploration**; **On‑Chain Save/Restore** of `level, HP/MP, location, inventory`.
 - **P2P Challenges (PvP scaffold)**; **World Chat (On‑Chain)**; **No Servers** (HTML/JS + public RPC).
-- **Deployed (TestNet)** App ID: **748592697** — demo via **Lora DApp Lab**.
+- **Deployed (TestNet)** App ID: **749006407** — demo via **Lora DApp Lab**.
 
 ---
 
@@ -62,7 +62,7 @@ Everything is a **state machine**:
 ## 🧪 How to Demo (Quick Paths)
 - **Game**: Clone the repository and use index.html or go to https://ch4itu.github.io/EternalBliss/. Please check GAME_README.md.
 - **Blog**: `blog.html` + `blog.js` → publish/read posts via same ABI.
-- **Lora App Lab**: Lora App Lab → App ID `748592697` → `save_entity` / `save_player` → read back.
+- **Lora App Lab**: Lora App Lab → App ID `749006407` → `save_entity` / `save_player` → read back.
 
 ---
 

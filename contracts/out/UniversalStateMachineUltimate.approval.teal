@@ -1,0 +1,2919 @@
+#pragma version 11
+#pragma typetrack false
+
+// algopy.arc4.ARC4Contract.approval_program() -> uint64:
+main:
+    intcblock 0 1 32 2 400 2500 1000000
+    bytecblock 0x151f7c75 0x0000000000000000000000000000000000000000000000000000000000000000 0x74623a "total_turn_based" 0x70723a "admin" "paused" 0x653a "total_entities" "total_processes" 0x002a 0x0022 0x004a 0x0000
+    // contract.py:94-95
+    // # ========= Contract =========
+    // class UniversalStateMachineUltimate(ARC4Contract):
+    txn NumAppArgs
+    bz main_create@34
+    txn OnCompletion
+    !
+    assert // OnCompletion must be NoOp
+    txn ApplicationID
+    assert
+    pushbytess 0x57ecfe2c 0x8cbbd7fa 0x5dcd81f1 0x0a242fc2 0xfb2d249b 0x893f2d1e 0x27713309 0x373d7614 0x6470685e 0x7db3300f 0x66248688 0x1ed0bb26 0x6668574a 0xb7d02d7c 0x959cb88c 0x17d388cc 0x564ecb3f 0xb82ddffe 0x54b784c6 0x2b518e14 0x80e543ea 0xa25d6437 0xb4631b03 0x0fe9eb71 0xbbc9228c 0xdf09b608 0x346b3dbc // method "save_entity(string,string,pay)string", method "save_player(string,string,pay)string", method "load_entity(string)string", method "load_player(string)string", method "get_entity_owner(string)address", method "transfer_entity(string,address)string", method "delete_entity(string)string", method "start_process(string,address,uint64,string,pay)string", method "start_battle(string,address,uint64,string,pay)string", method "update_process(string,string)string", method "update_battle(string,string)string", method "load_process(string)string", method "load_battle(string)string", method "cleanup_expired_process(string)string", method "start_battle_turn_based(string,address,uint64,string,pay)string", method "update_battle_turn_based(string,string)string", method "start_process_turn_based(string,address,uint64,string,pay)string", method "update_process_turn_based(string,string)string", method "load_battle_turn_based(string)string", method "load_process_turn_based(string)string", method "get_turn_info(string)(address,address,address,bool)", method "cleanup_expired_battle_turn_based(string)string", method "emergency_pause()string", method "emergency_unpause()string", method "update_admin(address)string", method "get_stats()(uint64,uint64,uint64,uint64)", method "get_admin()address"
+    txna ApplicationArgs 0
+    match save_entity save_player load_entity load_player get_entity_owner transfer_entity delete_entity start_process start_battle update_process update_battle load_process load_battle cleanup_expired_process start_battle_turn_based update_battle_turn_based start_process_turn_based update_process_turn_based load_battle_turn_based load_process_turn_based get_turn_info cleanup_expired_battle_turn_based emergency_pause emergency_unpause update_admin get_stats get_admin
+    err
+
+main_create@34:
+    // contract.py:122
+    // @arc4.baremethod(create="require")
+    txn OnCompletion
+    !
+    txn ApplicationID
+    !
+    &&
+    assert // OnCompletion must be NoOp && can only call when creating
+    // contract.py:125
+    // self.admin = Global.creator_address
+    bytec 5 // "admin"
+    global CreatorAddress
+    app_global_put
+    // contract.py:126
+    // self.total_entities = UInt64(0)
+    bytec 8 // "total_entities"
+    intc_0 // 0
+    app_global_put
+    // contract.py:127
+    // self.total_processes = UInt64(0)
+    bytec 9 // "total_processes"
+    intc_0 // 0
+    app_global_put
+    // contract.py:128
+    // self.total_turn_based = UInt64(0)
+    bytec_3 // "total_turn_based"
+    intc_0 // 0
+    app_global_put
+    // contract.py:129
+    // self.paused = UInt64(0)
+    bytec 6 // "paused"
+    intc_0 // 0
+    app_global_put
+    // contract.py:122
+    // @arc4.baremethod(create="require")
+    intc_1 // 1
+    return
+
+
+// contract._calculate_mbr_turn_based(state_size: uint64) -> uint64:
+_calculate_mbr_turn_based:
+    // contract.py:77-78
+    // @subroutine
+    // def _calculate_mbr_turn_based(state_size: UInt64) -> UInt64:
+    proto 1 1
+    // contract.py:81
+    // box_blocks = (total_size + UInt64(7)) // UInt64(8)
+    frame_dig -1
+    // contract.py:80-81
+    // total_size = UInt64(104) + state_size
+    // box_blocks = (total_size + UInt64(7)) // UInt64(8)
+    pushint 111 // 111
+    +
+    // contract.py:81
+    // box_blocks = (total_size + UInt64(7)) // UInt64(8)
+    pushint 8 // 8
+    /
+    // contract.py:82
+    // return UInt64(BOX_FLAT_COST) + (UInt64(BOX_BYTE_COST) * box_blocks)
+    intc 4 // 400
+    *
+    intc 5 // 2500
+    +
+    retsub
+
+
+// contract._validate_entity_id(id_bytes: bytes) -> void:
+_validate_entity_id:
+    // contract.py:84-85
+    // @subroutine
+    // def _validate_entity_id(id_bytes: Bytes) -> None:
+    proto 1 0
+    // contract.py:86
+    // assert id_bytes.length >= UInt64(ENTITY_ID_MIN), "ID too short (min 8)"
+    frame_dig -1
+    len
+    dup
+    pushint 8 // 8
+    >=
+    assert // ID too short (min 8)
+    // contract.py:87
+    // assert id_bytes.length <= UInt64(ENTITY_ID_MAX), "ID too long (max 128)"
+    pushint 128 // 128
+    <=
+    assert // ID too long (max 128)
+    retsub
+
+
+// contract._validate_state_size(state_bytes: bytes) -> void:
+_validate_state_size:
+    // contract.py:89-90
+    // @subroutine
+    // def _validate_state_size(state_bytes: Bytes) -> None:
+    proto 1 0
+    // contract.py:91
+    // assert state_bytes.length > UInt64(0), "State cannot be empty"
+    frame_dig -1
+    len
+    dup
+    assert // State cannot be empty
+    // contract.py:92
+    // assert state_bytes.length <= UInt64(MAX_STATE_SIZE), "State too large (max 4KB)"
+    pushint 4096 // 4096
+    <=
+    assert // State too large (max 4KB)
+    retsub
+
+
+// contract.UniversalStateMachineUltimate.save_entity[routing]() -> void:
+save_entity:
+    // contract.py:141
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 2
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txn GroupIndex
+    intc_1 // 1
+    -
+    dup
+    gtxns TypeEnum
+    intc_1 // pay
+    ==
+    assert // transaction type is pay
+    callsub contract.UniversalStateMachineUltimate.save_entity
+    bytec_0 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// contract.UniversalStateMachineUltimate.save_player[routing]() -> void:
+save_player:
+    // contract.py:184
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 2
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txn GroupIndex
+    intc_1 // 1
+    -
+    dup
+    gtxns TypeEnum
+    intc_1 // pay
+    ==
+    assert // transaction type is pay
+    // contract.py:192
+    // return self.save_entity(player_id, state_data, mbr_payment)
+    callsub contract.UniversalStateMachineUltimate.save_entity
+    // contract.py:184
+    // @arc4.abimethod
+    bytec_0 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// contract.UniversalStateMachineUltimate.load_entity[routing]() -> void:
+load_entity:
+    // contract.py:194
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    callsub contract.UniversalStateMachineUltimate.load_entity
+    bytec_0 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// contract.UniversalStateMachineUltimate.load_player[routing]() -> void:
+load_player:
+    // contract.py:204
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // contract.py:207
+    // return self.load_entity(player_id)
+    callsub contract.UniversalStateMachineUltimate.load_entity
+    // contract.py:204
+    // @arc4.abimethod
+    bytec_0 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// contract.UniversalStateMachineUltimate.get_entity_owner[routing]() -> void:
+get_entity_owner:
+    // contract.py:209
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // contract.py:213
+    // data, exists = BoxMap(Bytes, Bytes, key_prefix=b"e:").maybe(key)
+    bytec 7 // 0x653a
+    swap
+    concat
+    box_get
+    // contract.py:214
+    // if not exists:
+    bnz get_entity_owner_after_if_else@3
+    // contract.py:215
+    // return arc4.Address(Bytes(b"\x00" * 32))
+    bytec_1 // 0x0000000000000000000000000000000000000000000000000000000000000000
+
+get_entity_owner_after_inlined_contract.UniversalStateMachineUltimate.get_entity_owner@4:
+    // contract.py:209
+    // @arc4.abimethod
+    bytec_0 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+get_entity_owner_after_if_else@3:
+    // contract.py:216
+    // return arc4.Address(data[0:32])
+    dupn 2
+    len
+    intc_0 // 0
+    dig 1
+    >=
+    intc_0 // 0
+    dig 2
+    uncover 2
+    select
+    intc_2 // 32
+    dig 2
+    >=
+    intc_2 // 32
+    uncover 3
+    uncover 2
+    select
+    substring3
+    dup
+    len
+    intc_2 // 32
+    ==
+    assert // Address length is 32 bytes
+    // contract.py:209
+    // @arc4.abimethod
+    b get_entity_owner_after_inlined_contract.UniversalStateMachineUltimate.get_entity_owner@4
+
+
+// contract.UniversalStateMachineUltimate.transfer_entity[routing]() -> void:
+transfer_entity:
+    // contract.py:218
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 2
+    dup
+    len
+    intc_2 // 32
+    ==
+    assert // invalid number of bytes for arc4.static_array<arc4.uint8, 32>
+    // contract.py:221
+    // self._require_not_paused()
+    callsub _require_not_paused
+    // contract.py:224
+    // data, exists = BoxMap(Bytes, Bytes, key_prefix=b"e:").maybe(key)
+    bytec 7 // 0x653a
+    dig 2
+    concat
+    dup
+    box_get
+    // contract.py:225
+    // assert exists, "Entity not found"
+    assert // Entity not found
+    // contract.py:227
+    // current_owner = Account(data[0:32])
+    dup
+    len
+    intc_0 // 0
+    dig 1
+    >=
+    intc_0 // 0
+    dig 2
+    uncover 2
+    select
+    intc_2 // 32
+    dig 2
+    >=
+    intc_2 // 32
+    dig 3
+    uncover 2
+    select
+    dig 3
+    uncover 2
+    dig 2
+    substring3
+    dup
+    len
+    intc_2 // 32
+    ==
+    assert // Address length is 32 bytes
+    // contract.py:228
+    // assert Txn.sender == current_owner, "Only owner can transfer"
+    txn Sender
+    dig 1
+    ==
+    assert // Only owner can transfer
+    // contract.py:231
+    // assert new_owner.bytes != zero_addr, "Invalid new owner"
+    dig 5
+    // contract.py:230
+    // zero_addr = Bytes(b"\x00" * 32)
+    bytec_1 // 0x0000000000000000000000000000000000000000000000000000000000000000
+    // contract.py:231
+    // assert new_owner.bytes != zero_addr, "Invalid new owner"
+    !=
+    assert // Invalid new owner
+    // contract.py:233
+    // packed = new_owner.bytes + data[32:]
+    uncover 3
+    uncover 2
+    uncover 3
+    substring3
+    dig 3
+    swap
+    concat
+    // contract.py:234
+    // BoxMap(Bytes, Bytes, key_prefix=b"e:")[key] = packed
+    dig 2
+    box_del
+    pop
+    uncover 2
+    swap
+    box_put
+    // contract.py:236-237
+    // arc4.emit("EntityTransferred(string,address,address)",
+    //           entity_id, arc4.Address(current_owner.bytes), new_owner)
+    pushbytes 0x0042
+    swap
+    concat
+    swap
+    concat
+    swap
+    concat
+    pushbytes 0x58738ca4 // method "EntityTransferred(string,address,address)"
+    swap
+    concat
+    log
+    // contract.py:218
+    // @arc4.abimethod
+    pushbytes 0x151f7c750012456e74697479207472616e73666572726564
+    log
+    intc_1 // 1
+    return
+
+
+// contract.UniversalStateMachineUltimate.delete_entity[routing]() -> void:
+delete_entity:
+    // contract.py:240
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // contract.py:243
+    // self._require_not_paused()
+    callsub _require_not_paused
+    // contract.py:246
+    // box_map = BoxMap(Bytes, Bytes, key_prefix=b"e:")
+    bytec 7 // 0x653a
+    // contract.py:247
+    // data, exists = box_map.maybe(key)
+    dig 1
+    concat
+    dup
+    box_get
+    // contract.py:248
+    // assert exists, "Entity not found"
+    assert // Entity not found
+    // contract.py:250
+    // owner = Account(data[0:32])
+    dup
+    len
+    intc_0 // 0
+    dig 1
+    >=
+    intc_0 // 0
+    dig 2
+    uncover 2
+    select
+    intc_2 // 32
+    dig 2
+    >=
+    intc_2 // 32
+    uncover 3
+    uncover 2
+    select
+    substring3
+    dup
+    len
+    intc_2 // 32
+    ==
+    assert // Address length is 32 bytes
+    // contract.py:251
+    // assert Txn.sender == owner, "Only owner can delete"
+    txn Sender
+    dig 1
+    ==
+    assert // Only owner can delete
+    // contract.py:253
+    // del box_map[key]
+    swap
+    box_del
+    pop
+    // contract.py:255
+    // arc4.emit("EntityDeleted(string,address)", entity_id, arc4.Address(owner.bytes))
+    bytec 11 // 0x0022
+    swap
+    concat
+    swap
+    concat
+    pushbytes 0xdbf78f7f // method "EntityDeleted(string,address)"
+    swap
+    concat
+    log
+    // contract.py:240
+    // @arc4.abimethod
+    pushbytes 0x151f7c75000e456e746974792064656c65746564
+    log
+    intc_1 // 1
+    return
+
+
+// contract.UniversalStateMachineUltimate.start_process[routing]() -> void:
+start_process:
+    // contract.py:260
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 2
+    dup
+    len
+    intc_2 // 32
+    ==
+    assert // invalid number of bytes for arc4.static_array<arc4.uint8, 32>
+    txna ApplicationArgs 3
+    dup
+    len
+    pushint 8 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    txna ApplicationArgs 4
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txn GroupIndex
+    intc_1 // 1
+    -
+    dup
+    gtxns TypeEnum
+    intc_1 // pay
+    ==
+    assert // transaction type is pay
+    callsub contract.UniversalStateMachineUltimate.start_process
+    bytec_0 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// contract.UniversalStateMachineUltimate.start_battle[routing]() -> void:
+start_battle:
+    // contract.py:308
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 2
+    dup
+    len
+    intc_2 // 32
+    ==
+    assert // invalid number of bytes for arc4.static_array<arc4.uint8, 32>
+    txna ApplicationArgs 3
+    dup
+    len
+    pushint 8 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    txna ApplicationArgs 4
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txn GroupIndex
+    intc_1 // 1
+    -
+    dup
+    gtxns TypeEnum
+    intc_1 // pay
+    ==
+    assert // transaction type is pay
+    // contract.py:322
+    // return self.start_process(battle_id, opponent, deadline_rounds, initial_state, mbr_payment)
+    callsub contract.UniversalStateMachineUltimate.start_process
+    // contract.py:308
+    // @arc4.abimethod
+    bytec_0 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// contract.UniversalStateMachineUltimate.update_process[routing]() -> void:
+update_process:
+    // contract.py:324
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 2
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    callsub contract.UniversalStateMachineUltimate.update_process
+    bytec_0 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// contract.UniversalStateMachineUltimate.update_battle[routing]() -> void:
+update_battle:
+    // contract.py:350
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 2
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // contract.py:353
+    // return self.update_process(battle_id, new_state)
+    callsub contract.UniversalStateMachineUltimate.update_process
+    // contract.py:350
+    // @arc4.abimethod
+    bytec_0 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// contract.UniversalStateMachineUltimate.load_process[routing]() -> void:
+load_process:
+    // contract.py:355
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    callsub contract.UniversalStateMachineUltimate.load_process
+    bytec_0 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// contract.UniversalStateMachineUltimate.load_battle[routing]() -> void:
+load_battle:
+    // contract.py:365
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // contract.py:368
+    // return self.load_process(battle_id)
+    callsub contract.UniversalStateMachineUltimate.load_process
+    // contract.py:365
+    // @arc4.abimethod
+    bytec_0 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// contract.UniversalStateMachineUltimate.cleanup_expired_process[routing]() -> void:
+cleanup_expired_process:
+    // contract.py:370
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // contract.py:374
+    // box_map = BoxMap(Bytes, Bytes, key_prefix=b"pr:")
+    bytec 4 // 0x70723a
+    // contract.py:375
+    // data, exists = box_map.maybe(key)
+    dig 1
+    concat
+    dup
+    box_get
+    // contract.py:376
+    // assert exists, "Process not found"
+    assert // Process not found
+    // contract.py:378
+    // deadline = _bytes_to_u64(data[64:72])
+    dup
+    len
+    pushint 64 // 64
+    dig 1
+    >=
+    pushint 64 // 64
+    dig 2
+    uncover 2
+    select
+    pushint 72 // 72
+    dig 2
+    >=
+    pushint 72 // 72
+    uncover 3
+    uncover 2
+    select
+    substring3
+    // contract.py:53
+    // return op.btoi(b)
+    btoi
+    // contract.py:379
+    // assert Global.round > deadline, "Process not yet expired"
+    global Round
+    <
+    assert // Process not yet expired
+    // contract.py:381
+    // del box_map[key]
+    box_del
+    pop
+    // contract.py:383
+    // arc4.emit("ProcessCleaned(string,address)", process_id, arc4.Address(Txn.sender.bytes))
+    bytec 11 // 0x0022
+    txn Sender
+    concat
+    swap
+    concat
+    pushbytes 0x7b2318b9 // method "ProcessCleaned(string,address)"
+    swap
+    concat
+    log
+    // contract.py:370
+    // @arc4.abimethod
+    pushbytes 0x151f7c750017457870697265642070726f6365737320636c65616e6564
+    log
+    intc_1 // 1
+    return
+
+
+// contract.UniversalStateMachineUltimate.start_battle_turn_based[routing]() -> void:
+start_battle_turn_based:
+    // contract.py:388
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 2
+    dup
+    len
+    intc_2 // 32
+    ==
+    assert // invalid number of bytes for arc4.static_array<arc4.uint8, 32>
+    txna ApplicationArgs 3
+    dup
+    len
+    pushint 8 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    txna ApplicationArgs 4
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    dup
+    uncover 2
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txn GroupIndex
+    intc_1 // 1
+    -
+    dup
+    gtxns TypeEnum
+    intc_1 // pay
+    ==
+    assert // transaction type is pay
+    // contract.py:403
+    // self._require_not_paused()
+    callsub _require_not_paused
+    // contract.py:406
+    // _validate_entity_id(key)
+    dig 5
+    callsub _validate_entity_id
+    // contract.py:407
+    // _validate_state_size(initial_state.bytes)
+    dig 2
+    callsub _validate_state_size
+    // contract.py:409-410
+    // # Validate MBR payment (turn-based needs extra 32 bytes)
+    // required_mbr = _calculate_mbr_turn_based(initial_state.bytes.length)
+    swap
+    callsub _calculate_mbr_turn_based
+    // contract.py:411
+    // assert mbr_payment.receiver == Global.current_application_address, "Wrong receiver"
+    dig 1
+    gtxns Receiver
+    global CurrentApplicationAddress
+    ==
+    assert // Wrong receiver
+    // contract.py:412
+    // assert mbr_payment.amount >= required_mbr, "Insufficient MBR payment"
+    swap
+    gtxns Amount
+    <=
+    assert // Insufficient MBR payment
+    // contract.py:414
+    // existing_regular, exists_regular = BoxMap(Bytes, Bytes, key_prefix=b"pr:").maybe(key)
+    bytec 4 // 0x70723a
+    dig 4
+    concat
+    box_len
+    cover 2
+    pop
+    // contract.py:415
+    // existing_turn, exists_turn = BoxMap(Bytes, Bytes, key_prefix=b"tb:").maybe(key)
+    bytec_2 // 0x74623a
+    dig 5
+    concat
+    dup
+    box_len
+    bury 1
+    // contract.py:416
+    // assert not exists_regular, "Battle already exists (regular)"
+    uncover 3
+    !
+    assert // Battle already exists (regular)
+    // contract.py:417
+    // assert not exists_turn, "Battle already exists (turn-based)"
+    !
+    assert // Battle already exists (turn-based)
+    // contract.py:419
+    // caller = Txn.sender
+    txn Sender
+    // contract.py:421
+    // assert opponent.bytes != zero_addr, "Invalid opponent"
+    dig 4
+    // contract.py:420
+    // zero_addr = Bytes(b"\x00" * 32)
+    bytec_1 // 0x0000000000000000000000000000000000000000000000000000000000000000
+    // contract.py:421
+    // assert opponent.bytes != zero_addr, "Invalid opponent"
+    !=
+    assert // Invalid opponent
+    // contract.py:422
+    // assert opponent.bytes != caller.bytes, "Cannot battle yourself"
+    dig 4
+    dig 1
+    !=
+    assert // Cannot battle yourself
+    // contract.py:61
+    // return op.btoi(op.itob(v.native))
+    uncover 3
+    btoi
+    // contract.py:425
+    // assert deadline_u64 >= UInt64(MIN_DEADLINE_ROUNDS), "Deadline too short"
+    dup
+    pushint 100 // 100
+    >=
+    assert // Deadline too short
+    // contract.py:426
+    // assert deadline_u64 <= UInt64(MAX_DEADLINE_ROUNDS), "Deadline too long"
+    dup
+    intc 6 // 1000000
+    <=
+    assert // Deadline too long
+    // contract.py:427
+    // deadline = Global.round + deadline_u64
+    global Round
+    +
+    // contract.py:431-432
+    // caller.bytes +
+    // opponent.bytes +
+    dig 1
+    dig 5
+    concat
+    // contract.py:49
+    // return op.itob(v)
+    swap
+    itob
+    // contract.py:431-433
+    // caller.bytes +
+    // opponent.bytes +
+    // _u64_to_bytes(deadline) +
+    swap
+    dig 1
+    concat
+    // contract.py:420
+    // zero_addr = Bytes(b"\x00" * 32)
+    bytec_1 // 0x0000000000000000000000000000000000000000000000000000000000000000
+    // contract.py:431-434
+    // caller.bytes +
+    // opponent.bytes +
+    // _u64_to_bytes(deadline) +
+    // zero_addr +  # last_player
+    concat
+    // contract.py:431-435
+    // caller.bytes +
+    // opponent.bytes +
+    // _u64_to_bytes(deadline) +
+    // zero_addr +  # last_player
+    // initial_state.bytes
+    uncover 4
+    concat
+    // contract.py:438
+    // BoxMap(Bytes, Bytes, key_prefix=b"tb:")[key] = packed
+    dig 3
+    box_del
+    pop
+    uncover 3
+    swap
+    box_put
+    // contract.py:439
+    // self.total_turn_based = self.total_turn_based + UInt64(1)
+    intc_0 // 0
+    bytec_3 // "total_turn_based"
+    app_global_get_ex
+    assert // check self.total_turn_based exists
+    intc_1 // 1
+    +
+    bytec_3 // "total_turn_based"
+    swap
+    app_global_put
+    // contract.py:441-447
+    // arc4.emit(
+    //     "BattleTurnBasedStarted(string,address,address,uint64)",
+    //     battle_id,
+    //     arc4.Address(caller.bytes),
+    //     opponent,
+    //     _u64_to_arc4(deadline)
+    // )
+    bytec 12 // 0x004a
+    uncover 2
+    concat
+    uncover 2
+    concat
+    swap
+    concat
+    swap
+    concat
+    pushbytes 0xb5fe0521 // method "BattleTurnBasedStarted(string,address,address,uint64)"
+    swap
+    concat
+    log
+    // contract.py:388
+    // @arc4.abimethod
+    pushbytes 0x151f7c75002d5475726e2d626173656420626174746c6520737461727465642028736563757265202b20656e666f7263656429
+    log
+    intc_1 // 1
+    return
+
+
+// contract.UniversalStateMachineUltimate.update_battle_turn_based[routing]() -> void:
+update_battle_turn_based:
+    // contract.py:451
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dupn 2
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 2
+    dup
+    cover 2
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    swap
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // contract.py:465
+    // self._require_not_paused()
+    callsub _require_not_paused
+    // contract.py:468
+    // data, exists = BoxMap(Bytes, Bytes, key_prefix=b"tb:").maybe(key)
+    bytec_2 // 0x74623a
+    swap
+    concat
+    dup
+    box_get
+    // contract.py:469
+    // assert exists, "Turn-based battle not found"
+    assert // Turn-based battle not found
+    // contract.py:471
+    // p1 = Account(data[0:32])
+    dup
+    len
+    intc_0 // 0
+    dig 1
+    >=
+    intc_0 // 0
+    dig 2
+    uncover 2
+    select
+    intc_2 // 32
+    dig 2
+    >=
+    intc_2 // 32
+    dig 3
+    uncover 2
+    select
+    dig 3
+    uncover 2
+    dig 2
+    substring3
+    dup
+    cover 4
+    dup
+    len
+    intc_2 // 32
+    ==
+    assert // Address length is 32 bytes
+    // contract.py:472
+    // p2 = Account(data[32:64])
+    pushint 64 // 64
+    dig 3
+    >=
+    pushint 64 // 64
+    dig 4
+    uncover 2
+    select
+    dig 4
+    uncover 3
+    dig 2
+    substring3
+    dup
+    cover 5
+    len
+    intc_2 // 32
+    ==
+    assert // Address length is 32 bytes
+    // contract.py:473
+    // deadline = _bytes_to_u64(data[64:72])
+    pushint 72 // 72
+    dig 3
+    >=
+    pushint 72 // 72
+    dig 4
+    uncover 2
+    select
+    dig 4
+    uncover 2
+    dig 2
+    substring3
+    // contract.py:53
+    // return op.btoi(b)
+    btoi
+    cover 4
+    // contract.py:474
+    // last_player = data[72:104]
+    pushint 104 // 104
+    dig 3
+    >=
+    pushint 104 // 104
+    uncover 4
+    uncover 2
+    select
+    uncover 3
+    cover 2
+    substring3
+    swap
+    // contract.py:476
+    // caller = Txn.sender
+    txn Sender
+    dup
+    cover 2
+    // contract.py:477
+    // assert (caller == p1) or (caller == p2), "Not a participant"
+    ==
+    bnz update_battle_turn_based_bool_true@3
+    dup
+    dig 4
+    ==
+    bz update_battle_turn_based_bool_false@4
+
+update_battle_turn_based_bool_true@3:
+    intc_1 // 1
+
+update_battle_turn_based_bool_merge@5:
+    // contract.py:477
+    // assert (caller == p1) or (caller == p2), "Not a participant"
+    assert // Not a participant
+    // contract.py:478
+    // assert Global.round < deadline, "Battle expired"
+    global Round
+    dig 3
+    <
+    assert // Battle expired
+    // contract.py:480
+    // _validate_state_size(new_state.bytes)
+    dig 6
+    callsub _validate_state_size
+    // contract.py:485
+    // if last_player == zero_addr:
+    dig 1
+    // contract.py:482-483
+    // # CRITICAL: On-chain turn enforcement
+    // zero_addr = Bytes(b"\x00" * 32)
+    bytec_1 // 0x0000000000000000000000000000000000000000000000000000000000000000
+    // contract.py:485
+    // if last_player == zero_addr:
+    ==
+    bnz update_battle_turn_based_after_if_else@8
+    // contract.py:489-490
+    // # Not first move - MUST be the OTHER player
+    // assert caller.bytes != last_player, "Not your turn! Other player must move."
+    dup
+    dig 2
+    !=
+    assert // Not your turn! Other player must move.
+
+update_battle_turn_based_after_if_else@8:
+    // contract.py:494-495
+    // p1.bytes +
+    // p2.bytes +
+    dig 4
+    dig 4
+    concat
+    // contract.py:49
+    // return op.itob(v)
+    dig 3
+    itob
+    // contract.py:494-496
+    // p1.bytes +
+    // p2.bytes +
+    // _u64_to_bytes(deadline) +
+    concat
+    // contract.py:494-497
+    // p1.bytes +
+    // p2.bytes +
+    // _u64_to_bytes(deadline) +
+    // caller.bytes +  # Update last_player
+    dig 1
+    dup
+    cover 2
+    concat
+    // contract.py:494-498
+    // p1.bytes +
+    // p2.bytes +
+    // _u64_to_bytes(deadline) +
+    // caller.bytes +  # Update last_player
+    // new_state.bytes
+    dig 8
+    concat
+    // contract.py:501
+    // BoxMap(Bytes, Bytes, key_prefix=b"tb:")[key] = packed
+    dig 7
+    dup
+    box_del
+    pop
+    swap
+    box_put
+    // contract.py:507
+    // _u64_to_arc4(Global.round)
+    global Round
+    // contract.py:57
+    // return arc4.UInt64(op.btoi(op.itob(v)))
+    itob
+    // contract.py:503-508
+    // arc4.emit(
+    //     "BattleTurnBasedUpdated(string,address,uint64)",
+    //     battle_id,
+    //     arc4.Address(caller.bytes),
+    //     _u64_to_arc4(Global.round)
+    // )
+    bytec 10 // 0x002a
+    uncover 2
+    concat
+    swap
+    concat
+    dig 8
+    concat
+    pushbytes 0x6b9820b3 // method "BattleTurnBasedUpdated(string,address,uint64)"
+    swap
+    concat
+    log
+    // contract.py:451
+    // @arc4.abimethod
+    pushbytes 0x151f7c7500245475726e2d626173656420626174746c6520757064617465642028656e666f7263656429
+    log
+    intc_1 // 1
+    return
+
+update_battle_turn_based_bool_false@4:
+    intc_0 // 0
+    b update_battle_turn_based_bool_merge@5
+
+
+// contract.UniversalStateMachineUltimate.start_process_turn_based[routing]() -> void:
+start_process_turn_based:
+    // contract.py:512
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 2
+    dup
+    len
+    intc_2 // 32
+    ==
+    assert // invalid number of bytes for arc4.static_array<arc4.uint8, 32>
+    txna ApplicationArgs 3
+    dup
+    len
+    pushint 8 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    txna ApplicationArgs 4
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    dup
+    uncover 2
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txn GroupIndex
+    intc_1 // 1
+    -
+    dup
+    gtxns TypeEnum
+    intc_1 // pay
+    ==
+    assert // transaction type is pay
+    // contract.py:525
+    // self._require_not_paused()
+    callsub _require_not_paused
+    // contract.py:528
+    // _validate_entity_id(key)
+    dig 5
+    callsub _validate_entity_id
+    // contract.py:529
+    // _validate_state_size(initial_state.bytes)
+    dig 2
+    callsub _validate_state_size
+    // contract.py:531
+    // required_mbr = _calculate_mbr_turn_based(initial_state.bytes.length)
+    swap
+    callsub _calculate_mbr_turn_based
+    // contract.py:532
+    // assert mbr_payment.receiver == Global.current_application_address, "Wrong receiver"
+    dig 1
+    gtxns Receiver
+    global CurrentApplicationAddress
+    ==
+    assert // Wrong receiver
+    // contract.py:533
+    // assert mbr_payment.amount >= required_mbr, "Insufficient MBR payment"
+    swap
+    gtxns Amount
+    <=
+    assert // Insufficient MBR payment
+    // contract.py:535
+    // existing_regular, exists_regular = BoxMap(Bytes, Bytes, key_prefix=b"pr:").maybe(key)
+    bytec 4 // 0x70723a
+    dig 4
+    concat
+    box_len
+    cover 2
+    pop
+    // contract.py:536
+    // existing_turn, exists_turn = BoxMap(Bytes, Bytes, key_prefix=b"tb:").maybe(key)
+    bytec_2 // 0x74623a
+    dig 5
+    concat
+    dup
+    box_len
+    bury 1
+    // contract.py:537
+    // assert not exists_regular, "Process already exists (regular)"
+    uncover 3
+    !
+    assert // Process already exists (regular)
+    // contract.py:538
+    // assert not exists_turn, "Process already exists (turn-based)"
+    !
+    assert // Process already exists (turn-based)
+    // contract.py:540
+    // caller = Txn.sender
+    txn Sender
+    // contract.py:542
+    // assert participant_two.bytes != zero_addr, "Invalid participant"
+    dig 4
+    // contract.py:541
+    // zero_addr = Bytes(b"\x00" * 32)
+    bytec_1 // 0x0000000000000000000000000000000000000000000000000000000000000000
+    // contract.py:542
+    // assert participant_two.bytes != zero_addr, "Invalid participant"
+    !=
+    assert // Invalid participant
+    // contract.py:543
+    // assert participant_two.bytes != caller.bytes, "Cannot start with yourself"
+    dig 4
+    dig 1
+    !=
+    assert // Cannot start with yourself
+    // contract.py:61
+    // return op.btoi(op.itob(v.native))
+    uncover 3
+    btoi
+    // contract.py:546
+    // assert deadline_u64 >= UInt64(MIN_DEADLINE_ROUNDS), "Deadline too short"
+    dup
+    pushint 100 // 100
+    >=
+    assert // Deadline too short
+    // contract.py:547
+    // assert deadline_u64 <= UInt64(MAX_DEADLINE_ROUNDS), "Deadline too long"
+    dup
+    intc 6 // 1000000
+    <=
+    assert // Deadline too long
+    // contract.py:548
+    // deadline = Global.round + deadline_u64
+    global Round
+    +
+    // contract.py:551-552
+    // caller.bytes +
+    // participant_two.bytes +
+    dig 1
+    dig 5
+    concat
+    // contract.py:49
+    // return op.itob(v)
+    swap
+    itob
+    // contract.py:551-553
+    // caller.bytes +
+    // participant_two.bytes +
+    // _u64_to_bytes(deadline) +
+    swap
+    dig 1
+    concat
+    // contract.py:541
+    // zero_addr = Bytes(b"\x00" * 32)
+    bytec_1 // 0x0000000000000000000000000000000000000000000000000000000000000000
+    // contract.py:551-554
+    // caller.bytes +
+    // participant_two.bytes +
+    // _u64_to_bytes(deadline) +
+    // zero_addr +
+    concat
+    // contract.py:551-555
+    // caller.bytes +
+    // participant_two.bytes +
+    // _u64_to_bytes(deadline) +
+    // zero_addr +
+    // initial_state.bytes
+    uncover 4
+    concat
+    // contract.py:558
+    // BoxMap(Bytes, Bytes, key_prefix=b"tb:")[key] = packed
+    dig 3
+    box_del
+    pop
+    uncover 3
+    swap
+    box_put
+    // contract.py:559
+    // self.total_turn_based = self.total_turn_based + UInt64(1)
+    intc_0 // 0
+    bytec_3 // "total_turn_based"
+    app_global_get_ex
+    assert // check self.total_turn_based exists
+    intc_1 // 1
+    +
+    bytec_3 // "total_turn_based"
+    swap
+    app_global_put
+    // contract.py:561-567
+    // arc4.emit(
+    //     "ProcessTurnBasedStarted(string,address,address,uint64)",
+    //     process_id,
+    //     arc4.Address(caller.bytes),
+    //     participant_two,
+    //     _u64_to_arc4(deadline)
+    // )
+    bytec 12 // 0x004a
+    uncover 2
+    concat
+    uncover 2
+    concat
+    swap
+    concat
+    swap
+    concat
+    pushbytes 0xd342aa78 // method "ProcessTurnBasedStarted(string,address,address,uint64)"
+    swap
+    concat
+    log
+    // contract.py:512
+    // @arc4.abimethod
+    pushbytes 0x151f7c75002e5475726e2d62617365642070726f6365737320737461727465642028736563757265202b20656e666f7263656429
+    log
+    intc_1 // 1
+    return
+
+
+// contract.UniversalStateMachineUltimate.update_process_turn_based[routing]() -> void:
+update_process_turn_based:
+    // contract.py:571
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dupn 2
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 2
+    dup
+    cover 2
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    swap
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // contract.py:578
+    // self._require_not_paused()
+    callsub _require_not_paused
+    // contract.py:581
+    // data, exists = BoxMap(Bytes, Bytes, key_prefix=b"tb:").maybe(key)
+    bytec_2 // 0x74623a
+    swap
+    concat
+    dup
+    box_get
+    // contract.py:582
+    // assert exists, "Turn-based process not found"
+    assert // Turn-based process not found
+    // contract.py:584
+    // p1 = Account(data[0:32])
+    dup
+    len
+    intc_0 // 0
+    dig 1
+    >=
+    intc_0 // 0
+    dig 2
+    uncover 2
+    select
+    intc_2 // 32
+    dig 2
+    >=
+    intc_2 // 32
+    dig 3
+    uncover 2
+    select
+    dig 3
+    uncover 2
+    dig 2
+    substring3
+    dup
+    cover 4
+    dup
+    len
+    intc_2 // 32
+    ==
+    assert // Address length is 32 bytes
+    // contract.py:585
+    // p2 = Account(data[32:64])
+    pushint 64 // 64
+    dig 3
+    >=
+    pushint 64 // 64
+    dig 4
+    uncover 2
+    select
+    dig 4
+    uncover 3
+    dig 2
+    substring3
+    dup
+    cover 5
+    len
+    intc_2 // 32
+    ==
+    assert // Address length is 32 bytes
+    // contract.py:586
+    // deadline = _bytes_to_u64(data[64:72])
+    pushint 72 // 72
+    dig 3
+    >=
+    pushint 72 // 72
+    dig 4
+    uncover 2
+    select
+    dig 4
+    uncover 2
+    dig 2
+    substring3
+    // contract.py:53
+    // return op.btoi(b)
+    btoi
+    cover 4
+    // contract.py:587
+    // last_actor = data[72:104]
+    pushint 104 // 104
+    dig 3
+    >=
+    pushint 104 // 104
+    uncover 4
+    uncover 2
+    select
+    uncover 3
+    cover 2
+    substring3
+    swap
+    // contract.py:589
+    // caller = Txn.sender
+    txn Sender
+    dup
+    cover 2
+    // contract.py:590
+    // assert (caller == p1) or (caller == p2), "Not a participant"
+    ==
+    bnz update_process_turn_based_bool_true@3
+    dup
+    dig 4
+    ==
+    bz update_process_turn_based_bool_false@4
+
+update_process_turn_based_bool_true@3:
+    intc_1 // 1
+
+update_process_turn_based_bool_merge@5:
+    // contract.py:590
+    // assert (caller == p1) or (caller == p2), "Not a participant"
+    assert // Not a participant
+    // contract.py:591
+    // assert Global.round < deadline, "Process expired"
+    global Round
+    dig 3
+    <
+    assert // Process expired
+    // contract.py:593
+    // _validate_state_size(new_state.bytes)
+    dig 6
+    callsub _validate_state_size
+    // contract.py:597
+    // if last_actor == zero_addr:
+    dig 1
+    // contract.py:595
+    // zero_addr = Bytes(b"\x00" * 32)
+    bytec_1 // 0x0000000000000000000000000000000000000000000000000000000000000000
+    // contract.py:597
+    // if last_actor == zero_addr:
+    ==
+    bnz update_process_turn_based_after_if_else@8
+    // contract.py:600
+    // assert caller.bytes != last_actor, "Not your turn! Other participant must act."
+    dup
+    dig 2
+    !=
+    assert // Not your turn! Other participant must act.
+
+update_process_turn_based_after_if_else@8:
+    // contract.py:603-604
+    // p1.bytes +
+    // p2.bytes +
+    dig 4
+    dig 4
+    concat
+    // contract.py:49
+    // return op.itob(v)
+    dig 3
+    itob
+    // contract.py:603-605
+    // p1.bytes +
+    // p2.bytes +
+    // _u64_to_bytes(deadline) +
+    concat
+    // contract.py:603-606
+    // p1.bytes +
+    // p2.bytes +
+    // _u64_to_bytes(deadline) +
+    // caller.bytes +
+    dig 1
+    dup
+    cover 2
+    concat
+    // contract.py:603-607
+    // p1.bytes +
+    // p2.bytes +
+    // _u64_to_bytes(deadline) +
+    // caller.bytes +
+    // new_state.bytes
+    dig 8
+    concat
+    // contract.py:610
+    // BoxMap(Bytes, Bytes, key_prefix=b"tb:")[key] = packed
+    dig 7
+    dup
+    box_del
+    pop
+    swap
+    box_put
+    // contract.py:616
+    // _u64_to_arc4(Global.round)
+    global Round
+    // contract.py:57
+    // return arc4.UInt64(op.btoi(op.itob(v)))
+    itob
+    // contract.py:612-617
+    // arc4.emit(
+    //     "ProcessTurnBasedUpdated(string,address,uint64)",
+    //     process_id,
+    //     arc4.Address(caller.bytes),
+    //     _u64_to_arc4(Global.round)
+    // )
+    bytec 10 // 0x002a
+    uncover 2
+    concat
+    swap
+    concat
+    dig 8
+    concat
+    pushbytes 0x0a74b7ed // method "ProcessTurnBasedUpdated(string,address,uint64)"
+    swap
+    concat
+    log
+    // contract.py:571
+    // @arc4.abimethod
+    pushbytes 0x151f7c7500255475726e2d62617365642070726f6365737320757064617465642028656e666f7263656429
+    log
+    intc_1 // 1
+    return
+
+update_process_turn_based_bool_false@4:
+    intc_0 // 0
+    b update_process_turn_based_bool_merge@5
+
+
+// contract.UniversalStateMachineUltimate.load_battle_turn_based[routing]() -> void:
+load_battle_turn_based:
+    // contract.py:621
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    callsub contract.UniversalStateMachineUltimate.load_battle_turn_based
+    bytec_0 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// contract.UniversalStateMachineUltimate.load_process_turn_based[routing]() -> void:
+load_process_turn_based:
+    // contract.py:631
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // contract.py:634
+    // return self.load_battle_turn_based(process_id)
+    callsub contract.UniversalStateMachineUltimate.load_battle_turn_based
+    // contract.py:631
+    // @arc4.abimethod
+    bytec_0 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// contract.UniversalStateMachineUltimate.get_turn_info[routing]() -> void:
+get_turn_info:
+    // contract.py:636
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // contract.py:646
+    // data, exists = BoxMap(Bytes, Bytes, key_prefix=b"tb:").maybe(key)
+    bytec_2 // 0x74623a
+    swap
+    concat
+    box_get
+    // contract.py:649
+    // if not exists:
+    bnz get_turn_info_after_if_else@3
+    // contract.py:648
+    // zero_addr = Bytes(b"\x00" * 32)
+    bytec_1 // 0x0000000000000000000000000000000000000000000000000000000000000000
+    dupn 2
+    // contract.py:654
+    // arc4.Bool(False)
+    pushbytes 0x00
+
+get_turn_info_after_inlined_contract.UniversalStateMachineUltimate.get_turn_info@4:
+    // contract.py:636
+    // @arc4.abimethod
+    uncover 3
+    uncover 3
+    concat
+    uncover 2
+    concat
+    swap
+    concat
+    bytec_0 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+get_turn_info_after_if_else@3:
+    // contract.py:657
+    // p1 = arc4.Address(data[0:32])
+    dupn 2
+    len
+    intc_0 // 0
+    dig 1
+    >=
+    intc_0 // 0
+    dig 2
+    uncover 2
+    select
+    intc_2 // 32
+    dig 2
+    >=
+    intc_2 // 32
+    dig 3
+    uncover 2
+    select
+    dig 3
+    uncover 2
+    dig 2
+    substring3
+    dup
+    len
+    intc_2 // 32
+    ==
+    assert // Address length is 32 bytes
+    // contract.py:658
+    // p2 = arc4.Address(data[32:64])
+    pushint 64 // 64
+    dig 3
+    >=
+    pushint 64 // 64
+    dig 4
+    uncover 2
+    select
+    dig 4
+    uncover 3
+    uncover 2
+    substring3
+    dup
+    len
+    intc_2 // 32
+    ==
+    assert // Address length is 32 bytes
+    // contract.py:659
+    // last_player = arc4.Address(data[72:104])
+    pushint 72 // 72
+    dig 3
+    >=
+    pushint 72 // 72
+    dig 4
+    uncover 2
+    select
+    pushint 104 // 104
+    dig 4
+    >=
+    pushint 104 // 104
+    uncover 5
+    uncover 2
+    select
+    uncover 4
+    cover 2
+    substring3
+    dup
+    len
+    intc_2 // 32
+    ==
+    assert // Address length is 32 bytes
+    // contract.py:660
+    // is_first_move = arc4.Bool(data[72:104] == zero_addr)
+    dup
+    // contract.py:648
+    // zero_addr = Bytes(b"\x00" * 32)
+    bytec_1 // 0x0000000000000000000000000000000000000000000000000000000000000000
+    // contract.py:660
+    // is_first_move = arc4.Bool(data[72:104] == zero_addr)
+    ==
+    pushbytes 0x00
+    intc_0 // 0
+    uncover 2
+    setbit
+    // contract.py:636
+    // @arc4.abimethod
+    b get_turn_info_after_inlined_contract.UniversalStateMachineUltimate.get_turn_info@4
+
+
+// contract.UniversalStateMachineUltimate.cleanup_expired_battle_turn_based[routing]() -> void:
+cleanup_expired_battle_turn_based:
+    // contract.py:664
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // contract.py:668
+    // box_map = BoxMap(Bytes, Bytes, key_prefix=b"tb:")
+    bytec_2 // 0x74623a
+    // contract.py:669
+    // data, exists = box_map.maybe(key)
+    dig 1
+    concat
+    dup
+    box_get
+    // contract.py:670
+    // assert exists, "Battle not found"
+    assert // Battle not found
+    // contract.py:672
+    // deadline = _bytes_to_u64(data[64:72])
+    dup
+    len
+    pushint 64 // 64
+    dig 1
+    >=
+    pushint 64 // 64
+    dig 2
+    uncover 2
+    select
+    pushint 72 // 72
+    dig 2
+    >=
+    pushint 72 // 72
+    uncover 3
+    uncover 2
+    select
+    substring3
+    // contract.py:53
+    // return op.btoi(b)
+    btoi
+    // contract.py:673
+    // assert Global.round > deadline, "Battle not yet expired"
+    global Round
+    <
+    assert // Battle not yet expired
+    // contract.py:675
+    // del box_map[key]
+    box_del
+    pop
+    // contract.py:677-678
+    // arc4.emit("BattleTurnBasedCleaned(string,address)",
+    //           battle_id, arc4.Address(Txn.sender.bytes))
+    bytec 11 // 0x0022
+    // contract.py:678
+    // battle_id, arc4.Address(Txn.sender.bytes))
+    txn Sender
+    // contract.py:677-678
+    // arc4.emit("BattleTurnBasedCleaned(string,address)",
+    //           battle_id, arc4.Address(Txn.sender.bytes))
+    concat
+    swap
+    concat
+    pushbytes 0x5667375e // method "BattleTurnBasedCleaned(string,address)"
+    swap
+    concat
+    log
+    // contract.py:664
+    // @arc4.abimethod
+    pushbytes 0x151f7c75002145787069726564207475726e2d626173656420626174746c6520636c65616e6564
+    log
+    intc_1 // 1
+    return
+
+
+// contract.UniversalStateMachineUltimate.emergency_pause[routing]() -> void:
+emergency_pause:
+    // contract.py:686
+    // self._require_admin()
+    callsub _require_admin
+    // contract.py:687
+    // self.paused = UInt64(1)
+    bytec 6 // "paused"
+    intc_1 // 1
+    app_global_put
+    // contract.py:688
+    // arc4.emit("ContractPaused(address)", arc4.Address(Txn.sender.bytes))
+    pushbytes 0xe16c680e // method "ContractPaused(address)"
+    txn Sender
+    concat
+    log
+    // contract.py:683
+    // @arc4.abimethod
+    pushbytes 0x151f7c75000f436f6e747261637420706175736564
+    log
+    intc_1 // 1
+    return
+
+
+// contract.UniversalStateMachineUltimate.emergency_unpause[routing]() -> void:
+emergency_unpause:
+    // contract.py:694
+    // self._require_admin()
+    callsub _require_admin
+    // contract.py:695
+    // self.paused = UInt64(0)
+    bytec 6 // "paused"
+    intc_0 // 0
+    app_global_put
+    // contract.py:696
+    // arc4.emit("ContractUnpaused(address)", arc4.Address(Txn.sender.bytes))
+    pushbytes 0x2c444abd // method "ContractUnpaused(address)"
+    txn Sender
+    concat
+    log
+    // contract.py:691
+    // @arc4.abimethod
+    pushbytes 0x151f7c750011436f6e747261637420756e706175736564
+    log
+    intc_1 // 1
+    return
+
+
+// contract.UniversalStateMachineUltimate.update_admin[routing]() -> void:
+update_admin:
+    // contract.py:699
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    len
+    dup
+    intc_2 // 32
+    ==
+    assert // invalid number of bytes for arc4.static_array<arc4.uint8, 32>
+    // contract.py:702
+    // self._require_admin()
+    callsub _require_admin
+    // contract.py:704
+    // assert new_admin.bytes != zero_addr, "Invalid admin"
+    dig 1
+    // contract.py:703
+    // zero_addr = Bytes(b"\x00" * 32)
+    bytec_1 // 0x0000000000000000000000000000000000000000000000000000000000000000
+    // contract.py:704
+    // assert new_admin.bytes != zero_addr, "Invalid admin"
+    !=
+    assert // Invalid admin
+    // contract.py:705
+    // old_admin = self.admin
+    intc_0 // 0
+    bytec 5 // "admin"
+    app_global_get_ex
+    assert // check self.admin exists
+    // contract.py:706
+    // self.admin = Account(new_admin.bytes)
+    intc_2 // 32
+    uncover 2
+    ==
+    assert // Address length is 32 bytes
+    bytec 5 // "admin"
+    dig 2
+    app_global_put
+    // contract.py:708
+    // arc4.Address(old_admin.bytes), new_admin)
+    dup
+    len
+    intc_2 // 32
+    ==
+    assert // Address length is 32 bytes
+    // contract.py:707-708
+    // arc4.emit("AdminUpdated(address,address)",
+    //           arc4.Address(old_admin.bytes), new_admin)
+    swap
+    concat
+    pushbytes 0x601a1119 // method "AdminUpdated(address,address)"
+    swap
+    concat
+    log
+    // contract.py:699
+    // @arc4.abimethod
+    pushbytes 0x151f7c75000d41646d696e2075706461746564
+    log
+    intc_1 // 1
+    return
+
+
+// contract.UniversalStateMachineUltimate.get_stats[routing]() -> void:
+get_stats:
+    // contract.py:715
+    // _u64_to_arc4(self.total_entities),
+    intc_0 // 0
+    bytec 8 // "total_entities"
+    app_global_get_ex
+    assert // check self.total_entities exists
+    // contract.py:57
+    // return arc4.UInt64(op.btoi(op.itob(v)))
+    itob
+    // contract.py:716
+    // _u64_to_arc4(self.total_processes),
+    intc_0 // 0
+    bytec 9 // "total_processes"
+    app_global_get_ex
+    assert // check self.total_processes exists
+    // contract.py:57
+    // return arc4.UInt64(op.btoi(op.itob(v)))
+    itob
+    // contract.py:717
+    // _u64_to_arc4(self.total_turn_based),
+    intc_0 // 0
+    bytec_3 // "total_turn_based"
+    app_global_get_ex
+    assert // check self.total_turn_based exists
+    // contract.py:57
+    // return arc4.UInt64(op.btoi(op.itob(v)))
+    itob
+    // contract.py:718
+    // _u64_to_arc4(self.paused)
+    intc_0 // 0
+    bytec 6 // "paused"
+    app_global_get_ex
+    assert // check self.paused exists
+    // contract.py:57
+    // return arc4.UInt64(op.btoi(op.itob(v)))
+    itob
+    // contract.py:711
+    // @arc4.abimethod(readonly=True)
+    uncover 3
+    uncover 3
+    concat
+    uncover 2
+    concat
+    swap
+    concat
+    bytec_0 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// contract.UniversalStateMachineUltimate.get_admin[routing]() -> void:
+get_admin:
+    // contract.py:724
+    // return arc4.Address(self.admin.bytes)
+    intc_0 // 0
+    bytec 5 // "admin"
+    app_global_get_ex
+    assert // check self.admin exists
+    dup
+    len
+    intc_2 // 32
+    ==
+    assert // Address length is 32 bytes
+    // contract.py:721
+    // @arc4.abimethod(readonly=True)
+    bytec_0 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// contract.UniversalStateMachineUltimate._require_not_paused() -> void:
+_require_not_paused:
+    // contract.py:133
+    // assert self.paused == UInt64(0), "Contract is paused"
+    intc_0 // 0
+    bytec 6 // "paused"
+    app_global_get_ex
+    assert // check self.paused exists
+    !
+    assert // Contract is paused
+    retsub
+
+
+// contract.UniversalStateMachineUltimate._require_admin() -> void:
+_require_admin:
+    // contract.py:137
+    // assert Txn.sender == self.admin, "Only admin"
+    txn Sender
+    intc_0 // 0
+    bytec 5 // "admin"
+    app_global_get_ex
+    assert // check self.admin exists
+    ==
+    assert // Only admin
+    retsub
+
+
+// contract.UniversalStateMachineUltimate.save_entity(entity_id: bytes, state_data: bytes, mbr_payment: uint64) -> bytes:
+contract.UniversalStateMachineUltimate.save_entity:
+    // contract.py:141-147
+    // @arc4.abimethod
+    // def save_entity(
+    //     self,
+    //     entity_id: arc4.String,
+    //     state_data: arc4.String,
+    //     mbr_payment: gtxn.PaymentTransaction
+    // ) -> arc4.String:
+    proto 3 1
+    // contract.py:153
+    // self._require_not_paused()
+    callsub _require_not_paused
+    // contract.py:156
+    // _validate_entity_id(key)
+    frame_dig -3
+    callsub _validate_entity_id
+    // contract.py:157
+    // _validate_state_size(state_data.bytes)
+    frame_dig -2
+    callsub _validate_state_size
+    // contract.py:159-160
+    // # Validate MBR payment
+    // required_mbr = _calculate_mbr(state_data.bytes.length)
+    frame_dig -2
+    len
+    // contract.py:66-67
+    // total_size = UInt64(40) + state_size
+    // box_blocks = (total_size + UInt64(7)) // UInt64(8)
+    pushint 47 // 47
+    +
+    // contract.py:67
+    // box_blocks = (total_size + UInt64(7)) // UInt64(8)
+    pushint 8 // 8
+    /
+    // contract.py:68
+    // return UInt64(BOX_FLAT_COST) + (UInt64(BOX_BYTE_COST) * box_blocks)
+    intc 4 // 400
+    *
+    intc 5 // 2500
+    +
+    // contract.py:161
+    // assert mbr_payment.receiver == Global.current_application_address, "Wrong receiver"
+    frame_dig -1
+    gtxns Receiver
+    global CurrentApplicationAddress
+    ==
+    assert // Wrong receiver
+    // contract.py:162
+    // assert mbr_payment.amount >= required_mbr, "Insufficient MBR payment"
+    frame_dig -1
+    gtxns Amount
+    <=
+    assert // Insufficient MBR payment
+    // contract.py:164
+    // caller = Txn.sender
+    txn Sender
+    // contract.py:165
+    // mb, ok = BoxMap(Bytes, Bytes, key_prefix=b"e:").maybe(key)
+    bytec 7 // 0x653a
+    frame_dig -3
+    concat
+    dup
+    cover 2
+    box_get
+    swap
+    cover 2
+    // contract.py:167
+    // if ok:
+    bz contract.UniversalStateMachineUltimate.save_entity_else_body@2
+    // contract.py:168
+    // owner = Account(mb[0:32])
+    frame_dig 1
+    dup
+    len
+    intc_0 // 0
+    dig 1
+    >=
+    intc_0 // 0
+    dig 2
+    uncover 2
+    select
+    intc_2 // 32
+    dig 2
+    >=
+    intc_2 // 32
+    uncover 3
+    uncover 2
+    select
+    substring3
+    dup
+    len
+    intc_2 // 32
+    ==
+    assert // Address length is 32 bytes
+    // contract.py:169
+    // assert caller == owner, "Only owner can update"
+    dig 1
+    ==
+    assert // Only owner can update
+    // contract.py:170
+    // packed = caller.bytes + _u64_to_bytes(Global.round) + state_data.bytes
+    global Round
+    // contract.py:49
+    // return op.itob(v)
+    itob
+    // contract.py:170
+    // packed = caller.bytes + _u64_to_bytes(Global.round) + state_data.bytes
+    dig 1
+    swap
+    concat
+    frame_dig -2
+    concat
+    // contract.py:171
+    // BoxMap(Bytes, Bytes, key_prefix=b"e:")[key] = packed
+    frame_dig 0
+    dup
+    box_del
+    pop
+    swap
+    box_put
+    // contract.py:173
+    // entity_id, arc4.Address(caller.bytes), _u64_to_arc4(Global.round))
+    global Round
+    // contract.py:57
+    // return arc4.UInt64(op.btoi(op.itob(v)))
+    itob
+    // contract.py:172-173
+    // arc4.emit("EntityUpdated(string,address,uint64)",
+    //           entity_id, arc4.Address(caller.bytes), _u64_to_arc4(Global.round))
+    bytec 10 // 0x002a
+    uncover 2
+    concat
+    swap
+    concat
+    frame_dig -3
+    concat
+    pushbytes 0x5d90335a // method "EntityUpdated(string,address,uint64)"
+    swap
+    concat
+    log
+
+contract.UniversalStateMachineUltimate.save_entity_after_if_else@3:
+    // contract.py:182
+    // return arc4.String("Entity saved (secure)")
+    pushbytes 0x0015456e74697479207361766564202873656375726529
+    frame_bury 0
+    retsub
+
+contract.UniversalStateMachineUltimate.save_entity_else_body@2:
+    // contract.py:175
+    // packed = caller.bytes + _u64_to_bytes(Global.round) + state_data.bytes
+    global Round
+    // contract.py:49
+    // return op.itob(v)
+    itob
+    // contract.py:175
+    // packed = caller.bytes + _u64_to_bytes(Global.round) + state_data.bytes
+    dig 1
+    swap
+    concat
+    frame_dig -2
+    concat
+    // contract.py:176
+    // BoxMap(Bytes, Bytes, key_prefix=b"e:")[key] = packed
+    frame_dig 0
+    dup
+    box_del
+    pop
+    swap
+    box_put
+    // contract.py:177
+    // self.total_entities = self.total_entities + UInt64(1)
+    intc_0 // 0
+    bytec 8 // "total_entities"
+    app_global_get_ex
+    assert // check self.total_entities exists
+    intc_1 // 1
+    +
+    bytec 8 // "total_entities"
+    dig 1
+    app_global_put
+    // contract.py:57
+    // return arc4.UInt64(op.btoi(op.itob(v)))
+    itob
+    // contract.py:180
+    // _u64_to_arc4(self.total_entities), _u64_to_arc4(Global.round))
+    global Round
+    // contract.py:57
+    // return arc4.UInt64(op.btoi(op.itob(v)))
+    itob
+    // contract.py:178-180
+    // arc4.emit("EntityCreated(string,address,uint64,uint64)",
+    //           entity_id, arc4.Address(caller.bytes),
+    //           _u64_to_arc4(self.total_entities), _u64_to_arc4(Global.round))
+    pushbytes 0x0032
+    uncover 3
+    concat
+    uncover 2
+    concat
+    swap
+    concat
+    frame_dig -3
+    concat
+    pushbytes 0x89caa4dd // method "EntityCreated(string,address,uint64,uint64)"
+    swap
+    concat
+    log
+    b contract.UniversalStateMachineUltimate.save_entity_after_if_else@3
+
+
+// contract.UniversalStateMachineUltimate.load_entity(entity_id: bytes) -> bytes:
+contract.UniversalStateMachineUltimate.load_entity:
+    // contract.py:194-195
+    // @arc4.abimethod
+    // def load_entity(self, entity_id: arc4.String) -> arc4.String:
+    proto 1 1
+    // contract.py:198
+    // data, exists = BoxMap(Bytes, Bytes, key_prefix=b"e:").maybe(key)
+    bytec 7 // 0x653a
+    frame_dig -1
+    concat
+    box_get
+    // contract.py:199
+    // if not exists:
+    bnz contract.UniversalStateMachineUltimate.load_entity_after_if_else@2
+    // contract.py:200
+    // return arc4.String("")
+    bytec 13 // 0x0000
+    swap
+    retsub
+
+contract.UniversalStateMachineUltimate.load_entity_after_if_else@2:
+    // contract.py:201
+    // state_json = data[40:]
+    frame_dig 0
+    dup
+    len
+    pushint 40 // 40
+    dig 1
+    >=
+    pushint 40 // 40
+    dig 2
+    uncover 2
+    select
+    swap
+    substring3
+    // contract.py:202
+    // return arc4.String.from_bytes(state_json)
+    swap
+    retsub
+
+
+// contract.UniversalStateMachineUltimate.start_process(process_id: bytes, participant_two: bytes, deadline_rounds: bytes, initial_state: bytes, mbr_payment: uint64) -> bytes:
+contract.UniversalStateMachineUltimate.start_process:
+    // contract.py:260-268
+    // @arc4.abimethod
+    // def start_process(
+    //     self,
+    //     process_id: arc4.String,
+    //     participant_two: arc4.Address,
+    //     deadline_rounds: arc4.UInt64,
+    //     initial_state: arc4.String,
+    //     mbr_payment: gtxn.PaymentTransaction
+    // ) -> arc4.String:
+    proto 5 1
+    // contract.py:275
+    // self._require_not_paused()
+    callsub _require_not_paused
+    // contract.py:278
+    // _validate_entity_id(key)
+    frame_dig -5
+    callsub _validate_entity_id
+    // contract.py:279
+    // _validate_state_size(initial_state.bytes)
+    frame_dig -2
+    callsub _validate_state_size
+    // contract.py:281-282
+    // # Validate MBR payment
+    // required_mbr = _calculate_mbr_process(initial_state.bytes.length)
+    frame_dig -2
+    len
+    // contract.py:73-74
+    // total_size = UInt64(72) + state_size
+    // box_blocks = (total_size + UInt64(7)) // UInt64(8)
+    pushint 79 // 79
+    +
+    // contract.py:74
+    // box_blocks = (total_size + UInt64(7)) // UInt64(8)
+    pushint 8 // 8
+    /
+    // contract.py:75
+    // return UInt64(BOX_FLAT_COST) + (UInt64(BOX_BYTE_COST) * box_blocks)
+    intc 4 // 400
+    *
+    intc 5 // 2500
+    +
+    // contract.py:283
+    // assert mbr_payment.receiver == Global.current_application_address, "Wrong receiver"
+    frame_dig -1
+    gtxns Receiver
+    global CurrentApplicationAddress
+    ==
+    assert // Wrong receiver
+    // contract.py:284
+    // assert mbr_payment.amount >= required_mbr, "Insufficient MBR payment"
+    frame_dig -1
+    gtxns Amount
+    <=
+    assert // Insufficient MBR payment
+    // contract.py:286
+    // existing, exists = BoxMap(Bytes, Bytes, key_prefix=b"pr:").maybe(key)
+    bytec 4 // 0x70723a
+    frame_dig -5
+    concat
+    dup
+    box_len
+    bury 1
+    // contract.py:287
+    // assert not exists, "Process already exists"
+    !
+    assert // Process already exists
+    // contract.py:289
+    // caller = Txn.sender
+    txn Sender
+    // contract.py:291
+    // assert participant_two.bytes != zero_addr, "Invalid participant"
+    frame_dig -4
+    // contract.py:290
+    // zero_addr = Bytes(b"\x00" * 32)
+    bytec_1 // 0x0000000000000000000000000000000000000000000000000000000000000000
+    // contract.py:291
+    // assert participant_two.bytes != zero_addr, "Invalid participant"
+    !=
+    assert // Invalid participant
+    // contract.py:292
+    // assert participant_two.bytes != caller.bytes, "Cannot start with yourself"
+    frame_dig -4
+    dig 1
+    !=
+    assert // Cannot start with yourself
+    // contract.py:61
+    // return op.btoi(op.itob(v.native))
+    frame_dig -3
+    btoi
+    // contract.py:295
+    // assert deadline_u64 >= UInt64(MIN_DEADLINE_ROUNDS), "Deadline too short"
+    dup
+    pushint 100 // 100
+    >=
+    assert // Deadline too short
+    // contract.py:296
+    // assert deadline_u64 <= UInt64(MAX_DEADLINE_ROUNDS), "Deadline too long"
+    dup
+    intc 6 // 1000000
+    <=
+    assert // Deadline too long
+    // contract.py:297
+    // deadline = Global.round + deadline_u64
+    global Round
+    +
+    // contract.py:299
+    // packed = caller.bytes + participant_two.bytes + _u64_to_bytes(deadline) + initial_state.bytes
+    dig 1
+    frame_dig -4
+    concat
+    // contract.py:49
+    // return op.itob(v)
+    swap
+    itob
+    // contract.py:299
+    // packed = caller.bytes + participant_two.bytes + _u64_to_bytes(deadline) + initial_state.bytes
+    swap
+    dig 1
+    concat
+    frame_dig -2
+    concat
+    // contract.py:300
+    // BoxMap(Bytes, Bytes, key_prefix=b"pr:")[key] = packed
+    dig 3
+    box_del
+    pop
+    uncover 3
+    swap
+    box_put
+    // contract.py:301
+    // self.total_processes = self.total_processes + UInt64(1)
+    intc_0 // 0
+    bytec 9 // "total_processes"
+    app_global_get_ex
+    assert // check self.total_processes exists
+    intc_1 // 1
+    +
+    bytec 9 // "total_processes"
+    swap
+    app_global_put
+    // contract.py:303-304
+    // arc4.emit("ProcessStarted(string,address,address,uint64)",
+    //           process_id, arc4.Address(caller.bytes), participant_two, _u64_to_arc4(deadline))
+    bytec 12 // 0x004a
+    uncover 2
+    concat
+    frame_dig -4
+    concat
+    swap
+    concat
+    frame_dig -5
+    concat
+    pushbytes 0x70365ffd // method "ProcessStarted(string,address,address,uint64)"
+    swap
+    concat
+    log
+    // contract.py:306
+    // return arc4.String("Process started (secure, no turn enforcement)")
+    pushbytes 0x002d50726f63657373207374617274656420287365637572652c206e6f207475726e20656e666f7263656d656e7429
+    retsub
+
+
+// contract.UniversalStateMachineUltimate.update_process(process_id: bytes, new_state: bytes) -> bytes:
+contract.UniversalStateMachineUltimate.update_process:
+    // contract.py:324-325
+    // @arc4.abimethod
+    // def update_process(self, process_id: arc4.String, new_state: arc4.String) -> arc4.String:
+    proto 2 1
+    // contract.py:327
+    // self._require_not_paused()
+    callsub _require_not_paused
+    // contract.py:330
+    // data, exists = BoxMap(Bytes, Bytes, key_prefix=b"pr:").maybe(key)
+    bytec 4 // 0x70723a
+    frame_dig -2
+    concat
+    dup
+    box_get
+    // contract.py:331
+    // assert exists, "Process not found"
+    assert // Process not found
+    // contract.py:333
+    // p1 = Account(data[0:32])
+    dup
+    len
+    intc_0 // 0
+    dig 1
+    >=
+    intc_0 // 0
+    dig 2
+    uncover 2
+    select
+    intc_2 // 32
+    dig 2
+    >=
+    intc_2 // 32
+    dig 3
+    uncover 2
+    select
+    dig 3
+    uncover 2
+    dig 2
+    substring3
+    dup
+    cover 4
+    dup
+    len
+    intc_2 // 32
+    ==
+    assert // Address length is 32 bytes
+    // contract.py:334
+    // p2 = Account(data[32:64])
+    pushint 64 // 64
+    dig 3
+    >=
+    pushint 64 // 64
+    dig 4
+    uncover 2
+    select
+    dig 4
+    uncover 3
+    dig 2
+    substring3
+    dup
+    cover 5
+    len
+    intc_2 // 32
+    ==
+    assert // Address length is 32 bytes
+    // contract.py:335
+    // deadline = _bytes_to_u64(data[64:72])
+    pushint 72 // 72
+    dig 3
+    >=
+    pushint 72 // 72
+    uncover 4
+    uncover 2
+    select
+    uncover 3
+    cover 2
+    substring3
+    // contract.py:53
+    // return op.btoi(b)
+    btoi
+    swap
+    // contract.py:337
+    // caller = Txn.sender
+    txn Sender
+    dup
+    cover 2
+    // contract.py:338
+    // assert (caller == p1) or (caller == p2), "Not a participant"
+    ==
+    bnz contract.UniversalStateMachineUltimate.update_process_bool_true@2
+    frame_dig 4
+    frame_dig 2
+    ==
+    bz contract.UniversalStateMachineUltimate.update_process_bool_false@3
+
+contract.UniversalStateMachineUltimate.update_process_bool_true@2:
+    intc_1 // 1
+
+contract.UniversalStateMachineUltimate.update_process_bool_merge@4:
+    // contract.py:338
+    // assert (caller == p1) or (caller == p2), "Not a participant"
+    assert // Not a participant
+    // contract.py:339
+    // assert Global.round < deadline, "Process expired"
+    global Round
+    frame_dig 3
+    dup
+    cover 2
+    <
+    assert // Process expired
+    // contract.py:341
+    // _validate_state_size(new_state.bytes)
+    frame_dig -1
+    callsub _validate_state_size
+    // contract.py:343
+    // packed = p1.bytes + p2.bytes + _u64_to_bytes(deadline) + new_state.bytes
+    frame_dig 1
+    frame_dig 2
+    concat
+    // contract.py:49
+    // return op.itob(v)
+    swap
+    itob
+    // contract.py:343
+    // packed = p1.bytes + p2.bytes + _u64_to_bytes(deadline) + new_state.bytes
+    concat
+    frame_dig -1
+    concat
+    // contract.py:344
+    // BoxMap(Bytes, Bytes, key_prefix=b"pr:")[key] = packed
+    frame_dig 0
+    dup
+    box_del
+    pop
+    swap
+    box_put
+    // contract.py:347
+    // process_id, arc4.Address(caller.bytes), _u64_to_arc4(Global.round))
+    global Round
+    // contract.py:57
+    // return arc4.UInt64(op.btoi(op.itob(v)))
+    itob
+    // contract.py:346-347
+    // arc4.emit("ProcessUpdated(string,address,uint64)",
+    //           process_id, arc4.Address(caller.bytes), _u64_to_arc4(Global.round))
+    bytec 10 // 0x002a
+    frame_dig 4
+    concat
+    swap
+    concat
+    frame_dig -2
+    concat
+    pushbytes 0xe83f8921 // method "ProcessUpdated(string,address,uint64)"
+    swap
+    concat
+    log
+    // contract.py:348
+    // return arc4.String("Process updated (no turn check)")
+    pushbytes 0x001f50726f63657373207570646174656420286e6f207475726e20636865636b29
+    frame_bury 0
+    retsub
+
+contract.UniversalStateMachineUltimate.update_process_bool_false@3:
+    intc_0 // 0
+    b contract.UniversalStateMachineUltimate.update_process_bool_merge@4
+
+
+// contract.UniversalStateMachineUltimate.load_process(process_id: bytes) -> bytes:
+contract.UniversalStateMachineUltimate.load_process:
+    // contract.py:355-356
+    // @arc4.abimethod
+    // def load_process(self, process_id: arc4.String) -> arc4.String:
+    proto 1 1
+    // contract.py:359
+    // data, exists = BoxMap(Bytes, Bytes, key_prefix=b"pr:").maybe(key)
+    bytec 4 // 0x70723a
+    frame_dig -1
+    concat
+    box_get
+    // contract.py:360
+    // if not exists:
+    bnz contract.UniversalStateMachineUltimate.load_process_after_if_else@2
+    // contract.py:361
+    // return arc4.String("")
+    bytec 13 // 0x0000
+    swap
+    retsub
+
+contract.UniversalStateMachineUltimate.load_process_after_if_else@2:
+    // contract.py:362
+    // state_json = data[72:]
+    frame_dig 0
+    dup
+    len
+    pushint 72 // 72
+    dig 1
+    >=
+    pushint 72 // 72
+    dig 2
+    uncover 2
+    select
+    swap
+    substring3
+    // contract.py:363
+    // return arc4.String.from_bytes(state_json)
+    swap
+    retsub
+
+
+// contract.UniversalStateMachineUltimate.load_battle_turn_based(battle_id: bytes) -> bytes:
+contract.UniversalStateMachineUltimate.load_battle_turn_based:
+    // contract.py:621-622
+    // @arc4.abimethod
+    // def load_battle_turn_based(self, battle_id: arc4.String) -> arc4.String:
+    proto 1 1
+    // contract.py:625
+    // data, exists = BoxMap(Bytes, Bytes, key_prefix=b"tb:").maybe(key)
+    bytec_2 // 0x74623a
+    frame_dig -1
+    concat
+    box_get
+    // contract.py:626
+    // if not exists:
+    bnz contract.UniversalStateMachineUltimate.load_battle_turn_based_after_if_else@2
+    // contract.py:627
+    // return arc4.String("")
+    bytec 13 // 0x0000
+    swap
+    retsub
+
+contract.UniversalStateMachineUltimate.load_battle_turn_based_after_if_else@2:
+    // contract.py:628
+    // state_json = data[104:]  # Skip metadata
+    frame_dig 0
+    dup
+    len
+    pushint 104 // 104
+    dig 1
+    >=
+    pushint 104 // 104
+    dig 2
+    uncover 2
+    select
+    swap
+    substring3
+    // contract.py:629
+    // return arc4.String.from_bytes(state_json)
+    swap
+    retsub

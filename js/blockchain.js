@@ -14,8 +14,55 @@ const INDEXER_SERVER = 'https://testnet-idx.algonode.cloud';
 const ALGOD_PORT = '';
 const ALGOD_TOKEN = '';
 
-// UPDATED: New App ID for v4.0 Contract (puyapy version)
-let APP_ID = 748578144;
+// UPDATED: Ultimate secure contract deployment (puyapy version)
+let APP_ID = 749006407;
+
+function calculateMBR(stateDataSize, isProcess = false, isTurnBased = false) {
+    let metadataSize = 40;
+    if (isTurnBased) {
+        metadataSize = 104;
+    } else if (isProcess) {
+        metadataSize = 72;
+    }
+
+    const boxSize = metadataSize + stateDataSize;
+    const boxBlocks = Math.ceil(boxSize / 8);
+    return 2500 + (400 * boxBlocks);
+}
+
+function cloneSuggestedParams(params) {
+    return {
+        ...params,
+        genesisHash: params.genesisHash,
+        genesisID: params.genesisID,
+        consensusVersion: params.consensusVersion,
+        firstRound: params.firstRound,
+        lastRound: params.lastRound,
+        fee: params.fee,
+        minFee: params.minFee,
+        flatFee: params.flatFee
+    };
+}
+
+function createMBRPaymentTransaction(sender, appId, amount, suggestedParams) {
+    const params = cloneSuggestedParams(suggestedParams);
+    params.flatFee = true;
+    params.fee = algosdk.ALGORAND_MIN_TX_FEE;
+
+    return algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+        from: sender,
+        to: algosdk.getApplicationAddress(appId),
+        amount,
+        suggestedParams: params
+    });
+}
+
+function createTransactionWithSigner(txn, account) {
+    return {
+        txn,
+        signer: algosdk.makeBasicAccountTransactionSigner(account)
+    };
+}
 
 // v4.0 Contract uses JSON-based storage instead of bit-packing
 // No unpacking functions needed - data is stored as JSON strings in boxes
@@ -28,7 +75,8 @@ const CONTRACT_ABI = {
             name: "save_player",
             args: [
                 { type: "string", name: "player_id" },
-                { type: "string", name: "state_data" }
+                { type: "string", name: "state_data" },
+                { type: "pay", name: "mbr_payment" }
             ],
             returns: { type: "string" }
         },
@@ -52,7 +100,8 @@ const CONTRACT_ABI = {
                 { type: "string", name: "battle_id" },
                 { type: "address", name: "opponent" },
                 { type: "uint64", name: "deadline_rounds" },
-                { type: "string", name: "initial_state" }
+                { type: "string", name: "initial_state" },
+                { type: "pay", name: "mbr_payment" }
             ],
             returns: { type: "string" }
         },
@@ -81,7 +130,7 @@ const CONTRACT_ABI = {
         {
             name: "get_stats",
             args: [],
-            returns: { type: "(uint64,uint64)" }
+            returns: { type: "(uint64,uint64,uint64,uint64)" }
         }
     ]
 };
@@ -99,7 +148,7 @@ function initContractABI() {
 
 // Helper function to create box keys matching contract's format
 function createPlayerBoxKey(playerId) {
-    // Contract uses: BoxMap(Bytes, Bytes, key_prefix=b"p:")[player_id.bytes]
+    // Contract uses: BoxMap(Bytes, Bytes, key_prefix=b"e:")[player_id.bytes]
     // where player_id.bytes is ARC4 encoded string: [length_high, length_low, ...string_bytes]
     const addressBytes = new TextEncoder().encode(playerId);
     const addressLength = addressBytes.length;
@@ -110,16 +159,16 @@ function createPlayerBoxKey(playerId) {
     arc4Encoded[1] = addressLength & 0xFF;
     arc4Encoded.set(addressBytes, 2);
 
-    // Full box key: "p:" + arc4_encoded_player_id
+    // Full box key: "e:" + arc4_encoded_player_id
     const boxKey = new Uint8Array(2 + arc4Encoded.length);
-    boxKey.set(new TextEncoder().encode('p:'), 0);
+    boxKey.set(new TextEncoder().encode('e:'), 0);
     boxKey.set(arc4Encoded, 2);
 
     return boxKey;
 }
 
 function createBattleBoxKey(battleId) {
-    // Contract uses: BoxMap(Bytes, Bytes, key_prefix=b"b:")[battle_id.bytes]
+    // Contract uses: BoxMap(Bytes, Bytes, key_prefix=b"pr:")[battle_id.bytes]
     const battleBytes = new TextEncoder().encode(battleId);
     const battleLength = battleBytes.length;
 
@@ -129,12 +178,285 @@ function createBattleBoxKey(battleId) {
     arc4Encoded[1] = battleLength & 0xFF;
     arc4Encoded.set(battleBytes, 2);
 
-    // Full box key: "b:" + arc4_encoded_battle_id
-    const boxKey = new Uint8Array(2 + arc4Encoded.length);
-    boxKey.set(new TextEncoder().encode('b:'), 0);
-    boxKey.set(arc4Encoded, 2);
+    // Full box key: "pr:" + arc4_encoded_battle_id
+    const boxKey = new Uint8Array(3 + arc4Encoded.length);
+    boxKey.set(new TextEncoder().encode('pr:'), 0);
+    boxKey.set(arc4Encoded, 3);
 
     return boxKey;
+}
+
+// Decode box payloads that store JSON strings. Some legacy saves were
+// msgpack-encoded, while new saves are UTF-8 JSON bytes. We normalize both.
+function extractBalancedJson(text) {
+    if (!text) return null;
+
+    const startBrace = text.indexOf('{');
+    const startBracket = text.indexOf('[');
+
+    let start = -1;
+    let openingChar = null;
+
+    if (startBrace !== -1 && startBracket !== -1) {
+        start = Math.min(startBrace, startBracket);
+        openingChar = text[start];
+    } else if (startBrace !== -1) {
+        start = startBrace;
+        openingChar = '{';
+    } else if (startBracket !== -1) {
+        start = startBracket;
+        openingChar = '[';
+    }
+
+    if (start === -1) {
+        return null;
+    }
+
+    const closingChar = openingChar === '{' ? '}' : ']';
+    let depth = 0;
+    let inString = false;
+    let escapeNext = false;
+
+    for (let i = start; i < text.length; i++) {
+        const char = text[i];
+
+        if (escapeNext) {
+            escapeNext = false;
+            continue;
+        }
+
+        if (char === '\\') {
+            escapeNext = true;
+            continue;
+        }
+
+        if (char === '"') {
+            inString = !inString;
+            continue;
+        }
+
+        if (inString) {
+            continue;
+        }
+
+        if (char === openingChar) {
+            depth += 1;
+        } else if (char === closingChar) {
+            depth -= 1;
+            if (depth === 0) {
+                return text.slice(start, i + 1);
+            }
+        }
+    }
+
+    return text.slice(start);
+}
+
+function tryParseJsonish(candidate) {
+    if (!candidate) return null;
+
+    const trimmed = candidate.trim();
+    if (!trimmed) return null;
+
+    try {
+        return JSON.parse(trimmed);
+    } catch (primaryError) {
+        // Attempt to normalize common legacy formats (single quotes, Python booleans)
+        const normalized = trimmed
+            .replace(/\bTrue\b/g, 'true')
+            .replace(/\bFalse\b/g, 'false')
+            .replace(/\bNone\b/g, 'null');
+
+        if (normalized !== trimmed) {
+            try {
+                return JSON.parse(normalized);
+            } catch (secondaryError) {
+                console.warn('Normalized JSON parse failed:', secondaryError);
+            }
+        }
+
+        console.warn('JSON parse failed for candidate:', primaryError);
+        return null;
+    }
+}
+
+const DEFAULT_INVENTORY = {
+    healthPotions: 0,
+    manaPotions: 0,
+    keys: 0,
+    boats: 0,
+    pickaxe: 0
+};
+
+const DEFAULT_STATS = {
+    enemiesDefeated: 0,
+    treasuresFound: 0,
+    townsVisited: 0
+};
+
+const DEFAULT_COORDINATE = 0;
+
+function createDefaultPlayerState() {
+    return {
+        name: 'Hero',
+        level: 1,
+        xp: 0,
+        xpToNext: 100,
+        gold: 0,
+        hp: 100,
+        maxHp: 100,
+        mp: 50,
+        maxMp: 50,
+        attack: 10,
+        defense: 10,
+        magic: 10,
+        x: DEFAULT_COORDINATE,
+        y: DEFAULT_COORDINATE,
+        timestamp: 0,
+        pvpReady: false,
+        inventory: { ...DEFAULT_INVENTORY },
+        stats: { ...DEFAULT_STATS }
+    };
+}
+
+const DEFAULT_PLAYER_STATE = createDefaultPlayerState();
+
+function normalizePlayerState(rawState) {
+    const base = rawState && typeof rawState === 'object' ? rawState : {};
+    const normalized = createDefaultPlayerState();
+
+    const coerceNumber = (value, fallback) => {
+        if (value === null || value === undefined) return fallback;
+        const asNumber = Number(value);
+        return Number.isFinite(asNumber) ? asNumber : fallback;
+    };
+
+    // Copy over primitive fields with safe coercion
+    normalized.name = typeof base.name === 'string' && base.name.trim() ? base.name : normalized.name;
+    normalized.level = coerceNumber(base.level, normalized.level);
+    normalized.xp = coerceNumber(base.xp, normalized.xp);
+    normalized.xpToNext = coerceNumber(base.xpToNext, normalized.xpToNext);
+    normalized.gold = coerceNumber(base.gold, normalized.gold);
+    normalized.hp = coerceNumber(base.hp, normalized.hp);
+    normalized.maxHp = coerceNumber(base.maxHp, normalized.maxHp);
+    normalized.mp = coerceNumber(base.mp, normalized.mp);
+    normalized.maxMp = coerceNumber(base.maxMp, normalized.maxMp);
+    normalized.attack = coerceNumber(base.attack, normalized.attack);
+    normalized.defense = coerceNumber(base.defense, normalized.defense);
+    normalized.magic = coerceNumber(base.magic, normalized.magic);
+    normalized.x = coerceNumber(base.x, normalized.x);
+    normalized.y = coerceNumber(base.y, normalized.y);
+    normalized.timestamp = coerceNumber(base.timestamp, normalized.timestamp);
+    normalized.pvpReady = Boolean(base.pvpReady);
+
+    const inventory = base.inventory && typeof base.inventory === 'object' ? base.inventory : {};
+    const stats = base.stats && typeof base.stats === 'object' ? base.stats : {};
+
+    normalized.inventory = { ...normalized.inventory, ...inventory };
+    normalized.stats = { ...normalized.stats, ...stats };
+
+    return normalized;
+}
+
+function decodeBase64Value(value) {
+    if (!value) {
+        return new Uint8Array();
+    }
+
+    if (value instanceof Uint8Array) {
+        return value;
+    }
+
+    // Browser environments expose atob, Node exposes Buffer.
+    if (typeof Buffer !== 'undefined') {
+        return Uint8Array.from(Buffer.from(value, 'base64'));
+    }
+
+    const binary = atob(value);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+}
+
+function decodeBoxState(jsonBytes) {
+    if (!jsonBytes || jsonBytes.length === 0) {
+        return null;
+    }
+
+    // Trim any trailing null bytes that may exist from older deployments
+    let end = jsonBytes.length;
+    while (end > 0 && jsonBytes[end - 1] === 0) {
+        end -= 1;
+    }
+
+    const trimmedBytes = end === jsonBytes.length ? jsonBytes : jsonBytes.slice(0, end);
+    if (trimmedBytes.length === 0) {
+        return null;
+    }
+
+    const candidateStrings = [];
+
+    // Decode as plain UTF-8 text first – the contract stores UTF-8 JSON today
+    try {
+        const decoder = new TextDecoder();
+        const decodedString = decoder.decode(trimmedBytes).replace(/\u0000+/g, '').trim();
+        if (decodedString) {
+            const directCandidate = extractBalancedJson(decodedString);
+            if (directCandidate) {
+                candidateStrings.push(directCandidate);
+            } else {
+                candidateStrings.push(decodedString);
+            }
+        }
+    } catch (textError) {
+        console.warn('Failed to decode box payload as UTF-8 string:', textError);
+    }
+
+    // Some legacy payloads are ABI encoded strings (length prefix + utf8 bytes)
+    if (candidateStrings.length === 0 && algosdk?.ABIType && typeof algosdk.ABIType.from === 'function') {
+        try {
+            const stringType = algosdk.ABIType.from('string');
+            const decoded = stringType.decode(trimmedBytes);
+            if (typeof decoded === 'string' && decoded.trim()) {
+                candidateStrings.push(decoded.trim());
+            }
+        } catch (abiError) {
+            // Ignore - not encoded as ABI string
+        }
+    }
+
+    for (const candidate of candidateStrings) {
+        try {
+            const parsed = tryParseJsonish(candidate);
+            if (parsed && typeof parsed === 'object') {
+                return parsed;
+            }
+        } catch (candidateError) {
+            console.warn('JSON candidate parse error:', candidateError);
+        }
+    }
+
+    // Final attempt: msgpack decode for very old saves
+    if (algosdk?.decodeObj) {
+        try {
+            const decoded = algosdk.decodeObj(trimmedBytes);
+
+            if (typeof decoded === 'string') {
+                const candidate = extractBalancedJson(decoded) || decoded;
+                return tryParseJsonish(candidate);
+            }
+
+            if (decoded && typeof decoded === 'object') {
+                return decoded;
+            }
+        } catch (msgpackError) {
+            console.warn('Failed to decode box payload as msgpack:', msgpackError);
+        }
+    }
+
+    return null;
 }
 
 class EternalBlissContract {
@@ -196,24 +518,35 @@ class EternalBlissContract {
             timestamp: Date.now()
         };
 
-        // Get the ABI method
-        const method = abiContract.getMethodByName('save_player');
+        const stateJson = JSON.stringify(initialState);
+        const stateSize = new TextEncoder().encode(stateJson).length;
 
-        // Create box key using helper function
+        const method = abiContract.getMethodByName('save_player');
         const boxKey = createPlayerBoxKey(account.addr);
 
-        // Create ABI method call
+        const paymentTxn = createMBRPaymentTransaction(
+            account.addr,
+            this.appId,
+            calculateMBR(stateSize, false, false),
+            params
+        );
+
+        const methodParams = cloneSuggestedParams(params);
+        methodParams.flatFee = true;
+        methodParams.fee = algosdk.ALGORAND_MIN_TX_FEE;
+
         const atc = new algosdk.AtomicTransactionComposer();
         atc.addMethodCall({
             appID: this.appId,
-            method: method,
+            method,
             methodArgs: [
-                account.addr,                      // player_id
-                JSON.stringify(initialState)       // state_data
+                account.addr,
+                stateJson,
+                createTransactionWithSigner(paymentTxn, account)
             ],
             sender: account.addr,
             signer: algosdk.makeBasicAccountTransactionSigner(account),
-            suggestedParams: params,
+            suggestedParams: methodParams,
             boxes: [
                 { appIndex: this.appId, name: boxKey }
             ]
@@ -258,25 +591,34 @@ class EternalBlissContract {
             playerState.timestamp = Date.now();
 
             const params = await this.algod.getTransactionParams().do();
-
-            // Get the ABI method
             const method = abiContract.getMethodByName('save_player');
-
-            // Create box key using helper function
             const boxKey = createPlayerBoxKey(account.addr);
+            const stateJson = JSON.stringify(playerState);
+            const stateSize = new TextEncoder().encode(stateJson).length;
 
-            // Create ABI method call
+            const paymentTxn = createMBRPaymentTransaction(
+                account.addr,
+                this.appId,
+                calculateMBR(stateSize, false, false),
+                params
+            );
+
+            const methodParams = cloneSuggestedParams(params);
+            methodParams.flatFee = true;
+            methodParams.fee = algosdk.ALGORAND_MIN_TX_FEE;
+
             const atc = new algosdk.AtomicTransactionComposer();
             atc.addMethodCall({
                 appID: this.appId,
-                method: method,
+                method,
                 methodArgs: [
-                    account.addr,                      // player_id
-                    JSON.stringify(playerState)        // state_data
+                    account.addr,
+                    stateJson,
+                    createTransactionWithSigner(paymentTxn, account)
                 ],
                 sender: account.addr,
                 signer: algosdk.makeBasicAccountTransactionSigner(account),
-                suggestedParams: params,
+                suggestedParams: methodParams,
                 boxes: [
                     { appIndex: this.appId, name: boxKey }
                 ]
@@ -335,24 +677,35 @@ class EternalBlissContract {
 
         console.log('💾 Saving player state:', playerState);
 
-        // Get the ABI method
-        const method = abiContract.getMethodByName('save_player');
+        const stateJson = JSON.stringify(playerState);
+        const stateSize = new TextEncoder().encode(stateJson).length;
 
-        // Create box key using helper function
+        const method = abiContract.getMethodByName('save_player');
         const boxKey = createPlayerBoxKey(account.addr);
 
-        // Create ABI method call
+        const paymentTxn = createMBRPaymentTransaction(
+            account.addr,
+            this.appId,
+            calculateMBR(stateSize, false, false),
+            params
+        );
+
+        const methodParams = cloneSuggestedParams(params);
+        methodParams.flatFee = true;
+        methodParams.fee = algosdk.ALGORAND_MIN_TX_FEE;
+
         const atc = new algosdk.AtomicTransactionComposer();
         atc.addMethodCall({
             appID: this.appId,
-            method: method,
+            method,
             methodArgs: [
-                account.addr,                      // player_id
-                JSON.stringify(playerState)        // state_data
+                account.addr,
+                stateJson,
+                createTransactionWithSigner(paymentTxn, account)
             ],
             sender: account.addr,
             signer: algosdk.makeBasicAccountTransactionSigner(account),
-            suggestedParams: params,
+            suggestedParams: methodParams,
             boxes: [
                 { appIndex: this.appId, name: boxKey }
             ]
@@ -390,26 +743,35 @@ class EternalBlissContract {
             timestamp: Date.now()
         });
 
-        // Get the ABI method
         const method = abiContract.getMethodByName('start_battle');
-
-        // Create box key using helper function
         const boxKey = createBattleBoxKey(battleId);
+        const stateSize = new TextEncoder().encode(initialState).length;
 
-        // Create ABI method call
+        const paymentTxn = createMBRPaymentTransaction(
+            account.addr,
+            this.appId,
+            calculateMBR(stateSize, true, false),
+            params
+        );
+
+        const methodParams = cloneSuggestedParams(params);
+        methodParams.flatFee = true;
+        methodParams.fee = algosdk.ALGORAND_MIN_TX_FEE;
+
         const atc = new algosdk.AtomicTransactionComposer();
         atc.addMethodCall({
             appID: this.appId,
-            method: method,
+            method,
             methodArgs: [
-                battleId,               // battle_id
-                opponentAddress,        // opponent (address)
-                100,                    // deadline_rounds
-                initialState            // initial_state
+                battleId,
+                opponentAddress,
+                100,
+                initialState,
+                createTransactionWithSigner(paymentTxn, account)
             ],
             sender: account.addr,
             signer: algosdk.makeBasicAccountTransactionSigner(account),
-            suggestedParams: params,
+            suggestedParams: methodParams,
             boxes: [
                 { appIndex: this.appId, name: boxKey }
             ]
@@ -521,18 +883,18 @@ class EternalBlissContract {
                 return null;
             }
 
-            // Battle box format: p1(32) + p2(32) + deadline(8) + state(ARC4 String)
+            // Battle box format: p1(32) + p2(32) + deadline(8) + state bytes
             const boxBytes = new Uint8Array(boxValue.value);
 
-            // Skip p1(32) + p2(32) + deadline(8) + ARC4 string length(2) = 74 bytes
-            const jsonBytes = boxBytes.slice(74);
-            const jsonString = new TextDecoder().decode(jsonBytes);
+            // Skip p1(32) + p2(32) + deadline(8) = 72 bytes
+            const jsonBytes = boxBytes.slice(72);
+            const battleState = decodeBoxState(jsonBytes);
 
-            if (!jsonString || jsonString.trim() === '') {
+            if (!battleState) {
                 return null;
             }
 
-            return JSON.parse(jsonString);
+            return battleState;
         } catch (error) {
             console.error('Failed to load battle:', error);
             return null;
@@ -667,25 +1029,34 @@ class EternalBlissContract {
         playerState.pvpReady = isReady;
 
         const params = await this.algod.getTransactionParams().do();
-
-        // Get the ABI method
         const method = abiContract.getMethodByName('save_player');
-
-        // Create box key using helper function
         const boxKey = createPlayerBoxKey(account.addr);
+        const stateJson = JSON.stringify(playerState);
+        const stateSize = new TextEncoder().encode(stateJson).length;
 
-        // Create ABI method call
+        const paymentTxn = createMBRPaymentTransaction(
+            account.addr,
+            this.appId,
+            calculateMBR(stateSize, false, false),
+            params
+        );
+
+        const methodParams = cloneSuggestedParams(params);
+        methodParams.flatFee = true;
+        methodParams.fee = algosdk.ALGORAND_MIN_TX_FEE;
+
         const atc = new algosdk.AtomicTransactionComposer();
         atc.addMethodCall({
             appID: this.appId,
-            method: method,
+            method,
             methodArgs: [
-                account.addr,                      // player_id
-                JSON.stringify(playerState)        // state_data
+                account.addr,
+                stateJson,
+                createTransactionWithSigner(paymentTxn, account)
             ],
             sender: account.addr,
             signer: algosdk.makeBasicAccountTransactionSigner(account),
-            suggestedParams: params,
+            suggestedParams: methodParams,
             boxes: [
                 { appIndex: this.appId, name: boxKey }
             ]
@@ -720,41 +1091,26 @@ class EternalBlissContract {
                 return null;
             }
 
-            // Box format from contract: owner(32) + last_update(8) + state_data(ARC4 String)
-            const boxBytes = new Uint8Array(boxValue.value);
+            // Box format from contract: owner(32) + last_update(8) + state bytes
+            const boxBytes = decodeBase64Value(boxValue.value);
 
-            // Skip owner (32 bytes) + last_update (8 bytes) + ARC4 string length prefix (2 bytes) = 42 bytes
-            // The state_data is stored as arc4.String which has 2-byte length prefix
-            const jsonBytes = boxBytes.slice(42);
-            const jsonString = new TextDecoder().decode(jsonBytes);
-
-            if (!jsonString || jsonString.trim() === '') {
-                return null;
+            if (boxBytes.length <= 40) {
+                return createDefaultPlayerState();
             }
 
-            const playerState = JSON.parse(jsonString);
+            // Skip owner (32 bytes) + last_update (8 bytes) = 40 bytes
+            const jsonBytes = boxBytes.slice(40);
+            const parsedState = decodeBoxState(jsonBytes);
 
-            // Return in expected format
-            return {
-                ...playerState,
-                // Ensure inventory and stats are properly structured
-                inventory: playerState.inventory || {
-                    healthPotions: 0,
-                    manaPotions: 0,
-                    keys: 0,
-                    boats: 0,
-                    pickaxe: 0
-                },
-                stats: playerState.stats || {
-                    enemiesDefeated: 0,
-                    treasuresFound: 0,
-                    townsVisited: 0
-                }
-            };
+            if (!parsedState || typeof parsedState !== 'object') {
+                return createDefaultPlayerState();
+            }
+
+            return normalizePlayerState(parsedState);
 
         } catch (error) {
             console.error('❌ Failed to read player state:', error);
-            return null;
+            return createDefaultPlayerState();
         }
     }
     

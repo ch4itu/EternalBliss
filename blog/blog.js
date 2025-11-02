@@ -1,4 +1,4 @@
-const APP_ID = 748592697;
+const APP_ID = 749006407;
 let algodClient = null;
 let abiContract = null;
 let account = null;
@@ -12,7 +12,8 @@ const CONTRACT_ABI = {
             name: "save_player",
             args: [
                 { type: "string", name: "player_id" },
-                { type: "string", name: "state_data" }
+                { type: "string", name: "state_data" },
+                { type: "pay", name: "mbr_payment" }
             ],
             returns: { type: "string" }
         },
@@ -36,7 +37,8 @@ const CONTRACT_ABI = {
                 { type: "string", name: "battle_id" },
                 { type: "address", name: "opponent" },
                 { type: "uint64", name: "deadline_rounds" },
-                { type: "string", name: "initial_state" }
+                { type: "string", name: "initial_state" },
+                { type: "pay", name: "mbr_payment" }
             ],
             returns: { type: "string" }
         },
@@ -58,13 +60,14 @@ const CONTRACT_ABI = {
         {
             name: "get_stats",
             args: [],
-            returns: { type: "(uint64,uint64)" }
+            returns: { type: "(uint64,uint64,uint64,uint64)" }
         },
         {
             name: "save_entity",
             args: [
                 { type: "string", name: "entity_id" },
-                { type: "string", name: "state_data" }
+                { type: "string", name: "state_data" },
+                { type: "pay", name: "mbr_payment" }
             ],
             returns: { type: "string" }
         },
@@ -77,6 +80,53 @@ const CONTRACT_ABI = {
         }
     ]
 };
+
+function calculateMBR(stateDataSize, isProcess = false, isTurnBased = false) {
+    let metadataSize = 40;
+    if (isTurnBased) {
+        metadataSize = 104;
+    } else if (isProcess) {
+        metadataSize = 72;
+    }
+
+    const boxSize = metadataSize + stateDataSize;
+    const boxBlocks = Math.ceil(boxSize / 8);
+    return 2500 + (400 * boxBlocks);
+}
+
+function cloneSuggestedParams(params) {
+    return {
+        ...params,
+        genesisHash: params.genesisHash,
+        genesisID: params.genesisID,
+        consensusVersion: params.consensusVersion,
+        firstRound: params.firstRound,
+        lastRound: params.lastRound,
+        fee: params.fee,
+        minFee: params.minFee,
+        flatFee: params.flatFee
+    };
+}
+
+function createMBRPaymentTransaction(sender, appId, amount, suggestedParams) {
+    const params = cloneSuggestedParams(suggestedParams);
+    params.flatFee = true;
+    params.fee = algosdk.ALGORAND_MIN_TX_FEE;
+
+    return algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+        from: sender,
+        to: algosdk.getApplicationAddress(appId),
+        amount,
+        suggestedParams: params
+    });
+}
+
+function createTransactionWithSigner(txn, account) {
+    return {
+        txn,
+        signer: algosdk.makeBasicAccountTransactionSigner(account)
+    };
+}
 
 function initializeAlgodClient() {
     if (typeof algosdk !== 'undefined') {
@@ -103,7 +153,7 @@ function createPostBoxKey(postId) {
     arc4Encoded.set(idBytes, 2);
 
     const boxKey = new Uint8Array(2 + arc4Encoded.length);
-    boxKey.set(new TextEncoder().encode('p:'), 0);
+    boxKey.set(new TextEncoder().encode('e:'), 0);
     boxKey.set(arc4Encoded, 2);
 
     return boxKey;
@@ -246,44 +296,45 @@ window.createPost = async function() {
         const params = await algodClient.getTransactionParams().do();
         const method = abiContract.getMethodByName('save_player');
         const boxKey = createPostBoxKey(postId);
-        
-        const stateDataStr = JSON.stringify(postData);
-        const boxValueSize = 40 + stateDataStr.length;
-        const mbrCost = 2500 + 400 * (boxKey.length + boxValueSize);
-        
+
+        const stateJson = JSON.stringify(postData);
+        const stateSize = new TextEncoder().encode(stateJson).length;
+        const requiredMBR = calculateMBR(stateSize, false, false);
+
         const accountInfo = await algodClient.accountInformation(accountAddress).do();
-        const balance = Number(accountInfo.amount) / 1000000;
-        
-        if (balance < (mbrCost / 1000000 + 0.1)) {
-            showStatus(`Insufficient balance. Need ${((mbrCost / 1000000) + 0.1).toFixed(3)} ALGO`, 'error');
+        const balance = Number(accountInfo.amount) / 1_000_000;
+        const requiredBalance = (requiredMBR + (2 * algosdk.ALGORAND_MIN_TX_FEE)) / 1_000_000;
+
+        if (balance < requiredBalance + 0.05) {
+            showStatus(`Insufficient balance. Need ${(requiredBalance + 0.05).toFixed(3)} ALGO`, 'error');
             document.getElementById('createBtn').disabled = false;
             return;
         }
-        
-        const paymentTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-            sender: accountAddress,
-            receiver: algosdk.getApplicationAddress(APP_ID),
-            amount: mbrCost,
-            suggestedParams: params
-        });
-        
+
+        const paymentTxn = createMBRPaymentTransaction(
+            accountAddress,
+            APP_ID,
+            requiredMBR,
+            params
+        );
+
+        const methodParams = cloneSuggestedParams(params);
+        methodParams.flatFee = true;
+        methodParams.fee = algosdk.ALGORAND_MIN_TX_FEE;
+
         const atc = new algosdk.AtomicTransactionComposer();
-        
-        atc.addTransaction({
-            txn: paymentTxn,
-            signer: algosdk.makeBasicAccountTransactionSigner(account)
-        });
-        
+
         atc.addMethodCall({
             appID: APP_ID,
-            method: method,
+            method,
             methodArgs: [
                 postId,
-                JSON.stringify(postData)
+                stateJson,
+                createTransactionWithSigner(paymentTxn, account)
             ],
             sender: accountAddress,
             signer: algosdk.makeBasicAccountTransactionSigner(account),
-            suggestedParams: params,
+            suggestedParams: methodParams,
             boxes: [
                 { appIndex: APP_ID, name: boxKey }
             ]
