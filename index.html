@@ -4,15 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚔️</text></svg>">
-    <title>EternalBliss - Algorand On-Chain RPG - Based on Universal State Machine Framework</title>
+    <title>EternalBliss - Algorand On-Chain RPG - Built using Universal State Machine Framework</title>
     <script src="https://cdn.jsdelivr.net/npm/algosdk@2.7.0/dist/browser/algosdk.min.js"></script>
     <link rel="stylesheet" href="styles.css">
     <script src="bliss-map.js"></script>
     
-    <script src="js/constants.js"></script>
-    <script src="js/world.js"></script>
-    <script src="js/pvp.js"></script>
-    <script src="js/blockchain.js"></script>
+    <script src="constants.js"></script>
+    <script src="world.js"></script>
+    <script src="pvp.js"></script>
+    <script src="blockchain.js"></script>
 </head>
 
 <style>
@@ -221,7 +221,12 @@
             <div class="wallet-section">
                 <h3>🔗 Algorand Wallet</h3>
                 <div id="walletInputSection">
-                    <textarea class="wallet-input" id="walletInput" placeholder="Enter your 25-word Algorand mnemonic phrase..." rows="3"></textarea>
+                    <div style="position: relative;">
+                        <textarea class="wallet-input" id="walletInput" placeholder="Enter your 25-word Algorand mnemonic phrase..." rows="3" style="-webkit-text-security: disc; font-family: monospace;"></textarea>
+                        <button onclick="toggleMnemonicVisibility()" style="position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.3); border: none; color: white; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;" title="Show/Hide Mnemonic">
+                            👁️
+                        </button>
+                    </div>
                     <button class="btn btn-primary" onclick="connectWallet()" style="width: 100%; margin-top: 8px;">
                         🔗 Connect to Algorand
                     </button>
@@ -355,6 +360,11 @@
                 <button class="btn btn-warning" onclick="createPlayerNFT()" style="width: 100%; display: none;" id="nftButton">
                     🎨 Mint Player NFT
                 </button>
+                <a href="blog.html" target="_blank" style="text-decoration: none;">
+                    <button class="btn" style="width: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+                        📝 OnChain Blog
+                    </button>
+                </a>
             </div>
         </div>
 
@@ -541,16 +551,34 @@
                 <div class="battle-character battle-enemy">🛡️</div>
             </div>
 
-            <!-- Opponent Info -->
-            <div style="margin-bottom: 16px; text-align: center;">
-                <div style="font-size: 18px; margin-bottom: 8px; color: #fbbf24;">
-                    🎯 <span id="pvpOpponentName">Opponent</span> (Lv.<span id="pvpOpponentLevel">1</span>)
+            <div class="pvp-health-summary">
+                <div class="pvp-combatant-card player">
+                    <div class="pvp-role-tag">Your Health</div>
+                    <div class="pvp-combatant-header">
+                        <span class="pvp-combatant-icon">🛡️</span>
+                        <span class="pvp-combatant-name" id="pvpPlayerName">You</span>
+                        <span class="pvp-combatant-level">Lv.<span id="pvpPlayerLevel">1</span></span>
+                        <span class="pvp-combatant-identity" id="pvpPlayerIdentity"></span>
+                    </div>
+                    <div class="pvp-health-track player">
+                        <div class="pvp-health-fill player" id="pvpPlayerHpBar" data-percent="100"></div>
+                        <span class="pvp-health-label" id="pvpPlayerHpLabel">100 / 100</span>
+                    </div>
+                    <div class="pvp-health-value" id="pvpPlayerHpMeta">100 HP • 100%</div>
                 </div>
-                <div class="stat-bar" style="margin: 0 auto; width: 60%;">
-                    <div class="stat-fill hp-fill" id="pvpOpponentHpBar" style="width: 100%"></div>
-                </div>
-                <div style="font-size: 12px; margin-top: 4px;">
-                    HP: <span id="pvpOpponentHp">100</span>/<span id="pvpOpponentMaxHp">100</span>
+                <div class="pvp-combatant-card opponent">
+                    <div class="pvp-role-tag opponent">Opponent Health</div>
+                    <div class="pvp-combatant-header">
+                        <span class="pvp-combatant-icon">🎯</span>
+                        <span class="pvp-combatant-name" id="pvpOpponentName">Opponent</span>
+                        <span class="pvp-combatant-level">Lv.<span id="pvpOpponentLevel">1</span></span>
+                        <span class="pvp-combatant-identity" id="pvpOpponentIdentity"></span>
+                    </div>
+                    <div class="pvp-health-track opponent">
+                        <div class="pvp-health-fill opponent" id="pvpOpponentHpBar" data-percent="100"></div>
+                        <span class="pvp-health-label" id="pvpOpponentHpLabel">100 / 100</span>
+                    </div>
+                    <div class="pvp-health-value opponent" id="pvpOpponentHpMeta">100 HP • 100%</div>
                 </div>
             </div>
 

@@ -130,13 +130,21 @@ body {
 }
 
 .sand {
-    background: 
+    background:
         radial-gradient(circle at 6px 6px, #f59e0b 1px, transparent 1px),
         radial-gradient(circle at 18px 14px, #f59e0b 1px, transparent 1px),
         radial-gradient(circle at 26px 26px, #f59e0b 1px, transparent 1px),
         radial-gradient(circle at 10px 22px, #f59e0b 1px, transparent 1px),
         #eab308;
     background-size: 16px 16px;
+}
+
+.snow {
+    background:
+        radial-gradient(circle at 8px 8px, rgba(255, 255, 255, 0.85) 2px, transparent 2px),
+        radial-gradient(circle at 22px 20px, rgba(255, 255, 255, 0.7) 2px, transparent 2px),
+        linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    background-size: 16px 16px, 16px 16px, 32px 32px;
 }
 
 /* Building Sprites */
@@ -531,8 +539,185 @@ body {
     );
 }
 
-.hp-fill { 
+.hp-fill {
     background: linear-gradient(90deg, #dc2626 0%, #ef4444 50%, #f87171 100%);
+}
+
+.pvp-health-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+@media (min-width: 640px) {
+    .pvp-health-summary {
+        flex-direction: row;
+        align-items: stretch;
+    }
+}
+
+.pvp-combatant-card {
+    flex: 1;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+}
+
+.pvp-combatant-card.player {
+    border-color: rgba(16, 185, 129, 0.45);
+    box-shadow: 0 6px 12px rgba(16, 185, 129, 0.12);
+}
+
+.pvp-combatant-card.opponent {
+    border-color: rgba(248, 113, 113, 0.45);
+    box-shadow: 0 6px 12px rgba(248, 113, 113, 0.12);
+}
+
+.pvp-role-tag {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: #a5b4fc;
+}
+
+.pvp-role-tag.opponent {
+    color: #fca5a5;
+}
+
+.pvp-combatant-header {
+    display: flex;
+    justify-content: center;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 18px;
+    font-weight: 700;
+    color: #e2e8f0;
+}
+
+.pvp-combatant-icon {
+    font-size: 22px;
+}
+
+.pvp-combatant-card.player .pvp-combatant-header {
+    color: #34d399;
+}
+
+.pvp-combatant-card.opponent .pvp-combatant-header {
+    color: #fbbf24;
+}
+
+.pvp-combatant-level {
+    font-size: 14px;
+    font-weight: 600;
+    opacity: 0.85;
+}
+
+.pvp-combatant-identity {
+    font-size: 11px;
+    font-weight: 600;
+    opacity: 0.75;
+    color: #94a3b8;
+    margin-left: 4px;
+}
+
+.pvp-combatant-card.player .pvp-combatant-identity {
+    color: #67e8f9;
+}
+
+.pvp-combatant-card.opponent .pvp-combatant-identity {
+    color: #fca5a5;
+}
+
+.pvp-health-value {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    color: #cbd5f5;
+    text-transform: uppercase;
+}
+
+.pvp-health-value.opponent {
+    color: #fecaca;
+}
+
+.pvp-health-value.is-warning {
+    color: #fbbf24;
+}
+
+.pvp-health-value.is-critical {
+    color: #fca5a5;
+}
+
+.pvp-health-track {
+    position: relative;
+    width: clamp(220px, 60%, 320px);
+    height: 18px;
+    border-radius: 10px;
+    border: 2px solid rgba(15, 23, 42, 0.85);
+    background: rgba(10, 12, 24, 0.85);
+    overflow: hidden;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.55);
+    margin: 0 auto 6px;
+}
+
+.pvp-health-track.player {
+    border-color: rgba(16, 185, 129, 0.6);
+}
+
+.pvp-health-track.opponent {
+    border-color: rgba(248, 113, 113, 0.55);
+}
+
+.pvp-health-fill {
+    height: 100%;
+    transition: width 0.25s ease, background 0.25s ease;
+    position: relative;
+}
+
+.pvp-health-fill.player {
+    background: linear-gradient(90deg, #15803d 0%, #22c55e 45%, #4ade80 100%);
+}
+
+.pvp-health-fill.opponent {
+    background: linear-gradient(90deg, #7f1d1d 0%, #dc2626 50%, #f87171 100%);
+}
+
+.pvp-health-fill.is-warning {
+    background: linear-gradient(90deg, #92400e 0%, #f59e0b 60%, #fbbf24 100%);
+}
+
+.pvp-health-fill.is-critical {
+    background: linear-gradient(90deg, #7f1d1d 0%, #b91c1c 60%, #ef4444 100%);
+}
+
+.pvp-health-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: #f8fafc;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    pointer-events: none;
+    transition: color 0.25s ease;
+}
+
+.pvp-health-label.is-warning {
+    color: #fbbf24;
+}
+
+.pvp-health-label.is-critical {
+    color: #fca5a5;
 }
 
 .mp-fill { 
@@ -672,6 +857,67 @@ body {
     width: 90%;
     text-align: center;
     box-shadow: 0 16px 32px rgba(0,0,0,0.8);
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* Mobile-specific modal adjustments */
+@media (max-width: 768px) {
+    .modal-content {
+        padding: 16px;
+        max-width: 95vw;
+        width: 95%;
+        max-height: 95vh;
+        font-size: 14px;
+    }
+
+    #pvpBattleModal .modal-content {
+        max-width: 95vw;
+        padding: 12px;
+    }
+
+    #pvpBattleModal h3 {
+        font-size: 20px !important;
+        margin-bottom: 8px !important;
+    }
+
+    #pvpBattleModal .battle-arena {
+        height: 120px !important;
+        margin: 12px 0 !important;
+    }
+
+    #pvpBattleModal .battle-character {
+        font-size: 40px !important;
+    }
+
+    .pvp-combatant-card {
+        padding: 8px !important;
+        margin-bottom: 8px !important;
+    }
+
+    .pvp-combatant-name {
+        font-size: 12px !important;
+    }
+
+    #pvpWagerDisplay {
+        padding: 8px !important;
+        font-size: 11px !important;
+        margin-bottom: 8px !important;
+    }
+
+    #pvpBattleLog {
+        max-height: 100px !important;
+        font-size: 11px !important;
+    }
+
+    .battle-actions {
+        gap: 6px !important;
+    }
+
+    .battle-actions button {
+        padding: 8px 12px !important;
+        font-size: 12px !important;
+    }
 }
 
 .battle-modal {
@@ -1209,7 +1455,7 @@ html, body {
     user-select: none;
     -webkit-user-select: none;
     -webkit-touch-callout: none;
-    z-index: 1000;
+    z-index: 500; /* Below modals (1000) but above game elements */
 }
 
 /* Show on mobile devices and touch screens */
@@ -1519,6 +1765,17 @@ html, body {
 @keyframes boat-bob {
     0%, 100% { transform: translateY(0px) rotate(-2deg); }
     50% { transform: translateY(-3px) rotate(2deg); }
+}
+
+/* Player on boat styling */
+.main-player-avatar.sailing {
+    transform: scale(0.9);
+    z-index: 19 !important; /* Above boat (z-index 18) */
+    animation: boat-bob 2s ease-in-out infinite;
+}
+
+.main-player-avatar.sailing.walking {
+    animation: boat-bob 2s ease-in-out infinite, walk 0.3s ease-in-out;
 }
 
 /* How to Play Button */

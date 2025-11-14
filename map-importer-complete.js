@@ -1408,12 +1408,17 @@ function importMap() {
         tileCache.clear();
         
         renderWorld();
-        
+
+        // Initialize moving entities (NPC and enemy patrol logic)
+        if (typeof initializeMovingEntities === 'function') {
+            initializeMovingEntities();
+        }
+
         setTimeout(() => {
             initializeMinimap();
             updateMinimapOptimized();
         }, 100);
-        
+
         centerCameraOnPlayer();
         checkLocation();
         updateUI();
