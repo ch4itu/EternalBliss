@@ -29,6 +29,12 @@ Solve the **"Sunset Issue"** — most apps die when servers shut down. By puttin
 ### 🌐 Live Frontend
 **GitHub Pages:** https://ch4itu.github.io/EternalBliss/
 
+**IPFS/Filecoin (thanks to Lighthouse):**
+https://gateway.lighthouse.storage/ipfs/bafybeidnhxhrgrbquqz4wchvbylrlocnoicxaq4sivlrqbaizxc5cb3ixu/
+
+**Arweave (thanks to ArDrive):**
+https://z4wx2lzurwmlwjr23r4znyobq7vuavrfqwbyzagdabpb3ni7rewa.arweave.net/zy19LzSNmLsmOtx5luHBh-tAViWFg4yAwwBeHbUfiSw/
+
 ### 📜 Smart Contract (TestNet)
 - **App ID:** `749599252`
 - **Lora DApp Lab:** https://lora.algokit.io/testnet/application/749599252
@@ -52,7 +58,12 @@ Solve the **"Sunset Issue"** — most apps die when servers shut down. By puttin
 - 25-word Algorand mnemonic phrase
 
 ### Option 1: Play Online (Easiest)
-Just visit **https://ch4itu.github.io/EternalBliss/** — no installation needed!
+Just visit — no installation needed!
+**https://ch4itu.github.io/EternalBliss/** 
+or
+**https://gateway.lighthouse.storage/ipfs/bafybeidnhxhrgrbquqz4wchvbylrlocnoicxaq4sivlrqbaizxc5cb3ixu/**
+or
+**https://z4wx2lzurwmlwjr23r4znyobq7vuavrfqwbyzagdabpb3ni7rewa.arweave.net/zy19LzSNmLsmOtx5luHBh-tAViWFg4yAwwBeHbUfiSw/**
 
 ### Option 2: Run Locally
 ```bash
