@@ -28,7 +28,6 @@ Solve the **"Sunset Issue"** — most apps die when servers shut down. By puttin
 
 ### 🌐 Live Frontend
 **NFD:**
-
 https://chaitanya.algo.xyz
 
 **GitHub Pages:** https://ch4itu.github.io/EternalBliss/
@@ -57,12 +56,15 @@ https://z4wx2lzurwmlwjr23r4znyobq7vuavrfqwbyzagdabpb3ni7rewa.arweave.net/zy19LzS
 ## ⚙️ Setup & Installation
 
 ### Prerequisites
-- Modern web browser (Chrome, Firefox, Safari)
+- Modern web browser (Firefox, Brave, Chrome, Edge, Opera, Safari - Desktop or Mobile)
 - Algorand TestNet wallet with some ALGO
 - 25-word Algorand mnemonic phrase
 
 ### Option 1: Play Online (Easiest)
 Just visit — no installation needed!
+
+**https://chaitanya.algo.xyz/**
+
 **https://ch4itu.github.io/EternalBliss/** 
 
 or
