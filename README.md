@@ -60,9 +60,13 @@ https://z4wx2lzurwmlwjr23r4znyobq7vuavrfqwbyzagdabpb3ni7rewa.arweave.net/zy19LzS
 ### Option 1: Play Online (Easiest)
 Just visit — no installation needed!
 **https://ch4itu.github.io/EternalBliss/** 
+
 or
+
 **https://gateway.lighthouse.storage/ipfs/bafybeidnhxhrgrbquqz4wchvbylrlocnoicxaq4sivlrqbaizxc5cb3ixu/**
+
 or
+
 **https://z4wx2lzurwmlwjr23r4znyobq7vuavrfqwbyzagdabpb3ni7rewa.arweave.net/zy19LzSNmLsmOtx5luHBh-tAViWFg4yAwwBeHbUfiSw/**
 
 ### Option 2: Run Locally
