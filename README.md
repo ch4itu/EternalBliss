@@ -27,6 +27,9 @@ Solve the **"Sunset Issue"** — most apps die when servers shut down. By puttin
 ## 🔗 Deployed Links
 
 ### 🌐 Live Frontend
+**NFD;**
+https://chaitanya.algo.xyz
+
 **GitHub Pages:** https://ch4itu.github.io/EternalBliss/
 
 **IPFS/Filecoin (thanks to Lighthouse):**
