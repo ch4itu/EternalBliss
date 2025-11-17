@@ -108,7 +108,7 @@ python -m http.server 8000
 
 ### Project Structure
 ```
-EB-NH/
+EternalBliss/
 ├── index.html          # Main game UI
 ├── world.js            # Game mechanics & rendering
 ├── blockchain.js       # Algorand SDK integration
