@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EternalBliss Auto Code Review - Encrypted & Chunked (Fixed)</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/algosdk@2.7.0/dist/browser/algosdk.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl-fast.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tweetnacl-util@0.15.1/nacl-util.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ed2curve@0.3.0/ed2curve.min.js"></script>
+  <script src="ai.js"></script>
+
+  <style>
+    body { font-family: Arial, sans-serif; background: #000; color: #0f0; padding: 20px; text-align: center; line-height: 1.6; }
+    h1 { font-size: 2em; margin-bottom: 10px; }
+    .subtitle { color: #0ff; margin: 10px 0; font-size: 0.9em; }
+    .role-selector { background: #111; border: 2px solid #0f0; padding: 30px; margin: 20px auto; max-width: 600px; border-radius: 12px; }
+    .role-btn { background: #0f0; color: #000; padding: 20px 40px; font-size: 18px; font-weight: bold; border: none; cursor: pointer; margin: 15px; border-radius: 8px; }
+    .role-btn:hover { background: #0c0; }
+    input, textarea {
+      width: 90%;
+      max-width: 700px;
+      background:#111;
+      color:#0f0;
+      border:2px solid #0f0;
+      padding:12px;
+      margin:15px auto;
+      display:block;
+      font-family: monospace;
+    }
+    button {
+      background:#0f0;
+      color:#000;
+      padding:18px 40px;
+      font-size:20px;
+      font-weight:bold;
+      border:none;
+      cursor:pointer;
+      margin:30px 10px;
+      border-radius:8px;
+    }
+    button:hover { background: #0c0; }
+    button:disabled { background:#555; color:#999; cursor: not-allowed; }
+    button.danger { background: #f00; }
+    button.danger:hover { background: #c00; }
+    #log {
+      background:#001100;
+      padding:25px;
+      text-align:left;
+      max-width:900px;
+      margin:20px auto;
+      min-height:300px;
+      border:1px solid #0f0;
+      overflow-y:auto;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    .status { color:#ff0; font-weight:bold; }
+    .error { color:#f00; font-weight:bold; }
+    .success { color:#0f0; font-weight:bold; }
+    .hidden { display: none; }
+    .info-box { background: #003300; border: 2px solid #0f0; padding: 15px; margin: 20px auto; max-width: 700px; text-align: left; font-size: 12px; }
+    .checkbox-container { margin: 15px auto; max-width: 700px; text-align: left; }
+    .checkbox-container label { color: #0f0; font-size: 14px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>🔐 Encrypted Auto Code Review</h1>
+  <p class="subtitle">Grok ↔ ChatGPT · Encrypted · 32KB Storage · Auto-Discovery</p>
+
+  <div class="info-box">
+    <strong>🔒 Encryption:</strong> NaCl Box (public-key crypto)<br/>
+    <strong>📦 Storage:</strong> 32KB (8 chunks × 4KB)<br/>
+    <strong>🔍 Discovery:</strong> Auto-finds process from coder's address<br/>
+    <strong>💰 Cleanup:</strong> Delete boxes to reclaim ALGO
+  </div>
+
+  <div id="roleSelector" class="role-selector">
+    <h2>Select Your Role</h2>
+    <button class="role-btn" onclick="selectRole('coder')">🖊️ CODER (Grok)</button>
+    <button class="role-btn" onclick="selectRole('reviewer')">🔍 REVIEWER (ChatGPT)</button>
+  </div>
+
+  <!-- Coder Interface -->
+  <div id="coderInterface" class="hidden">
+    <h2>🖊️ Coder</h2>
+    <input type="password" id="coderMnemonic" placeholder="Your 25-word mnemonic" />
+    <input type="password" id="grokKey" placeholder="Grok API key (xAI)" />
+    <input type="text" id="reviewerAddress" placeholder="Reviewer's Algorand address (58 chars, starts with A-Z)" />
+    <textarea id="codeTask" rows="3" placeholder="Coding task (e.g., 'Write Python to check if number is even')"></textarea>
+    <div class="checkbox-container">
+      <label style="color:#0f0;">
+        <input type="checkbox" id="deleteOnComplete" checked />
+        Delete boxes when complete (💰 Reclaims MBR - Recommended!)
+      </label>
+    </div>
+    <div id="coderAddressDisplay" class="hidden" style="background:#002200;padding:12px;margin:10px auto;max-width:700px;border:2px solid #0f0;border-radius:8px;">
+      <div style="color:#0ff;font-size:12px;margin-bottom:5px;">📋 YOUR ADDRESS (give this to reviewer):</div>
+      <div id="coderAddressText" style="font-family:monospace;font-size:14px;word-break:break-all;"></div>
+      <button onclick="copyCoderAddress()" style="margin:10px 0;padding:8px 20px;font-size:14px;">📋 COPY</button>
+    </div>
+    <button onclick="startAsCoder()">START</button>
+    <button class="danger hidden" id="stopBtn" onclick="stopCoding()" style="background:#c00;">🛑 STOP</button>
+    <button class="danger hidden" id="deleteAllBtn" onclick="deleteAllAIBoxes()" style="background:#900;">🗑️ CLEANUP & RECLAIM MBR</button>
+  </div>
+
+  <!-- Reviewer Interface -->
+  <div id="reviewerInterface" class="hidden">
+    <h2>🔍 Reviewer</h2>
+    <div style="background:#332200;border:2px solid #ff0;padding:10px;margin:10px auto;max-width:700px;border-radius:6px;text-align:left;">
+      <strong style="color:#ff0;">⚠️ Important:</strong>
+      <div style="color:#fff;font-size:13px;margin-top:5px;">
+        1. Wait for CODER to start first and create a process<br/>
+        2. Copy the coder's address from their screen<br/>
+        3. Auto-discovery will find the newest process<br/>
+        4. If you start before coder, you'll join an old process
+      </div>
+    </div>
+    <input type="password" id="reviewerMnemonic" placeholder="Your 25-word mnemonic" />
+    <input type="password" id="openaiKey" placeholder="OpenAI API key (starts with sk-)" />
+    <input type="text" id="coderAddress" placeholder="⚠️ ENTER THE CODER'S ADDRESS (copy from coder's screen - 58 chars, NOT your address!)" style="font-size: 12px;" />
+    <div class="checkbox-container">
+      <label style="color:#0f0;">
+        <input type="checkbox" id="reviewerDeleteOnComplete" checked />
+        Delete boxes when complete (💰 Reclaims MBR - Recommended!)
+      </label>
+    </div>
+    <button onclick="startAsReviewer()">JOIN</button>
+    <button class="danger hidden" id="reviewerDeleteAllBtn" onclick="deleteAllAIBoxes()" style="background:#900;">🗑️ CLEANUP & RECLAIM MBR</button>
+  </div>
+
+  <div id="log">Select your role...<br><br></div>
+
+  <script>
+    window.logToUI = (msg) => {
+      const logDiv = document.getElementById("log");
+      logDiv.innerHTML += msg + "<br>";
+      logDiv.scrollTop = logDiv.scrollHeight;
+    };
+
+    function log(msg) { window.logToUI(msg); }
+
+    let userRole = null;
+    let processId = null;
+    let isMyTurn = false;
+    let turnNumber = 0;
+    let isRunning = false;
+    let isApproved = false; // Track if code was approved
+    let recipientAddress = null;
+    let myAccount = null;
+
+    // Chunking configuration
+    // CRITICAL: Must account for transaction encoding overhead!
+    // Overhead breakdown:
+    // - Base64 encoding: +33% size
+    // - JSON wrapping: {"data":"..."} = ~15 bytes
+    // - ABI encoding: 2-byte length prefix per string
+    // - Transaction fields: ~200-300 bytes (sender, fee, group, boxes, etc.)
+    // Total overhead per transaction: ~400-500 bytes
+    //
+    // Network limit: ~1KB per transaction
+    // Safe data size: 1000 - 500 = 500 bytes? NO - we need to go even smaller
+    // Empirically tested: 2KB works, 2.5KB fails
+    const CHUNK_SIZE = 1800;  // 1.8KB per chunk (leaves 400-500 bytes for encoding overhead)
+    const MAX_CHUNKS = 18;     // Max 18 chunks = 32.4KB encrypted (allows ~24KB input)
+
+    function selectRole(role) {
+      userRole = role;
+      document.getElementById("roleSelector").classList.add("hidden");
+      if (role === 'coder') {
+        document.getElementById("coderInterface").classList.remove("hidden");
+      } else {
+        document.getElementById("reviewerInterface").classList.remove("hidden");
+      }
+      log(`<span class='status'>✅ Role: ${role.toUpperCase()}</span>`);
+    }
+
+    function copyCoderAddress() {
+      const addr = document.getElementById("coderAddressText").textContent;
+      navigator.clipboard.writeText(addr).then(() => {
+        log(`<span class='success'>✅ Address copied to clipboard!</span>`);
+      }).catch(() => {
+        log(`<span class='error'>❌ Copy failed - please select and copy manually</span>`);
+      });
+    }
+
+    function saveFinalCode() {
+      const code = window.finalApprovedCode;
+      if (!code) {
+        log(`<span class='error'>❌ No code to save</span>`);
+        return;
+      }
+
+      // Detect language from code to determine file extension
+      let extension = '.txt';  // Default
+      const lowerCode = code.toLowerCase();
+
+      if (lowerCode.includes('def ') || lowerCode.includes('import ') || lowerCode.includes('class ')) {
+        extension = '.py';
+      } else if (lowerCode.includes('function ') || lowerCode.includes('const ') || lowerCode.includes('let ')) {
+        extension = '.js';
+      } else if (lowerCode.includes('public class ') || lowerCode.includes('private ')) {
+        extension = '.java';
+      } else if (lowerCode.includes('#include') || lowerCode.includes('int main')) {
+        extension = '.cpp';
+      } else if (lowerCode.includes('func ') && lowerCode.includes('package ')) {
+        extension = '.go';
+      } else if (lowerCode.includes('fn ') || lowerCode.includes('impl ')) {
+        extension = '.rs';
+      }
+
+      // Create downloadable file
+      const blob = new Blob([code], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `approved_code_${Date.now()}${extension}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      log(`<span class='success'>✅ Code saved as ${extension} file!</span>`);
+    }
+
+    // ============ ENCRYPTION (Fixed NaCl API) ============
+
+    function encryptForRecipient(data, recipientAddr, myAccount) {
+      try {
+        log(`<span class='status'>🔒 Encrypting for recipient:</span>`);
+        log(`<span class='status'>   Recipient address: ${recipientAddr}</span>`);
+        log(`<span class='status'>   My address: ${myAccount.addr}</span>`);
+        log(`<span class='status'>   Data length: ${data.length} chars</span>`);
+
+        // Get Ed25519 public keys
+        const recipientEd25519PubKey = algosdk.decodeAddress(recipientAddr).publicKey;
+        const myEd25519SecretKey = myAccount.sk.slice(0, 32); // Ed25519 seed
+        const myEd25519PubKey = myAccount.sk.slice(32, 64); // Ed25519 public key
+
+        // Convert Ed25519 to Curve25519 (X25519) for NaCl box
+        const recipientCurve25519PubKey = ed2curve.convertPublicKey(recipientEd25519PubKey);
+        const myCurve25519SecretKey = ed2curve.convertSecretKey(myEd25519SecretKey);
+
+        if (!recipientCurve25519PubKey || !myCurve25519SecretKey) {
+          throw new Error("Key conversion failed");
+        }
+
+        log(`<span class='status'>   ✅ Keys converted Ed25519 → Curve25519</span>`);
+        log(`<span class='status'>   Recipient Curve25519 pubkey: ${nacl.util.encodeBase64(recipientCurve25519PubKey)}</span>`);
+
+        const nonce = nacl.randomBytes(nacl.box.nonceLength);
+        const messageBytes = nacl.util.decodeUTF8(data);
+
+        const encrypted = nacl.box(messageBytes, nonce, recipientCurve25519PubKey, myCurve25519SecretKey);
+
+        // Combine nonce + encrypted
+        const combined = new Uint8Array(nonce.length + encrypted.length);
+        combined.set(nonce);
+        combined.set(encrypted, nonce.length);
+
+        const result = nacl.util.encodeBase64(combined);
+        log(`<span class='success'>   ✅ Encrypted to ${result.length} chars</span>`);
+        return result;
+      } catch (error) {
+        log(`<span class='error'>Encryption error: ${error.message}</span>`);
+        throw error;
+      }
+    }
+
+    function decryptFromSender(encryptedBase64, senderAddr, myAccount) {
+      try {
+        log(`<span class='status'>🔓 Decrypting from sender:</span>`);
+        log(`<span class='status'>   Sender address: ${senderAddr}</span>`);
+        log(`<span class='status'>   My address: ${myAccount.addr}</span>`);
+        log(`<span class='status'>   Encrypted data length: ${encryptedBase64.length} chars</span>`);
+
+        const combined = nacl.util.decodeBase64(encryptedBase64);
+        const nonce = combined.slice(0, nacl.box.nonceLength);
+        const encrypted = combined.slice(nacl.box.nonceLength);
+
+        log(`<span class='status'>   Nonce length: ${nonce.length}, Encrypted length: ${encrypted.length}</span>`);
+
+        // Get Ed25519 keys
+        const senderEd25519PubKey = algosdk.decodeAddress(senderAddr).publicKey;
+        const myEd25519SecretKey = myAccount.sk.slice(0, 32);
+
+        // Convert Ed25519 to Curve25519 (X25519) for NaCl box
+        const senderCurve25519PubKey = ed2curve.convertPublicKey(senderEd25519PubKey);
+        const myCurve25519SecretKey = ed2curve.convertSecretKey(myEd25519SecretKey);
+
+        if (!senderCurve25519PubKey || !myCurve25519SecretKey) {
+          throw new Error("Key conversion failed");
+        }
+
+        log(`<span class='status'>   ✅ Keys converted Ed25519 → Curve25519</span>`);
+        log(`<span class='status'>   Sender Curve25519 pubkey: ${nacl.util.encodeBase64(senderCurve25519PubKey)}</span>`);
+
+        const decrypted = nacl.box.open(encrypted, nonce, senderCurve25519PubKey, myCurve25519SecretKey);
+
+        if (!decrypted) {
+          log(`<span class='error'>   ❌ nacl.box.open returned null - decryption failed!</span>`);
+          throw new Error("Decryption failed");
+        }
+
+        const result = nacl.util.encodeUTF8(decrypted);
+        log(`<span class='success'>   ✅ Decrypted ${result.length} chars</span>`);
+        return result;
+      } catch (error) {
+        log(`<span class='error'>Decryption error: ${error.message}</span>`);
+        return null;
+      }
+    }
+
+    // ============ CHUNKING ============
+
+    async function saveChunked(prefix, data) {
+      log(`<span class='status'>📦 Chunking ${data.length} bytes...</span>`);
+
+      const chunks = [];
+      for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+        chunks.push(data.slice(i, i + CHUNK_SIZE));
+      }
+
+      if (chunks.length > MAX_CHUNKS) {
+        throw new Error(`Data too large: ${chunks.length} chunks needed (max ${MAX_CHUNKS}).\n\nSuggestions:\n- Ask AI for shorter code\n- Split into multiple files\n- Increase MAX_CHUNKS constant`);
+      }
+
+      log(`<span class='status'>📤 Saving ${chunks.length} chunk(s)...</span>`);
+
+      // Save chunks one at a time (not in parallel to avoid overwhelming network)
+      for (let i = 0; i < chunks.length; i++) {
+        const chunkId = `${processId}_${prefix}_${i}`;
+
+        try {
+          await window.createEntity(chunkId, JSON.stringify({ data: chunks[i] }));
+          log(`<span class='success'>✅ Chunk ${i + 1}/${chunks.length} (${chunks[i].length} bytes)</span>`);
+        } catch (error) {
+          log(`<span class='error'>❌ Failed to save chunk ${i + 1}: ${error.message}</span>`);
+
+          // If it's a transaction size error, provide helpful guidance
+          if (error.message.includes('400') || error.message.includes('too large')) {
+            throw new Error(`Chunk ${i + 1} too large for transaction.\n\nChunk size: ${chunks[i].length} bytes\nThis usually means the encrypted data is too large.\n\nSolutions:\n1. Ask AI for shorter code (current: ${Math.round(data.length/1024)}KB)\n2. Reduce CHUNK_SIZE if chunks are near 3.5KB limit\n3. Check if encryption is working correctly`);
+          }
+
+          throw error;
+        }
+
+        // Small delay between chunks to avoid rate limiting
+        if (i < chunks.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+
+      // Save metadata
+      const metaId = `${processId}_${prefix}_meta`;
+      await window.createEntity(metaId, JSON.stringify({ chunks: chunks.length }));
+      log(`<span class='success'>✅ Metadata saved (${chunks.length} chunks)</span>`);
+
+      return chunks.length;
+    }
+
+    async function loadChunked(prefix) {
+      try {
+        const metaId = `${processId}_${prefix}_meta`;
+        log(`<span class='status'>📥 Loading metadata: ${metaId}</span>`);
+
+        const meta = await window.readEntity(metaId);
+        if (!meta) {
+          log(`<span class='error'>❌ No metadata found for ${prefix}</span>`);
+          return null;
+        }
+
+        let metaData;
+        try {
+          metaData = JSON.parse(meta);
+        } catch (e) {
+          log(`<span class='error'>❌ Invalid metadata JSON: ${meta}</span>`);
+          return null;
+        }
+
+        const totalChunks = metaData.chunks || 0;
+
+        if (totalChunks === 0 || totalChunks > MAX_CHUNKS) {
+          log(`<span class='error'>❌ Invalid chunk count: ${totalChunks} (max ${MAX_CHUNKS})</span>`);
+          return null;
+        }
+
+        log(`<span class='status'>📥 Loading ${totalChunks} chunk(s)...</span>`);
+
+        let combined = "";
+        for (let i = 0; i < totalChunks; i++) {
+          const chunkId = `${processId}_${prefix}_${i}`;
+          const chunk = await window.readEntity(chunkId);
+          if (!chunk) {
+            log(`<span class='error'>❌ Missing chunk ${i}</span>`);
+            throw new Error(`Missing chunk ${i}`);
+          }
+
+          let chunkData;
+          try {
+            chunkData = JSON.parse(chunk);
+          } catch (e) {
+            log(`<span class='error'>❌ Invalid chunk ${i} JSON</span>`);
+            throw new Error(`Invalid chunk ${i} JSON`);
+          }
+
+          combined += chunkData.data;
+          log(`<span class='success'>✅ ${i + 1}/${totalChunks}</span>`);
+        }
+
+        return combined;
+      } catch (error) {
+        log(`<span class='error'>Load error: ${error.message}</span>`);
+        console.error("loadChunked error:", error);
+        return null;
+      }
+    }
+
+    // ============ WALLET ============
+
+    async function getSignerFromMnemonic(mnemonic) {
+      if (!mnemonic || mnemonic.split(" ").length !== 25) {
+        throw new Error("Please enter a valid 25-word mnemonic");
+      }
+
+      const account = algosdk.mnemonicToSecretKey(mnemonic.trim());
+
+      if (!account || !account.sk) {
+        throw new Error("Failed to derive account from mnemonic");
+      }
+
+      // Set global references (needed by ai.js functions)
+      window.account = account;
+      window.sender = account.addr;
+
+      log(`<span class='status'>Connected: ${account.addr.substring(0, 12)}...${account.addr.slice(-6)}</span>`);
+
+      return account;
+    }
+
+    // ============ STOP & CLEANUP ============
+
+    function stopCoding() {
+      if (!confirm("Stop this coding session?\n\nThis will abandon the current process and allow you to start a fresh one.")) {
+        return;
+      }
+
+      log("<span class='status'>🛑 Stopping coding session...</span>");
+      isRunning = false;
+      isApproved = false;
+      processId = null;
+      turnNumber = 0;
+      isMyTurn = false;
+      window.lastGeneratedCode = null;
+
+      log("<span class='success'>✅ Stopped. You can start a new session.</span>");
+      log("<span class='status'>💡 Reviewers will now skip this abandoned process when discovering.</span>");
+    }
+
+    async function deleteAllAIBoxes() {
+      log("<span class='status'>🗑️ Deleting ALL AI code review boxes...</span>");
+
+      try {
+        if (!window.lastProcessId) {
+          log("<span class='error'>❌ No process ID found. Start a code review session first.</span>");
+          return;
+        }
+
+        const processId = window.lastProcessId;
+        let deletedCount = 0;
+        let totalRefund = 0;
+
+        // Step 1: Delete process box (both parties can delete if finalized)
+        log("<span class='status'>1️⃣ Deleting process box...</span>");
+        try {
+          // Try to resign first - might already be finalized
+          try {
+            await window.resignProcess(processId);
+          } catch (e) {
+            if (e.message.includes('assert failed')) {
+              log("<span class='status'>ℹ️ Process already finalized</span>");
+            }
+          }
+          await window.deleteProcess(processId);
+          deletedCount++;
+          totalRefund += 122500; // ~0.12 ALGO
+          log(`<span class='success'>✅ Process deleted</span>`);
+        } catch (e) {
+          // Box might already be deleted
+          if (e.message.includes('pc=1290') || e.message.includes('pc=397') || e.message.includes('box')) {
+            log(`<span class='status'>ℹ️ Process already deleted</span>`);
+          } else {
+            log(`<span class='status'>⚠️ Process: ${e.message}</span>`);
+          }
+        }
+
+        // Only coder can delete task and code chunks (they created them)
+        if (userRole === 'coder') {
+          log("<span class='status'>2️⃣ Deleting task entity (coder-owned)...</span>");
+          try {
+            await window.deleteEntity(`${processId}_task`);
+            deletedCount++;
+            totalRefund += 10000;
+            log(`<span class='success'>✅ Task deleted</span>`);
+          } catch (e) {
+            if (e.message.includes('pc=397') || e.message.includes('box')) {
+              log(`<span class='status'>ℹ️ Task already deleted or doesn't exist</span>`);
+            } else {
+              log(`<span class='status'>⚠️ Task: ${e.message}</span>`);
+            }
+          }
+
+          // Delete code chunks from ALL turns (turnNumber starts at 0!)
+          log("<span class='status'>3️⃣ Searching all turns for code entities...</span>");
+          let codeCount = 0;
+          for (let turn = 0; turn <= 10; turn++) {
+            // Try metadata for this turn
+            try {
+              await window.deleteEntity(`${processId}_code_${turn}_meta`);
+              codeCount++;
+              totalRefund += 10000;
+              log(`<span class='success'>   ✓ code_${turn}_meta</span>`);
+            } catch (e) {
+              // Silently skip - box doesn't exist
+            }
+
+            // Try chunks for this turn (entity IDs: processId_code_turn_0, processId_code_turn_1, etc.)
+            for (let i = 0; i < 50; i++) {
+              try {
+                await window.deleteEntity(`${processId}_code_${turn}_${i}`);
+                codeCount++;
+                totalRefund += 30000;
+                log(`<span class='success'>   ✓ code_${turn}_${i}</span>`);
+              } catch (e) {
+                break; // No more chunks for this turn
+              }
+            }
+          }
+          deletedCount += codeCount;
+          if (codeCount > 0) {
+            log(`<span class='success'>✅ Deleted ${codeCount} code entities</span>`);
+          } else {
+            log(`<span class='status'>ℹ️ No code entities found</span>`);
+          }
+        }
+
+        // Only reviewer can delete review chunks (they created them)
+        if (userRole === 'reviewer') {
+          log("<span class='status'>4️⃣ Searching all turns for review entities...</span>");
+          let reviewCount = 0;
+          for (let turn = 0; turn <= 10; turn++) {
+            // Try metadata for this turn
+            try {
+              await window.deleteEntity(`${processId}_review_${turn}_meta`);
+              reviewCount++;
+              totalRefund += 10000;
+              log(`<span class='success'>   ✓ review_${turn}_meta</span>`);
+            } catch (e) {
+              // Silently skip - box doesn't exist
+            }
+
+            // Try chunks for this turn (entity IDs: processId_review_turn_0, processId_review_turn_1, etc.)
+            for (let i = 0; i < 50; i++) {
+              try {
+                await window.deleteEntity(`${processId}_review_${turn}_${i}`);
+                reviewCount++;
+                totalRefund += 30000;
+                log(`<span class='success'>   ✓ review_${turn}_${i}</span>`);
+              } catch (e) {
+                break; // No more chunks for this turn
+              }
+            }
+          }
+          deletedCount += reviewCount;
+          if (reviewCount > 0) {
+            log(`<span class='success'>✅ Deleted ${reviewCount} review entities</span>`);
+          } else {
+            log(`<span class='status'>ℹ️ No review entities found</span>`);
+          }
+        }
+
+        const algoRefund = (totalRefund / 1000000).toFixed(4);
+        log(`<hr/><span class='success'>✅ Cleanup complete!</span>`);
+        log(`<span class='success'>📦 Deleted ${deletedCount} boxes</span>`);
+        log(`<span class='success'>💰 Estimated refund: ~${algoRefund} ALGO</span>`);
+
+      } catch (error) {
+        log(`<span class='error'>❌ Bulk delete failed: ${error.message}</span>`);
+        console.error("Bulk delete error:", error);
+      }
+    }
+
+    // ============ CODER ============
+
+    async function startAsCoder() {
+      try {
+        const mnemonic = document.getElementById("coderMnemonic").value.trim();
+        const grokKey = document.getElementById("grokKey").value.trim();
+        recipientAddress = document.getElementById("reviewerAddress").value.trim();
+        const task = document.getElementById("codeTask").value.trim();
+
+        if (!mnemonic || !grokKey || !recipientAddress || !task) throw new Error("Fill all fields");
+
+        localStorage.setItem("grokKey", grokKey);
+        localStorage.setItem("codeTask", task);
+
+        log("Connecting wallet...");
+        myAccount = await getSignerFromMnemonic(mnemonic);
+        userRole = 'coder'; // Set role for cleanup functions
+
+        log(`<span class='success'>✅ ${window.sender.substring(0,8)}...</span>`);
+
+        // Show full address with copy button
+        document.getElementById("coderAddressText").textContent = window.sender;
+        document.getElementById("coderAddressDisplay").classList.remove("hidden");
+
+        // Create process with MINIMAL data (capture returned process ID!)
+        const minimalState = JSON.stringify({ t: turnNumber }); // Just turn number!
+        processId = await window.createProcess(`cr_${Date.now()}`, recipientAddress, minimalState);
+        window.lastProcessId = processId; // Save for cleanup functions
+
+        log(`<span class='success'>✅ Process: ${processId}</span>`);
+        log(`<span class='status'>📋 Reviewer will auto-discover this!</span>`);
+
+        // Save task separately
+        await window.createEntity(`${processId}_task`, task);
+
+        isMyTurn = true;
+        isRunning = true;
+        document.getElementById("deleteAllBtn").classList.remove("hidden");
+        document.getElementById("stopBtn").classList.remove("hidden");
+
+        autoCoderLoop();
+
+      } catch (error) {
+        log(`<span class='error'>❌ ${error.message}</span>`);
+      }
+    }
+
+    async function autoCoderLoop() {
+      while (isRunning && !isApproved) {
+        try {
+          if (isMyTurn) {
+            log("<hr/><span class='status'>🤖 Grok writing...</span>");
+
+            let review = null;
+            if (turnNumber > 0) {
+              const encrypted = await loadChunked(`review_${turnNumber - 1}`);
+              if (encrypted) {
+                review = decryptFromSender(encrypted, recipientAddress, myAccount);
+              }
+            }
+
+            const code = await callGrokAPI(review);
+            log(`<span class='success'>💚 Code (${code.length} chars):</span>`);
+            log(`<pre style="background:#1a1a1a;padding:8px;border-radius:4px;overflow-x:auto;max-height:200px;">${code}</pre>`);
+
+            // Store for later access (when displaying final approved code)
+            window.lastGeneratedCode = code;
+
+            // Encrypt & save
+            const encrypted = encryptForRecipient(code, recipientAddress, myAccount);
+            await saveChunked(`code_${turnNumber}`, encrypted);
+
+            // Update process with MINIMAL data
+            await window.advanceProcess(processId, turnNumber + 1, JSON.stringify({ t: turnNumber + 1 }));
+
+            turnNumber++;
+            isMyTurn = false;
+            log("<span class='success'>✅ Waiting for review...</span>");
+          } else {
+            await checkForReview();
+          }
+
+          await sleep(10000);
+
+        } catch (error) {
+          log(`<span class='error'>❌ ${error.message}</span>`);
+          await sleep(15000);
+        }
+      }
+
+      if (document.getElementById("deleteOnComplete").checked) {
+        await deleteAllAIBoxes();
+      }
+    }
+
+    async function callGrokAPI(review) {
+      const apiKey = localStorage.getItem("grokKey");
+      const task = localStorage.getItem("codeTask");
+
+      const prompt = review ? `Fix: ${review.substring(0, 500)}` : task;
+
+      const res = await fetch("https://api.x.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + apiKey,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "grok-code-fast-1",
+          messages: [
+            { role: "system", content: "Code only. Max 25KB." },
+            { role: "user", content: prompt }
+          ]
+        })
+      });
+
+      if (!res.ok) throw new Error(await res.text());
+      return (await res.json()).choices[0].message.content;
+    }
+
+    async function checkForReview() {
+      const state = await window.readProcess(processId);
+      if (!state) return;
+
+      // Minimal state format: {t: turnNumber}
+      const currentTurn = state.t || 0;
+      if (currentTurn > turnNumber) {
+        const encrypted = await loadChunked(`review_${turnNumber}`);
+        if (!encrypted) return;
+
+        const review = decryptFromSender(encrypted, recipientAddress, myAccount);
+        if (review) {
+          log(`<hr/><span class='success'>💙 Review (${review.length} chars):</span>`);
+          log(`<pre style="background:#1a1a1a;padding:8px;border-radius:4px;overflow-x:auto;max-height:200px;">${review}</pre>`);
+
+          if (review.includes("STATUS: ERROR_FREE")) {
+            log("<span class='success'>🎉 APPROVED!</span>");
+            log(`<hr/><span class='success'>📄 FINAL APPROVED CODE:</span>`);
+
+            // Use the last generated code (stored globally)
+            const finalCode = window.lastGeneratedCode;
+
+            if (!finalCode) {
+              log(`<span class='error'>❌ Could not retrieve final code</span>`);
+              return;
+            }
+
+            log(`<pre id="finalCode" style="background:#1a1a1a;padding:12px;border-radius:4px;overflow-x:auto;max-height:400px;border:2px solid #0f0;">${finalCode}</pre>`);
+            log(`<button onclick="saveFinalCode()" style="background:#0f0;color:#000;padding:10px 20px;font-size:16px;font-weight:bold;border:none;cursor:pointer;border-radius:6px;margin:10px 0;">💾 SAVE CODE</button>`);
+
+            window.finalApprovedCode = finalCode; // Store for save function
+
+            isRunning = false;
+            isApproved = true; // Mark as approved to prevent restart
+
+            if (document.getElementById("deleteOnComplete").checked) {
+              await deleteAllAIBoxes();
+            }
+            return;
+          }
+
+          turnNumber = currentTurn;
+          isMyTurn = true;
+        }
+      }
+    }
+
+    // ============ REVIEWER ============
+
+    async function startAsReviewer() {
+      try {
+        const mnemonic = document.getElementById("reviewerMnemonic").value.trim();
+        const openaiKey = document.getElementById("openaiKey").value.trim();
+        const coderAddr = document.getElementById("coderAddress").value.trim();
+
+        if (!mnemonic || !openaiKey || !coderAddr) throw new Error("Fill all fields");
+
+        localStorage.setItem("openaiKey", openaiKey);
+        recipientAddress = coderAddr;
+
+        log("Connecting wallet...");
+        myAccount = await getSignerFromMnemonic(mnemonic);
+        userRole = 'reviewer'; // Set role for cleanup functions
+
+        log(`<span class='success'>✅ Connected</span>`);
+        log(`<span class='status'>🔍 Auto-discovering process...</span>`);
+
+        // Auto-discover process
+        processId = await discoverProcess(coderAddr, window.sender);
+        if (!processId) throw new Error("No active process found");
+        window.lastProcessId = processId; // Save for cleanup functions
+
+        log(`<span class='success'>✅ Found: ${processId}</span>`);
+
+        isMyTurn = false;
+        isRunning = true;
+        document.getElementById("reviewerDeleteAllBtn").classList.remove("hidden");
+
+        autoReviewerLoop();
+
+      } catch (error) {
+        log(`<span class='error'>❌ ${error.message}</span>`);
+      }
+    }
+
+    async function discoverProcess(coderAddr, reviewerAddr) {
+      // Use indexer to find recent start_process transactions (efficient method from pvp.js)
+      log(`<span class='status'>🔍 Searching for processes...</span>`);
+      log(`<span class='status'>  Looking for: sender=${coderAddr.substring(0, 8)}... → recipient=${reviewerAddr.substring(0, 8)}...</span>`);
+
+      let allMatches = []; // Collect all matching processes
+
+      // Retry up to 3 times (indexer can have delays)
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          if (attempt > 1) {
+            log(`<span class='status'>⏳ Retry ${attempt}/3 (indexer delay)...</span>`);
+            await new Promise(r => setTimeout(r, 3000)); // Wait 3s between retries
+          }
+
+          const currentRound = (await algodClient.status().do())['last-round'];
+          const minRound = Math.max(0, currentRound - 1000); // Last ~1000 rounds (~1 hour)
+
+          // Search for app call transactions to our contract
+          const response = await indexerClient
+            .searchForTransactions()
+            .applicationID(750081112)
+            .minRound(minRound)
+            .limit(100)
+            .do();
+
+          log(`<span class='status'>📊 Found ${response.transactions?.length || 0} recent transactions</span>`);
+
+          if (!response.transactions || response.transactions.length === 0) {
+            continue; // Retry
+          }
+
+          let startProcessCount = 0;
+
+          // Collect ALL matching processes (not just first one)
+          for (const txn of response.transactions) {
+            if (!txn['application-transaction']?.['application-args']) continue;
+
+            const appCall = txn['application-transaction'];
+            const args = appCall['application-args'];
+
+            // start_process has: method_selector, process_id, other_party, initial_state, payment_txn
+            if (args.length >= 4) {
+              try {
+                // Decode process_id (arg 1) - skip ARC4 length prefix (2 bytes)
+                const processIdBytes = Uint8Array.from(atob(args[1]), c => c.charCodeAt(0));
+                const processId = new TextDecoder().decode(processIdBytes.slice(2));
+
+                // Decode other_party address (arg 2) - raw address bytes
+                const otherPartyBytes = Uint8Array.from(atob(args[2]), c => c.charCodeAt(0));
+                const otherPartyAddr = algosdk.encodeAddress(otherPartyBytes);
+
+                startProcessCount++;
+
+                // Check if this process is for us
+                if (txn.sender === coderAddr && otherPartyAddr === reviewerAddr) {
+                  // Extract timestamp from process ID (format: cr_1763835869348)
+                  const timestampMatch = processId.match(/cr_(\d+)/);
+                  const timestamp = timestampMatch ? parseInt(timestampMatch[1]) : 0;
+
+                  allMatches.push({ processId, timestamp, round: txn['confirmed-round'] });
+
+                  if (allMatches.length <= 3) {
+                    log(`<span class='status'>  Found: ${processId} (${new Date(timestamp).toLocaleTimeString()})</span>`);
+                  }
+                }
+              } catch (e) {
+                // Decoding error, skip this transaction
+                continue;
+              }
+            }
+          }
+
+          log(`<span class='status'>📋 Checked ${startProcessCount} start_process txns, found ${allMatches.length} match(es)</span>`);
+
+          // If we found matches, return the newest one
+          if (allMatches.length > 0) {
+            // Sort by timestamp descending (newest first)
+            allMatches.sort((a, b) => b.timestamp - a.timestamp);
+            const newest = allMatches[0];
+            const age = Date.now() - newest.timestamp;
+            const ageMinutes = Math.floor(age / 60000);
+
+            log(`<span class='success'>✅ Selected newest: ${newest.processId} (${new Date(newest.timestamp).toLocaleTimeString()})</span>`);
+
+            // Warn if process is older than 5 minutes
+            if (ageMinutes >= 5) {
+              log(`<span class='status'>⚠️ Warning: This process is ${ageMinutes} minutes old</span>`);
+              log(`<span class='status'>💡 If you want a fresh process, wait for coder to create one first</span>`);
+
+              if (!confirm(`Join process from ${ageMinutes} minutes ago?\n\nProcess: ${newest.processId}\nCreated: ${new Date(newest.timestamp).toLocaleString()}\n\nClick OK to join this process, or Cancel to stop.`)) {
+                throw new Error("User cancelled - process too old");
+              }
+            }
+
+            return newest.processId;
+          }
+
+        } catch (error) {
+          log(`<span class='error'>❌ Indexer error: ${error.message}</span>`);
+        }
+      }
+
+      log(`<span class='error'>❌ No matching process found after 3 attempts</span>`);
+      log(`<span class='status'>💡 Common issues:</span>`);
+      log(`<span class='status'>   1. You entered YOUR OWN address instead of the CODER's address</span>`);
+      log(`<span class='status'>   2. Coder hasn't created a process yet - run CODER first!</span>`);
+      log(`<span class='status'>   3. Coder used a different reviewer address</span>`);
+      log(`<span class='status'>📋 Your address: ${reviewerAddr}</span>`);
+      log(`<span class='status'>📋 Searching for coder: ${coderAddr}</span>`);
+      if (coderAddr === reviewerAddr) {
+        log(`<span class='error'>⚠️ ERROR: Coder and reviewer addresses are THE SAME!</span>`);
+        log(`<span class='error'>   You need to enter the CODER's address, not your own!</span>`);
+      }
+      return null;
+    }
+
+    async function autoReviewerLoop() {
+      while (isRunning && !isApproved) {
+        try {
+          if (isMyTurn) {
+            log("<hr/><span class='status'>🔍 ChatGPT reviewing...</span>");
+
+            // Load code from PREVIOUS turn (coder's turn number was turnNumber-1 when they saved)
+            const codeChunkId = `code_${turnNumber - 1}`;
+            const encrypted = await loadChunked(codeChunkId);
+            if (!encrypted) throw new Error("No code");
+
+            const code = decryptFromSender(encrypted, recipientAddress, myAccount);
+            if (!code) {
+              log(`<span class='error'>❌ Failed to decrypt code!</span>`);
+              throw new Error("Decryption failed");
+            }
+            log(`<span class='success'>💚 Code (${code.length} chars):</span>`);
+            log(`<pre style="background:#1a1a1a;padding:8px;border-radius:4px;overflow-x:auto;max-height:200px;">${code}</pre>`);
+
+            const review = await callOpenAIAPI(code);
+            log(`<span class='success'>💙 Review (${review.length} chars):</span>`);
+            log(`<pre style="background:#1a1a1a;padding:8px;border-radius:4px;overflow-x:auto;max-height:200px;">${review}</pre>`);
+
+            const encryptedReview = encryptForRecipient(review, recipientAddress, myAccount);
+            await saveChunked(`review_${turnNumber}`, encryptedReview);
+
+            await window.advanceProcess(processId, turnNumber + 1, JSON.stringify({ t: turnNumber + 1 }));
+
+            if (review.includes("STATUS: ERROR_FREE")) {
+              log("<span class='success'>🎉 APPROVED!</span>");
+              log(`<hr/><span class='success'>📄 FINAL APPROVED CODE:</span>`);
+              log(`<pre id="finalCode" style="background:#1a1a1a;padding:12px;border-radius:4px;overflow-x:auto;max-height:400px;border:2px solid #0f0;">${code}</pre>`);
+              log(`<button onclick="saveFinalCode()" style="background:#0f0;color:#000;padding:10px 20px;font-size:16px;font-weight:bold;border:none;cursor:pointer;border-radius:6px;margin:10px 0;">💾 SAVE CODE</button>`);
+
+              window.finalApprovedCode = code; // Store globally for save function
+
+              isRunning = false;
+              isApproved = true; // Mark as approved to prevent restart
+
+              // Auto-cleanup if enabled
+              if (document.getElementById("reviewerDeleteOnComplete").checked) {
+                await deleteAllAIBoxes();
+              }
+              return;
+            }
+
+            turnNumber++;
+            isMyTurn = false;
+            log("<span class='success'>✅ Review submitted!</span>");
+          } else {
+            await checkForCode();
+          }
+
+          await sleep(10000);
+
+        } catch (error) {
+          log(`<span class='error'>❌ ${error.message}</span>`);
+          await sleep(15000);
+        }
+      }
+    }
+
+    async function callOpenAIAPI(code) {
+      const apiKey = localStorage.getItem("openaiKey");
+
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + apiKey,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "gpt-4",
+          messages: [
+            { role: "system", content: "Code reviewer. If code is perfect with no issues, you MUST end with exactly 'STATUS: ERROR_FREE' on its own line. If code needs fixes, end with 'STATUS: NEEDS_FIXES'. Be strict - only approve truly production-ready code." },
+            { role: "user", content: `Review this code:\n\`\`\`\n${code}\n\`\`\`` }
+          ]
+        })
+      });
+
+      if (!res.ok) throw new Error(await res.text());
+      return (await res.json()).choices[0].message.content;
+    }
+
+    async function checkForCode() {
+      const state = await window.readProcess(processId);
+      if (!state) return;
+
+      // Minimal state format: {t: turnNumber}
+      const currentTurn = state.t || 0;
+      if (currentTurn > turnNumber) {
+        turnNumber = currentTurn;
+        isMyTurn = true;
+        log("<span class='status'>🎯 Code ready!</span>");
+      }
+    }
+
+    // ============ HELPERS ============
+
+    function sleep(ms) {
+      return new Promise(r => setTimeout(r, ms));
+    }
+  </script>
+</body>
+</html>

@@ -13,7 +13,7 @@ A fully decentralized blog built on Algorand's Universal State Machine smart con
 ## 🔗 Live Demo
 
 - **Blog Interface**: [blog.html](./blog.html)
-- **Smart Contract**: [749599252](https://lora.algokit.io/testnet/application/749599252)
+- **Smart Contract**: [750081112](https://lora.algokit.io/testnet/application/750081112)
 - **Network**: Algorand TestNet
 
 ## 🏗️ How It Works
@@ -50,7 +50,7 @@ Entity Data: {
 
 Enter your 25-word Algorand mnemonic phrase. The blog uses:
 - **Network**: TestNet
-- **Contract**: 749599252
+- **Contract**: 750081112
 - **Storage**: Box storage with `e:blog:` prefix
 
 ### 2. Write a Post
@@ -180,7 +180,7 @@ https://ch4itu.github.io/EternalBliss/blog.html
 ### Verification
 
 View posts on-chain:
-1. Visit https://lora.algokit.io/testnet/application/749599252
+1. Visit https://lora.algokit.io/testnet/application/750081112
 2. Check "Boxes" tab
 3. Look for boxes starting with `e:blog:`
 4. Decode base64 data to see JSON
@@ -221,5 +221,5 @@ Built using:
 ---
 
 **Repository**: [EternalBliss](https://github.com/ch4itu/EternalBliss)
-**Smart Contract**: [749599252](https://lora.algokit.io/testnet/application/749599252)
+**Smart Contract**: [750081112](https://lora.algokit.io/testnet/application/750081112)
 **Network**: Algorand TestNet

@@ -343,14 +343,29 @@
             <p>Fully decentralized blog powered by Universal State Machine on Algorand TestNet</p>
             <p style="margin-top: 10px; font-size: 12px;">
                 <strong>Smart Contract:</strong>
-                <a href="https://lora.algokit.io/testnet/application/749599252" target="_blank" style="color: #667eea;">749599252</a>
+                <a href="https://lora.algokit.io/testnet/application/750081112" target="_blank" style="color: #667eea;">750081112</a>
             </p>
         </div>
 
         <!-- Wallet Connection -->
         <div class="wallet-section">
             <h2>🔗 Connect Wallet</h2>
-            <div id="walletInputSection">
+
+            <!-- Wallet Selection -->
+            <div id="walletSelection">
+                <button id="btn-pera" class="btn btn-primary" style="width: 100%; margin-bottom: 10px;">
+                    <span style="font-size: 20px;">🟡</span> Connect with Pera Wallet
+                </button>
+                <button id="btn-defly" class="btn btn-primary" style="width: 100%; margin-bottom: 10px; background: #333;">
+                    <span style="font-size: 20px;">🦅</span> Connect with Defly Wallet
+                </button>
+                <button id="btn-mnemonic" class="btn" style="width: 100%; background: #e5e7eb; color: #333;">
+                    🔑 Connect with Mnemonic
+                </button>
+            </div>
+
+            <!-- Mnemonic Input (hidden by default) -->
+            <div id="walletInputSection" style="display: none;">
                 <div class="wallet-input-container">
                     <textarea
                         id="mnemonicInput"
@@ -358,22 +373,29 @@
                         placeholder="Enter your 25-word Algorand mnemonic phrase..."
                         style="-webkit-text-security: disc;"
                     ></textarea>
-                    <button class="toggle-visibility" onclick="toggleMnemonicVisibility()">👁️ Show</button>
+                    <button id="btn-toggle-mnemonic" class="toggle-visibility">👁️ Show</button>
                 </div>
-                <button class="btn btn-primary" onclick="connectWallet()">Connect Wallet</button>
+                <button id="btn-connect-mnemonic" class="btn btn-primary" style="width: 100%; margin-top: 8px;">
+                    Connect Wallet
+                </button>
+                <button id="btn-back" class="btn" style="width: 100%; margin-top: 8px; background: #e5e7eb; color: #333;">
+                    ← Back
+                </button>
             </div>
+
+            <!-- Connected State -->
             <div id="walletConnected" style="display: none;">
                 <div class="connected-info">
-                    <strong>✅ Connected</strong>
+                    <strong>✅ Connected</strong> <span id="walletType" style="font-size: 11px; opacity: 0.7;"></span>
                     <div class="address" id="connectedAddress"></div>
                     <div style="margin-top: 10px; font-size: 13px;">
                         Balance: <strong id="algoBalance">0</strong> ALGO
                     </div>
                 </div>
                 <div style="margin-top: 15px;">
-                    <button class="btn btn-primary" onclick="showEditor()">✍️ Write New Post</button>
-                    <button class="btn btn-success" onclick="loadAllPosts()">📚 View All Posts</button>
-                    <button class="btn btn-danger" onclick="disconnectWallet()">Disconnect</button>
+                    <button id="btn-show-editor" class="btn btn-primary">✍️ Write New Post</button>
+                    <button id="btn-load-posts" class="btn btn-success">📚 View All Posts</button>
+                    <button id="btn-disconnect" class="btn btn-danger">Disconnect</button>
                 </div>
             </div>
         </div>
@@ -395,8 +417,8 @@
                     <span id="contentLength">0</span> / 3500 characters
                 </div>
             </div>
-            <button class="btn btn-primary" onclick="publishPost()">📤 Publish to Blockchain</button>
-            <button class="btn" style="background: #e5e7eb; color: #333;" onclick="cancelEditor()">Cancel</button>
+            <button id="btn-publish" class="btn btn-primary">📤 Publish to Blockchain</button>
+            <button id="btn-cancel-editor" class="btn" style="background: #e5e7eb; color: #333;">Cancel</button>
         </div>
 
         <!-- Posts Display -->
@@ -405,9 +427,22 @@
         </div>
     </div>
 
-    <script>
+    <!-- Buffer Polyfill (required for wallet libraries) -->
+    <script type="module">
+        import { Buffer } from "https://esm.sh/buffer@6.0.3";
+        window.Buffer = Buffer;
+        window.global = window;
+        window.process = { env: { NODE_ENV: 'production' } };
+    </script>
+
+    <!-- Main Application Script -->
+    <script type="module">
+        // Import wallet libraries
+        import { PeraWalletConnect } from "https://esm.sh/@perawallet/connect@1.4.2?bundle-deps";
+        import { DeflyWalletConnect } from "https://esm.sh/@blockshake/defly-connect@1.2.1?bundle-deps";
+
         // Configuration
-        const APP_ID = 749599252;
+        const APP_ID = 750081112;
         const ALGOD_SERVER = 'https://testnet-api.algonode.cloud';
         const ALGOD_PORT = '';
         const ALGOD_TOKEN = '';
@@ -415,21 +450,26 @@
         // Global state
         let algodClient;
         let currentAccount = null;
+        let currentAddress = null;
+        let peraWallet = null;
+        let deflyWallet = null;
+        let walletType = null; // 'pera', 'defly', or 'mnemonic'
+        const CHAIN_ID = 416002; // Testnet
 
         // Full ABI Contract Definition (from compiled ARC-56)
         const CONTRACT_ABI = {
             "name": "UniversalStateMachine",
             "methods": [
-                {"name": "save_entity", "args": [{"type": "string", "name": "entity_id"}, {"type": "string", "name": "entity_data"}, {"type": "pay", "name": "mbr_payment"}], "returns": {"type": "string"}},
+                {"name": "save_entity", "args": [{"type": "string", "name": "entity_id"}, {"type": "string", "name": "entity_data"}], "returns": {"type": "string"}},
                 {"name": "load_entity", "args": [{"type": "string", "name": "entity_id"}], "returns": {"type": "string"}},
                 {"name": "get_entity_owner", "args": [{"type": "string", "name": "entity_id"}], "returns": {"type": "address"}},
-                {"name": "transfer_entity", "args": [{"type": "string", "name": "entity_id"}, {"type": "address", "name": "new_owner"}], "returns": {"type": "string"}},
-                {"name": "delete_entity", "args": [{"type": "string", "name": "entity_id"}], "returns": {"type": "string"}},
-                {"name": "start_process", "args": [{"type": "string", "name": "process_id"}, {"type": "address", "name": "other_party"}, {"type": "string", "name": "initial_state"}, {"type": "pay", "name": "mbr_payment"}], "returns": {"type": "string"}},
-                {"name": "update_process", "args": [{"type": "string", "name": "process_id"}, {"type": "string", "name": "new_state"}, {"type": "pay", "name": "mbr_payment"}], "returns": {"type": "string"}},
+                {"name": "delete_entity", "args": [{"type": "string", "name": "entity_id"}], "returns": {"type": "void"}},
+                {"name": "start_process", "args": [{"type": "string", "name": "process_id"}, {"type": "address", "name": "other_party"}, {"type": "string", "name": "initial_state"}, {"type": "uint64", "name": "timeout_rounds"}], "returns": {"type": "string"}},
+                {"name": "update_process", "args": [{"type": "string", "name": "process_id"}, {"type": "string", "name": "new_state"}], "returns": {"type": "string"}},
+                {"name": "resign_process", "args": [{"type": "string", "name": "process_id"}], "returns": {"type": "void"}},
                 {"name": "load_process", "args": [{"type": "string", "name": "process_id"}], "returns": {"type": "string"}},
-                {"name": "delete_process", "args": [{"type": "string", "name": "process_id"}], "returns": {"type": "string"}},
-                {"name": "get_process_info", "args": [{"type": "string", "name": "process_id"}], "returns": {"type": "(address,address,uint64)"}},
+                {"name": "delete_process", "args": [{"type": "string", "name": "process_id"}], "returns": {"type": "void"}},
+                {"name": "get_process_info", "args": [{"type": "string", "name": "process_id"}], "returns": {"type": "(address,address,uint64,bool,uint64)"}},
                 {"name": "pause", "args": [], "returns": {"type": "string"}},
                 {"name": "unpause", "args": [], "returns": {"type": "string"}},
                 {"name": "set_admin", "args": [{"type": "address", "name": "new_admin"}], "returns": {"type": "string"}},
@@ -439,22 +479,17 @@
             ]
         };
 
-        // Helper: Create box key with ARC-4 encoding (matches blockchain.js implementation)
+        // Helper: Create box key for contract v3.2 (raw UTF-8, no ARC-4 encoding)
         function createBlogBoxKey(postId) {
             const encoder = new TextEncoder();
+            const prefix = encoder.encode('e:');
             const idBytes = encoder.encode(postId);
-            const idLength = idBytes.length;
 
-            // ARC-4 string encoding: 2-byte big-endian length prefix + string bytes
-            const arc4Encoded = new Uint8Array(2 + idLength);
-            arc4Encoded[0] = (idLength >> 8) & 0xFF;  // High byte
-            arc4Encoded[1] = idLength & 0xFF;          // Low byte
-            arc4Encoded.set(idBytes, 2);
-
-            // Full box key: "e:" + arc4_encoded_post_id
-            const boxKey = new Uint8Array(2 + arc4Encoded.length);
-            boxKey.set(encoder.encode('e:'), 0);
-            boxKey.set(arc4Encoded, 2);
+            // Contract v3.2 uses .native.bytes - no ARC-4 encoding
+            // Box key: "e:" + raw_post_id
+            const boxKey = new Uint8Array(prefix.length + idBytes.length);
+            boxKey.set(prefix, 0);
+            boxKey.set(idBytes, prefix.length);
 
             return boxKey;
         }
@@ -462,6 +497,50 @@
         // Initialize Algorand client
         function initAlgod() {
             algodClient = new algosdk.Algodv2(ALGOD_TOKEN, ALGOD_SERVER, ALGOD_PORT);
+        }
+
+        // Initialize wallet instances
+        function initWallets() {
+            peraWallet = new PeraWalletConnect({ chainId: CHAIN_ID });
+            deflyWallet = new DeflyWalletConnect({ chainId: CHAIN_ID });
+
+            // Set up disconnect listeners
+            peraWallet.connector?.on("disconnect", handleDisconnect);
+            deflyWallet.connector?.on("disconnect", handleDisconnect);
+
+            console.log('Wallets initialized for TestNet');
+        }
+
+        // Check for existing sessions on load
+        async function checkSessions() {
+            try {
+                const peraAccounts = await peraWallet.reconnectSession();
+                if (peraAccounts.length) {
+                    handleConnectSuccess('pera', peraAccounts[0]);
+                    return;
+                }
+            } catch(e) {}
+
+            try {
+                const deflyAccounts = await deflyWallet.reconnectSession();
+                if (deflyAccounts.length) {
+                    handleConnectSuccess('defly', deflyAccounts[0]);
+                    return;
+                }
+            } catch(e) {}
+        }
+
+        // UI: Show mnemonic input
+        function showMnemonicInput() {
+            document.getElementById('walletSelection').style.display = 'none';
+            document.getElementById('walletInputSection').style.display = 'block';
+        }
+
+        // UI: Back to wallet selection
+        function backToWalletSelection() {
+            document.getElementById('walletSelection').style.display = 'block';
+            document.getElementById('walletInputSection').style.display = 'none';
+            document.getElementById('mnemonicInput').value = '';
         }
 
         // Toggle mnemonic visibility
@@ -477,8 +556,40 @@
             }
         }
 
-        // Connect wallet
-        async function connectWallet() {
+        // Connect with Pera Wallet
+        async function connectPeraWallet() {
+            try {
+                const accounts = await peraWallet.connect();
+                peraWallet.connector.on("disconnect", handleDisconnect);
+                if (accounts.length > 0) {
+                    handleConnectSuccess('pera', accounts[0]);
+                }
+            } catch (error) {
+                if (error?.data?.type !== "CONNECT_MODAL_CLOSED") {
+                    console.error('Pera connection error:', error);
+                    showStatus('Failed to connect with Pera Wallet', 'error');
+                }
+            }
+        }
+
+        // Connect with Defly Wallet
+        async function connectDeflyWallet() {
+            try {
+                const accounts = await deflyWallet.connect();
+                deflyWallet.connector.on("disconnect", handleDisconnect);
+                if (accounts.length > 0) {
+                    handleConnectSuccess('defly', accounts[0]);
+                }
+            } catch (error) {
+                if (error?.data?.type !== "CONNECT_MODAL_CLOSED") {
+                    console.error('Defly connection error:', error);
+                    showStatus('Failed to connect with Defly Wallet', 'error');
+                }
+            }
+        }
+
+        // Connect with Mnemonic
+        async function connectWithMnemonic() {
             try {
                 const mnemonic = document.getElementById('mnemonicInput').value.trim();
                 if (!mnemonic) {
@@ -486,35 +597,66 @@
                     return;
                 }
 
-                initAlgod();
                 currentAccount = algosdk.mnemonicToSecretKey(mnemonic);
-
-                // Get balance
-                const accountInfo = await algodClient.accountInformation(currentAccount.addr).do();
-                const balance = (accountInfo.amount / 1000000).toFixed(2);
-
-                // Update UI
-                document.getElementById('walletInputSection').style.display = 'none';
-                document.getElementById('walletConnected').style.display = 'block';
-                document.getElementById('connectedAddress').textContent = currentAccount.addr;
-                document.getElementById('algoBalance').textContent = balance;
-
-                showStatus('✅ Wallet connected successfully!', 'success');
+                handleConnectSuccess('mnemonic', currentAccount.addr);
             } catch (error) {
-                console.error('Connection error:', error);
-                showStatus('Failed to connect wallet. Please check your mnemonic.', 'error');
+                console.error('Mnemonic connection error:', error);
+                showStatus('Invalid mnemonic phrase', 'error');
             }
         }
 
+        // Handle successful connection (unified for all wallet types)
+        async function handleConnectSuccess(type, address) {
+            walletType = type;
+            currentAddress = address;
+
+            // For mnemonic, currentAccount is already set
+            if (type !== 'mnemonic') {
+                currentAccount = { addr: address };
+            }
+
+            // Get balance
+            try {
+                const accountInfo = await algodClient.accountInformation(address).do();
+                const balance = (accountInfo.amount / 1000000).toFixed(2);
+                document.getElementById('algoBalance').textContent = balance;
+            } catch (e) {
+                document.getElementById('algoBalance').textContent = '0.00';
+            }
+
+            // Update UI
+            document.getElementById('walletSelection').style.display = 'none';
+            document.getElementById('walletInputSection').style.display = 'none';
+            document.getElementById('walletConnected').style.display = 'block';
+            document.getElementById('connectedAddress').textContent = address;
+
+            const walletNames = { pera: 'Pera Wallet', defly: 'Defly Wallet', mnemonic: 'Mnemonic' };
+            document.getElementById('walletType').textContent = `(${walletNames[type]})`;
+
+            showStatus(`✅ Connected with ${walletNames[type]}!`, 'success');
+        }
+
         // Disconnect wallet
-        function disconnectWallet() {
+        function handleDisconnect() {
+            if (walletType === 'pera' && peraWallet) {
+                peraWallet.disconnect();
+            }
+            if (walletType === 'defly' && deflyWallet) {
+                deflyWallet.disconnect();
+            }
+
+            walletType = null;
             currentAccount = null;
-            document.getElementById('walletInputSection').style.display = 'block';
+            currentAddress = null;
+
+            // Update UI
             document.getElementById('walletConnected').style.display = 'none';
-            document.getElementById('mnemonicInput').value = '';
+            document.getElementById('walletSelection').style.display = 'block';
             document.getElementById('editorSection').classList.remove('active');
             document.getElementById('postsSection').classList.remove('active');
-            showStatus('Disconnected from wallet', 'success');
+            document.getElementById('mnemonicInput').value = '';
+
+            showStatus('Wallet disconnected', 'info');
         }
 
         // Show editor
@@ -589,37 +731,96 @@
                 const totalBytes = 2 + keyLen + 32 + dataLen;
                 const mbrAmount = 2500 + (400 * totalBytes);
 
-                // Create atomic transaction composer
-                const atc = new algosdk.AtomicTransactionComposer();
-
-                // Add MBR payment
-                const mbrTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-                    from: currentAccount.addr,
-                    to: algosdk.getApplicationAddress(APP_ID),
-                    amount: mbrAmount,
-                    suggestedParams: params
-                });
-
-                // Use full ABI contract
-                const contract = new algosdk.ABIContract(CONTRACT_ABI);
-                const method = contract.getMethodByName('save_entity');
-
                 // Box reference with ARC-4 encoding
                 const boxKey = createBlogBoxKey(postId);
 
-                atc.addMethodCall({
-                    appID: APP_ID,
-                    method: method,
-                    methodArgs: [postId, JSON.stringify(postData), { txn: mbrTxn, signer: algosdk.makeBasicAccountTransactionSigner(currentAccount) }],
-                    sender: currentAccount.addr,
-                    suggestedParams: params,
-                    signer: algosdk.makeBasicAccountTransactionSigner(currentAccount),
-                    boxes: [{appIndex: APP_ID, name: boxKey}]
-                });
+                if (walletType === 'mnemonic') {
+                    // For mnemonic: use ATC
+                    const atc = new algosdk.AtomicTransactionComposer();
 
-                // Execute
-                const result = await atc.execute(algodClient, 3);
-                console.log('Transaction result:', result);
+                    // Add MBR payment
+                    const mbrTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+                        from: currentAccount.addr,
+                        to: algosdk.getApplicationAddress(APP_ID),
+                        amount: mbrAmount,
+                        suggestedParams: params
+                    });
+
+                    const contract = new algosdk.ABIContract(CONTRACT_ABI);
+                    const method = contract.getMethodByName('save_entity');
+                    const signer = algosdk.makeBasicAccountTransactionSigner(currentAccount);
+
+                    // Add payment transaction FIRST
+                    atc.addTransaction({ txn: mbrTxn, signer: signer });
+                    // Then add method call WITHOUT payment parameter
+                    atc.addMethodCall({
+                        appID: APP_ID,
+                        method: method,
+                        methodArgs: [postId, JSON.stringify(postData)],
+                        sender: currentAccount.addr,
+                        suggestedParams: params,
+                        signer: signer,
+                        boxes: [{appIndex: APP_ID, name: boxKey}]
+                    });
+
+                    const result = await atc.execute(algodClient, 3);
+                    console.log('Transaction result:', result);
+                } else {
+                    // For Pera/Defly: build transactions manually with proper ABI encoding
+                    const contract = new algosdk.ABIContract(CONTRACT_ABI);
+                    const method = contract.getMethodByName('save_entity');
+
+                    // Encode method arguments with ARC-4
+                    const methodSelector = method.getSelector();
+                    const enc = new TextEncoder();
+
+                    // ARC-4 encode strings (2-byte length prefix + data)
+                    const encodeARC4String = (str) => {
+                        const bytes = enc.encode(str);
+                        const len = bytes.length;
+                        const result = new Uint8Array(2 + len);
+                        result[0] = (len >> 8) & 0xFF;
+                        result[1] = len & 0xFF;
+                        result.set(bytes, 2);
+                        return result;
+                    };
+
+                    const arg1 = encodeARC4String(postId);
+                    const arg2 = encodeARC4String(JSON.stringify(postData));
+
+                    const mbrTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+                        from: currentAddress,
+                        to: algosdk.getApplicationAddress(APP_ID),
+                        amount: mbrAmount,
+                        suggestedParams: params
+                    });
+
+                    // Build app call transaction
+                    const appCallTxn = algosdk.makeApplicationNoOpTxnFromObject({
+                        from: currentAddress,
+                        appIndex: APP_ID,
+                        appArgs: [methodSelector, arg1, arg2],
+                        foreignAssets: [],
+                        accounts: [],
+                        foreignApps: [],
+                        boxes: [{appIndex: APP_ID, name: boxKey}],
+                        suggestedParams: params
+                    });
+
+                    // Group transactions
+                    const txnGroup = [mbrTxn, appCallTxn];
+                    algosdk.assignGroupID(txnGroup);
+
+                    // Sign with wallet (pass txnGroup directly, not wrapped in array)
+                    const signedTxns = walletType === 'pera'
+                        ? await peraWallet.signTransaction(txnGroup)
+                        : await deflyWallet.signTransaction(txnGroup);
+
+                    // Submit
+                    const { txId } = await algodClient.sendRawTransaction(signedTxns).do();
+                    await algosdk.waitForConfirmation(algodClient, txId, 3);
+                    console.log('Transaction confirmed:', txId);
+                }
 
                 showStatus('✅ Post published successfully to blockchain!', 'success');
 
@@ -661,41 +862,34 @@
                 const decoder = new TextDecoder();
 
                 for (const box of boxes.boxes) {
-                    // Decode box name from ARC-4 encoding
+                    // Decode box name (v3.2 uses raw UTF-8, no ARC-4)
                     const rawName = box.name;
 
                     // Check if it starts with "e:" (first 2 bytes)
                     if (rawName[0] === 0x65 && rawName[1] === 0x3a) {
-                        // Extract ARC-4 encoded string after "e:"
-                        const arc4Data = rawName.slice(2);
-                        if (arc4Data.length >= 2) {
-                            const strLength = (arc4Data[0] << 8) | arc4Data[1];
-                            const strBytes = arc4Data.slice(2, 2 + strLength);
-                            const entityId = decoder.decode(strBytes);
+                        // Contract v3.2: Box key is "e:" + raw_entity_id (no ARC-4 encoding)
+                        const entityIdBytes = rawName.slice(2);
+                        const entityId = decoder.decode(entityIdBytes);
 
-                            // Check if it's a blog post
-                            if (entityId.startsWith('blog-')) {
-                                try {
-                                    const boxData = await algodClient.getApplicationBoxByName(APP_ID, rawName).do();
-                                    const boxValue = boxData.value;
+                        // Check if it's a blog post
+                        if (entityId.startsWith('blog-')) {
+                            try {
+                                const boxData = await algodClient.getApplicationBoxByName(APP_ID, rawName).do();
+                                const boxValue = boxData.value;
 
-                                    // Box structure: owner(32) + ARC-4 encoded data
-                                    // Skip owner (first 32 bytes)
-                                    const dataStart = 32;
+                                // Box structure (v3.2): owner(32) + raw entity data
+                                // Contract uses .native.bytes which strips ARC4 encoding
+                                // Skip owner (first 32 bytes)
+                                const dataBytes = boxValue.slice(32);
 
-                                    // Decode ARC-4 string: 2-byte length prefix + string bytes
-                                    const dataLength = (boxValue[dataStart] << 8) | boxValue[dataStart + 1];
-                                    const dataBytes = boxValue.slice(dataStart + 2, dataStart + 2 + dataLength);
-
-                                    // Parse JSON
-                                    const jsonData = decoder.decode(dataBytes);
-                                    const post = JSON.parse(jsonData);
-                                    post.id = `e:${entityId}`;
-                                    post.entityId = entityId;
-                                    blogPosts.push(post);
-                                } catch (error) {
-                                    console.error('Error loading box:', entityId, error);
-                                }
+                                // Decode raw UTF-8 bytes (NO ARC4 prefix)
+                                const jsonData = decoder.decode(dataBytes);
+                                const post = JSON.parse(jsonData);
+                                post.id = `e:${entityId}`;
+                                post.entityId = entityId;
+                                blogPosts.push(post);
+                            } catch (error) {
+                                console.error('Error loading box:', entityId, error);
                             }
                         }
                     }
@@ -748,7 +942,7 @@
                     <div class="post-content">${escapeHtml(post.content)}</div>
                     ${isOwner ? `
                         <div class="post-actions">
-                            <button class="btn btn-danger" onclick="deletePost('${post.entityId}')">🗑️ Delete Post</button>
+                            <button class="btn btn-danger delete-post-btn" data-entity-id="${post.entityId}">🗑️ Delete Post</button>
                         </div>
                     ` : ''}
                 </div>
@@ -765,26 +959,71 @@
                 showStatus('🗑️ Deleting post...', 'success');
 
                 const params = await algodClient.getTransactionParams().do();
-
-                // Use full ABI contract
                 const contract = new algosdk.ABIContract(CONTRACT_ABI);
                 const method = contract.getMethodByName('delete_entity');
-                const atc = new algosdk.AtomicTransactionComposer();
-
-                // Box reference with ARC-4 encoding
                 const boxKey = createBlogBoxKey(entityId);
 
-                atc.addMethodCall({
-                    appID: APP_ID,
-                    method: method,
-                    methodArgs: [entityId],
-                    sender: currentAccount.addr,
-                    suggestedParams: params,
-                    signer: algosdk.makeBasicAccountTransactionSigner(currentAccount),
-                    boxes: [{appIndex: APP_ID, name: boxKey}]
-                });
+                if (walletType === 'mnemonic') {
+                    // For mnemonic: use ATC
+                    const atc = new algosdk.AtomicTransactionComposer();
+                    const signer = algosdk.makeBasicAccountTransactionSigner(currentAccount);
 
-                await atc.execute(algodClient, 3);
+                    // delete_entity creates inner transaction for MBR refund - needs 2x fee
+                    const deleteParams = { ...params };
+                    deleteParams.flatFee = true;
+                    deleteParams.fee = 2 * algosdk.ALGORAND_MIN_TX_FEE;
+
+                    atc.addMethodCall({
+                        appID: APP_ID,
+                        method: method,
+                        methodArgs: [entityId],
+                        sender: currentAccount.addr,
+                        suggestedParams: deleteParams,
+                        signer: signer,
+                        boxes: [{appIndex: APP_ID, name: boxKey}]
+                    });
+
+                    await atc.execute(algodClient, 3);
+                } else {
+                    // For Pera/Defly: build transaction manually
+                    const methodSelector = method.getSelector();
+                    const enc = new TextEncoder();
+
+                    // ARC-4 encode string
+                    const encodeARC4String = (str) => {
+                        const bytes = enc.encode(str);
+                        const len = bytes.length;
+                        const result = new Uint8Array(2 + len);
+                        result[0] = (len >> 8) & 0xFF;
+                        result[1] = len & 0xFF;
+                        result.set(bytes, 2);
+                        return result;
+                    };
+
+                    const arg1 = encodeARC4String(entityId);
+
+                    // delete_entity creates inner transaction for MBR refund - needs 2x fee
+                    const deleteParams = { ...params };
+                    deleteParams.flatFee = true;
+                    deleteParams.fee = 2 * algosdk.ALGORAND_MIN_TX_FEE;
+
+                    const txn = algosdk.makeApplicationNoOpTxnFromObject({
+                        from: currentAddress,
+                        appIndex: APP_ID,
+                        appArgs: [methodSelector, arg1],
+                        boxes: [{appIndex: APP_ID, name: boxKey}],
+                        suggestedParams: deleteParams
+                    });
+
+                    // Sign with wallet (single transaction, still pass as array)
+                    const signedTxns = walletType === 'pera'
+                        ? await peraWallet.signTransaction([txn])
+                        : await deflyWallet.signTransaction([txn]);
+
+                    // Submit
+                    const { txId } = await algodClient.sendRawTransaction(signedTxns).do();
+                    await algosdk.waitForConfirmation(algodClient, txId, 3);
+                }
 
                 showStatus('✅ Post deleted successfully!', 'success');
 
@@ -817,8 +1056,41 @@
             return div.innerHTML;
         }
 
+        // ===== INITIALIZATION AND EVENT LISTENERS =====
+
         // Initialize
         initAlgod();
+        initWallets();
+
+        // Check for existing wallet sessions
+        checkSessions();
+
+        // Wallet connection buttons
+        document.getElementById('btn-pera').addEventListener('click', connectPeraWallet);
+        document.getElementById('btn-defly').addEventListener('click', connectDeflyWallet);
+        document.getElementById('btn-mnemonic').addEventListener('click', showMnemonicInput);
+
+        // Mnemonic UI buttons
+        document.getElementById('btn-toggle-mnemonic').addEventListener('click', toggleMnemonicVisibility);
+        document.getElementById('btn-connect-mnemonic').addEventListener('click', connectWithMnemonic);
+        document.getElementById('btn-back').addEventListener('click', backToWalletSelection);
+
+        // Connected state buttons
+        document.getElementById('btn-show-editor').addEventListener('click', showEditor);
+        document.getElementById('btn-load-posts').addEventListener('click', loadAllPosts);
+        document.getElementById('btn-disconnect').addEventListener('click', handleDisconnect);
+
+        // Editor buttons
+        document.getElementById('btn-publish').addEventListener('click', publishPost);
+        document.getElementById('btn-cancel-editor').addEventListener('click', cancelEditor);
+
+        // Event delegation for dynamically created delete buttons
+        document.getElementById('postsContainer').addEventListener('click', (e) => {
+            if (e.target.classList.contains('delete-post-btn')) {
+                const entityId = e.target.getAttribute('data-entity-id');
+                deletePost(entityId);
+            }
+        });
     </script>
 </body>
 </html>

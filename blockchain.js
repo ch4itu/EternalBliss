@@ -18,34 +18,32 @@ const ALGOD_PORT = '';
 const ALGOD_TOKEN = '';
 
 // UPDATED: Universal State Machine contract (generic entity/process storage)
-let APP_ID = 749599252;
+let APP_ID = 750081112;
 
 function calculateMBR(stateDataSize, isProcess = false, keyLength = null) {
-    // CRITICAL: Match contract's exact MBR formula!
-    // Contract formula: 2500 + 400 * total_bytes (NOT blocks!)
+    // CRITICAL: Match contract's EXACT MBR formula!
+    // Contract formula: 2500 + 400 * total_bytes
     //
-    // For entities: total_bytes = prefix(2) + key + owner(32) + data
-    // For processes: total_bytes = prefix(2) + key + p1(32) + p2(32) + turn(8) + data
+    // Contract storage structure:
+    // - Entity box key: "e:" + entity_id_bytes (NO ARC4 encoding)
+    // - Entity box value: owner(32) + raw_data_bytes (NO ARC4 encoding)
+    // - Process box key: "p:" + process_id_bytes (NO ARC4 encoding)
+    // - Process box value: p1(32) + p2(32) + turn(8) + finalFlag(1) + timeoutRound(8) + raw_state_bytes
     //
-    // IMPORTANT: ARC4 strings include a 2-byte length prefix!
-    // entity_data.bytes and initial_state.bytes in contract include this prefix
+    // The contract uses .native.bytes which strips ARC4 encoding!
+    // Data is stored as raw UTF-8 bytes in the box.
 
     if (isProcess) {
-        // Process box: "p:" (2) + ARC4_key + participant1(32) + participant2(32) + turn(8) + data
-        // Default key: battle ID ~50 chars = 2 (ARC4 length) + 50 = 52 bytes
-        // data is ARC4 encoded: 2 (length prefix) + actual data bytes
-        const keySize = keyLength || 52;
-        const arc4DataSize = 2 + stateDataSize;  // Add 2-byte ARC4 length prefix
-        const total_bytes = 2 + keySize + 32 + 32 + 8 + arc4DataSize;
+        // Process box value: 32 + 32 + 8 + 1 + 8 = 81 bytes header + raw state data
+        const keySize = keyLength || (2 + 16); // Default: "p:" + 16 char process ID
+        const valueSize = 81 + stateDataSize; // Header (81) + raw state bytes
+        const total_bytes = keySize + valueSize;
         return 2500 + (400 * total_bytes);
     } else {
-        // Entity box: "e:" (2) + ARC4_key + owner(32) + data
-        // Default key: player address 58 chars = 2 (ARC4 length) + 58 = 60 bytes
-        // Or "w:ADDRESS" = 2 + 60 = 62 bytes (waiting list, fits 64 byte limit)
-        // data is ARC4 encoded: 2 (length prefix) + actual data bytes
-        const keySize = keyLength || 60;
-        const arc4DataSize = 2 + stateDataSize;  // Add 2-byte ARC4 length prefix
-        const total_bytes = 2 + keySize + 32 + arc4DataSize;
+        // Entity box value: 32 bytes owner + raw data bytes
+        const keySize = keyLength || (2 + 58); // Default: "e:" + 58 char address
+        const valueSize = 32 + stateDataSize; // Owner (32) + raw data bytes
+        const total_bytes = keySize + valueSize;
         return 2500 + (400 * total_bytes);
     }
 }
@@ -54,12 +52,12 @@ function calculateMBR(stateDataSize, isProcess = false, keyLength = null) {
 async function calculateOptimalEntityMBR(algod, appId, boxKey, newDataSize, keyLength) {
     try {
         const existingBox = await algod.getApplicationBoxByName(appId, boxKey).do();
-        const existingValueSize = existingBox.value.length; // owner(32) + ARC4_data
-        const newValueSize = 32 + 2 + newDataSize; // owner(32) + ARC4(data)
+        const existingValueSize = existingBox.value.length; // owner(32) + raw_data
+        const newValueSize = 32 + newDataSize; // owner(32) + new_raw_data
 
         // Total box size = key + value
-        const oldTotalSize = 2 + keyLength + existingValueSize;
-        const newTotalSize = 2 + keyLength + newValueSize;
+        const oldTotalSize = keyLength + existingValueSize;
+        const newTotalSize = keyLength + newValueSize;
 
         // Only pay for size increase, if any
         const sizeDiff = Math.max(0, newTotalSize - oldTotalSize);
@@ -78,12 +76,12 @@ async function calculateOptimalEntityMBR(algod, appId, boxKey, newDataSize, keyL
 async function calculateOptimalProcessMBR(algod, appId, boxKey, newDataSize, keyLength) {
     try {
         const existingBox = await algod.getApplicationBoxByName(appId, boxKey).do();
-        const existingValueSize = existingBox.value.length; // p1(32) + p2(32) + turn(8) + ARC4_data
-        const newValueSize = 32 + 32 + 8 + 2 + newDataSize; // p1(32) + p2(32) + turn(8) + ARC4(data)
+        const existingValueSize = existingBox.value.length; // 81 bytes header + raw_state
+        const newValueSize = 81 + newDataSize; // 81 bytes header + new_raw_state
 
         // Total box size = key + value
-        const oldTotalSize = 2 + keyLength + existingValueSize;
-        const newTotalSize = 2 + keyLength + newValueSize;
+        const oldTotalSize = keyLength + existingValueSize;
+        const newTotalSize = keyLength + newValueSize;
 
         // Only pay for size increase, if any
         const sizeDiff = Math.max(0, newTotalSize - oldTotalSize);
@@ -185,7 +183,7 @@ function createTransactionWithSigner(txn, account) {
 // No unpacking functions needed - data is stored as JSON strings in boxes
 
 // Embedded ABI contract definition (generic UniversalStateMachine)
-// Full contract: UniversalStateMachine (App ID: 749599252)
+// Full contract: UniversalStateMachine (App ID: 750081112)
 // Complete ABI available in: contracts/out/UniversalStateMachine.arc56.json
 const CONTRACT_ABI = {
     name: "UniversalStateMachine",
@@ -194,8 +192,7 @@ const CONTRACT_ABI = {
             name: "save_entity",
             args: [
                 { type: "string", name: "entity_id" },
-                { type: "string", name: "entity_data" },
-                { type: "pay", name: "mbr_payment" }
+                { type: "string", name: "entity_data" }
             ],
             returns: { type: "string" }
         },
@@ -218,7 +215,7 @@ const CONTRACT_ABI = {
             args: [
                 { type: "string", name: "entity_id" }
             ],
-            returns: { type: "string" }
+            returns: { type: "void" }
         },
         {
             name: "start_process",
@@ -226,7 +223,7 @@ const CONTRACT_ABI = {
                 { type: "string", name: "process_id" },
                 { type: "address", name: "other_party" },
                 { type: "string", name: "initial_state" },
-                { type: "pay", name: "mbr_payment" }
+                { type: "uint64", name: "timeout_rounds" }
             ],
             returns: { type: "string" }
         },
@@ -234,8 +231,7 @@ const CONTRACT_ABI = {
             name: "update_process",
             args: [
                 { type: "string", name: "process_id" },
-                { type: "string", name: "new_state" },
-                { type: "pay", name: "mbr_payment" }
+                { type: "string", name: "new_state" }
             ],
             returns: { type: "string" }
         },
@@ -247,18 +243,25 @@ const CONTRACT_ABI = {
             returns: { type: "string" }
         },
         {
+            name: "resign_process",
+            args: [
+                { type: "string", name: "process_id" }
+            ],
+            returns: { type: "void" }
+        },
+        {
             name: "get_process_info",
             args: [
                 { type: "string", name: "process_id" }
             ],
-            returns: { type: "(address,address,uint64)" }
+            returns: { type: "(address,address,uint64,bool,uint64)" }
         },
         {
             name: "delete_process",
             args: [
                 { type: "string", name: "process_id" }
             ],
-            returns: { type: "string" }
+            returns: { type: "void" }
         }
     ]
 };
@@ -276,40 +279,27 @@ function initContractABI() {
 
 // Helper function to create box keys matching contract's format
 function createPlayerBoxKey(playerId) {
-    // Contract uses: BoxMap(Bytes, Bytes, key_prefix=b"e:")[player_id.bytes]
-    // where player_id.bytes is ARC4 encoded string: [length_high, length_low, ...string_bytes]
+    // Contract uses: b"e:" + entity_id.native.bytes
+    // .native.bytes strips ARC4 encoding, so we use raw UTF-8 bytes
+    const prefix = new TextEncoder().encode('e:');
     const addressBytes = new TextEncoder().encode(playerId);
-    const addressLength = addressBytes.length;
 
-    // ARC4 string encoding: 2-byte length prefix + string bytes
-    const arc4Encoded = new Uint8Array(2 + addressLength);
-    arc4Encoded[0] = (addressLength >> 8) & 0xFF;
-    arc4Encoded[1] = addressLength & 0xFF;
-    arc4Encoded.set(addressBytes, 2);
-
-    // Full box key: "e:" + arc4_encoded_player_id
-    const boxKey = new Uint8Array(2 + arc4Encoded.length);
-    boxKey.set(new TextEncoder().encode('e:'), 0);
-    boxKey.set(arc4Encoded, 2);
+    const boxKey = new Uint8Array(prefix.length + addressBytes.length);
+    boxKey.set(prefix, 0);
+    boxKey.set(addressBytes, prefix.length);
 
     return boxKey;
 }
 
 function createBattleBoxKey(battleId) {
-    // Contract uses: BoxMap(Bytes, Bytes, key_prefix=b"p:")[battle_id.bytes]
+    // Contract uses: b"p:" + process_id.native.bytes
+    // .native.bytes strips ARC4 encoding, so we use raw UTF-8 bytes
+    const prefix = new TextEncoder().encode('p:');
     const battleBytes = new TextEncoder().encode(battleId);
-    const battleLength = battleBytes.length;
 
-    // ARC4 string encoding
-    const arc4Encoded = new Uint8Array(2 + battleLength);
-    arc4Encoded[0] = (battleLength >> 8) & 0xFF;
-    arc4Encoded[1] = battleLength & 0xFF;
-    arc4Encoded.set(battleBytes, 2);
-
-    // Full box key: "p:" + arc4_encoded_battle_id
-    const boxKey = new Uint8Array(2 + arc4Encoded.length);
-    boxKey.set(new TextEncoder().encode('p:'), 0);
-    boxKey.set(arc4Encoded, 2);
+    const boxKey = new Uint8Array(prefix.length + battleBytes.length);
+    boxKey.set(prefix, 0);
+    boxKey.set(battleBytes, prefix.length);
 
     return boxKey;
 }
@@ -730,8 +720,8 @@ class EternalBlissContract {
         const method = abiContract.getMethodByName('save_entity');
         const boxKey = createPlayerBoxKey(account.addr);
 
-        // Calculate key length: player address is 58 chars, ARC4 encoded = 2 + 58 = 60
-        const keyLength = 2 + account.addr.length;
+        // Calculate key length: "e:" + player_address (no ARC4 encoding)
+        const keyLength = boxKey.length;
 
         const paymentTxn = createMBRPaymentTransaction(
             account.addr,
@@ -745,13 +735,15 @@ class EternalBlissContract {
         methodParams.fee = algosdk.ALGORAND_MIN_TX_FEE;
 
         const atc = new algosdk.AtomicTransactionComposer();
+        // Add payment transaction FIRST (contract validates it's before the app call)
+        atc.addTransaction(createTransactionWithSigner(paymentTxn, account));
+        // Then add the method call WITHOUT payment parameter
         atc.addMethodCall({
             appID: this.appId,
             method,
             methodArgs: [
                 account.addr,  // entity_id = player address
-                stateJson,     // entity_data
-                createTransactionWithSigner(paymentTxn, account)
+                stateJson      // entity_data
             ],
             sender: account.addr,
             signer: algosdk.makeBasicAccountTransactionSigner(account),
@@ -839,7 +831,7 @@ class EternalBlissContract {
             const stateJson = JSON.stringify(playerState);
             const stateSize = new TextEncoder().encode(stateJson).length;
 
-            const keyLength = 2 + account.addr.length; // ARC4 encoded address
+            const keyLength = boxKey.length; // "e:" + address (no ARC4 encoding)
 
             // Calculate optimal MBR (only pay for growth, saves player funds!)
             const mbrAmount = await calculateOptimalEntityMBR(
@@ -862,13 +854,15 @@ class EternalBlissContract {
             methodParams.fee = algosdk.ALGORAND_MIN_TX_FEE;
 
             const atc = new algosdk.AtomicTransactionComposer();
+            // Add payment transaction FIRST
+            atc.addTransaction(createTransactionWithSigner(paymentTxn, account));
+            // Then add method call WITHOUT payment parameter
             atc.addMethodCall({
                 appID: this.appId,
                 method,
                 methodArgs: [
                     account.addr,  // entity_id
-                    stateJson,     // entity_data
-                    createTransactionWithSigner(paymentTxn, account)
+                    stateJson      // entity_data
                 ],
                 sender: account.addr,
                 signer: algosdk.makeBasicAccountTransactionSigner(account),
@@ -941,13 +935,15 @@ class EternalBlissContract {
         methodParams.fee = algosdk.ALGORAND_MIN_TX_FEE;
 
         const atc = new algosdk.AtomicTransactionComposer();
+        // Add payment transaction FIRST
+        atc.addTransaction(createTransactionWithSigner(paymentTxn, account));
+        // Then add method call WITHOUT payment parameter
         atc.addMethodCall({
             appID: this.appId,
             method,
             methodArgs: [
                 account.addr,  // entity_id
-                stateJson,     // entity_data
-                createTransactionWithSigner(paymentTxn, account)
+                stateJson      // entity_data
             ],
             sender: account.addr,
             signer: algosdk.makeBasicAccountTransactionSigner(account),
@@ -1034,11 +1030,11 @@ class EternalBlissContract {
             opponent: receiverAddr,
             turn: 0,
             turnNumber: 0,
-            currentTurn: challengerAddr,  // Challenger goes first
+            currentTurn: challengerAddr,  // Challenger goes first (after acceptance)
             isMyTurn: iAmChallenger,
             lastAction: '',
             lastDamage: 0,
-            status: 'active',
+            status: 'pending',  // Start as pending - receiver sets to 'accepted'
             wager: wagerData || { boats: 0, keys: 0, pickaxe: 0, gold: 0 },
             player1: {
                 address: challengerAddr,
@@ -1055,7 +1051,7 @@ class EternalBlissContract {
         const boxKey = createBattleBoxKey(battleId);
         const stateSize = new TextEncoder().encode(initialState).length;
 
-        const keyLength = 2 + battleId.length; // ARC4 encoded battle ID
+        const keyLength = boxKey.length; // "p:" + battle_id (no ARC4 encoding)
 
         const paymentTxn = createMBRPaymentTransaction(
             account.addr,
@@ -1069,6 +1065,9 @@ class EternalBlissContract {
         methodParams.fee = algosdk.ALGORAND_MIN_TX_FEE;
 
         const atc = new algosdk.AtomicTransactionComposer();
+        // Add payment transaction FIRST (contract validates it's before the app call)
+        atc.addTransaction(createTransactionWithSigner(paymentTxn, account));
+        // Then add the method call WITHOUT payment parameter
         atc.addMethodCall({
             appID: this.appId,
             method,
@@ -1076,7 +1075,7 @@ class EternalBlissContract {
                 battleId,           // process_id
                 opponentAddress,    // other_party
                 initialState,       // initial_state
-                createTransactionWithSigner(paymentTxn, account)
+                1000                // timeout_rounds (1000 rounds ~= 50 minutes)
             ],
             sender: account.addr,
             signer: algosdk.makeBasicAccountTransactionSigner(account),
@@ -1148,7 +1147,7 @@ class EternalBlissContract {
         const stateJson = JSON.stringify(stateObject);
         const stateSize = new TextEncoder().encode(stateJson).length;
 
-        const keyLength = 2 + battleId.length; // ARC4 encoded battle ID
+        const keyLength = boxKey.length; // "p:" + battle_id (no ARC4 encoding)
 
         // Calculate optimal MBR (only pay for growth, saves player funds!)
         const mbrAmount = await calculateOptimalProcessMBR(
@@ -1171,13 +1170,15 @@ class EternalBlissContract {
         methodParams.fee = algosdk.ALGORAND_MIN_TX_FEE;
 
         const atc = new algosdk.AtomicTransactionComposer();
+        // Add payment transaction FIRST (contract validates it's before the app call)
+        atc.addTransaction(createTransactionWithSigner(paymentTxn, account));
+        // Then add the method call WITHOUT payment parameter
         atc.addMethodCall({
             appID: this.appId,
             method: method,
             methodArgs: [
                 battleId,       // process_id
-                stateJson,      // new_state
-                createTransactionWithSigner(paymentTxn, account)
+                stateJson       // new_state
             ],
             sender: account.addr,
             signer: algosdk.makeBasicAccountTransactionSigner(account),
@@ -1272,7 +1273,12 @@ class EternalBlissContract {
 
             return battleState;
         } catch (error) {
-            console.error('Failed to load battle:', error);
+            // Log at warn level since this can happen during race conditions (box not created yet)
+            if (error.message?.includes('box not found') || error.status === 404) {
+                console.warn('Battle box not found (may be pending creation):', battleId?.substring(0, 20) + '...');
+            } else {
+                console.error('Failed to load battle:', error);
+            }
             return null;
         }
     }
@@ -1384,7 +1390,8 @@ class EternalBlissContract {
 
         const methodParams = cloneSuggestedParams(params);
         methodParams.flatFee = true;
-        methodParams.fee = algosdk.ALGORAND_MIN_TX_FEE;
+        // delete_process creates inner transaction for MBR refund - needs 2x fee
+        methodParams.fee = 2 * algosdk.ALGORAND_MIN_TX_FEE;
 
         const atc = new algosdk.AtomicTransactionComposer();
         atc.addMethodCall({
@@ -1401,7 +1408,7 @@ class EternalBlissContract {
 
         try {
             const result = await atc.execute(this.algod, 4);
-            console.log('✅ Battle deleted from blockchain:', result.txIDs[0]);
+            console.log('✅ Battle deleted from blockchain - MBR refunded:', result.txIDs[0]);
             return result.txIDs[0];
         } catch (error) {
             console.error('❌ Failed to delete battle:', error);
@@ -1538,13 +1545,15 @@ class EternalBlissContract {
         methodParams.fee = algosdk.ALGORAND_MIN_TX_FEE;
 
         const atc = new algosdk.AtomicTransactionComposer();
+        // Add payment transaction FIRST
+        atc.addTransaction(createTransactionWithSigner(paymentTxn, account));
+        // Then add method call WITHOUT payment parameter
         atc.addMethodCall({
             appID: this.appId,
             method,
             methodArgs: [
-                entityId,      // entity_id = "waiting:ADDRESS"
-                playerDataJson, // entity_data
-                createTransactionWithSigner(paymentTxn, account)
+                entityId,       // entity_id = "w:ADDRESS"
+                playerDataJson  // entity_data
             ],
             sender: account.addr,
             signer: algosdk.makeBasicAccountTransactionSigner(account),
@@ -1670,20 +1679,17 @@ class EternalBlissContract {
             for (const box of boxes.boxes) {
                 const boxName = decodeBase64Value(box.name);
 
-                // Decode box name to check if it starts with "e:" and contains "w:"
+                // Decode box name to string to check prefix
                 const boxNameStr = new TextDecoder().decode(boxName);
 
-                // Skip ARC4 length prefix (2 bytes) from "e:" boxes
-                if (boxName.length > 2 && boxName[0] === 101 && boxName[1] === 58) { // "e:" prefix
-                    // Extract entity_id from ARC4 encoded string
-                    const entityIdBytes = boxName.slice(2);
-                    const entityIdLength = (entityIdBytes[0] << 8) | entityIdBytes[1];
-                    const entityId = new TextDecoder().decode(entityIdBytes.slice(2, 2 + entityIdLength));
+                // Box key format from createPlayerBoxKey: "e:" + entityId (raw bytes, no ARC4 length)
+                // For waiting list: "e:w:ADDRESS"
+                if (boxNameStr.startsWith('e:w:')) {
+                    // Extract address directly - box key is "e:w:ADDRESS"
+                    const address = boxNameStr.substring(4); // Remove "e:w:" prefix
 
-                    // Check if entity_id starts with "w:" (waiting list prefix)
-                    if (entityId.startsWith('w:')) {
-                        const address = entityId.substring(2); // Remove "w:" prefix
-
+                    // Validate address format (Algorand addresses are 58 chars)
+                    if (address.length === 58) {
                         // Get player data (instant box read!)
                         const playerData = await this.getWaitingPlayer(address);
                         if (playerData) {
@@ -2423,7 +2429,7 @@ function startPeriodicUpdates() {
         if (pvpBattleCheckInterval) {
             clearInterval(pvpBattleCheckInterval);
         }
-        pvpBattleCheckInterval = setInterval(checkPvPBattleUpdates, 2000); // 2 seconds for fast battle updates
+        pvpBattleCheckInterval = setInterval(checkPvPBattleUpdates, 1000); // 1 second for faster battle updates
     }
 
     // Auto-save game state every 10 minutes - REDUCED RPC CALLS

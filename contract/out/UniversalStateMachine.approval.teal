@@ -1,0 +1,1566 @@
+#pragma version 11
+#pragma typetrack false
+
+// algopy.arc4.ARC4Contract.approval_program() -> uint64:
+main:
+    intcblock 0 32 1 2 400 32000 2500
+    bytecblock 0x703a 0x151f7c75 0x00 0x653a "admin"
+    txn ApplicationID
+    bnz main_after_if_else@2
+    // contract.py:39
+    // self.admin = Global.creator_address
+    bytec 4 // "admin"
+    global CreatorAddress
+    app_global_put
+
+main_after_if_else@2:
+    // contract.py:33
+    // class UniversalStateMachine(ARC4Contract):
+    txn NumAppArgs
+    bz main___algopy_default_create@20
+    txn OnCompletion
+    !
+    assert // OnCompletion must be NoOp
+    txn ApplicationID
+    assert
+    pushbytess 0xf7359e32 0x5dcd81f1 0xb29425b3 0xcfa35377 0x7db3300f 0x4df1f190 0x1ed0bb26 0xae37d94a 0x1c082dca 0xa1e08c2a 0x718a4651 // method "save_entity(string,string)string", method "load_entity(string)string", method "delete_entity(string)void", method "start_process(string,address,string,uint64)string", method "update_process(string,string)string", method "resign_process(string)void", method "load_process(string)string", method "get_process_info(string)(address,address,uint64,bool,uint64)", method "delete_process(string)void", method "admin_delete_entity(string)void", method "admin_delete_process(string)void"
+    txna ApplicationArgs 0
+    match save_entity load_entity delete_entity start_process update_process resign_process load_process get_process_info delete_process admin_delete_entity admin_delete_process
+    err
+
+main___algopy_default_create@20:
+    txn OnCompletion
+    !
+    txn ApplicationID
+    !
+    &&
+    assert // OnCompletion must be NoOp && can only call when creating
+    intc_2 // 1
+    return
+
+
+// contract.UniversalStateMachine.save_entity[routing]() -> void:
+save_entity:
+    pushbytes ""
+    // contract.py:62
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dupn 2
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 2
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // contract.py:64
+    // entity_id_bytes = entity_id.native.bytes
+    swap
+    extract 2 0
+    // contract.py:65
+    // entity_data_bytes = entity_data.native.bytes
+    swap
+    extract 2 0
+    // contract.py:67
+    // assert entity_id_bytes.length <= 62, "Entity ID too long (max 62 bytes)"
+    dig 1
+    len
+    pushint 62 // 62
+    <=
+    assert // Entity ID too long (max 62 bytes)
+    // contract.py:68
+    // assert entity_data_bytes.length <= 32000, "Entity data exceeds 32KB limit"
+    dup
+    len
+    intc 5 // 32000
+    <=
+    assert // Entity data exceeds 32KB limit
+    // contract.py:70
+    // box_key = b"e:" + entity_id_bytes
+    bytec_3 // 0x653a
+    uncover 2
+    concat
+    dup
+    cover 2
+    // contract.py:71
+    // new_content = Txn.sender.bytes + entity_data_bytes
+    txn Sender
+    uncover 2
+    concat
+    swap
+    // contract.py:73
+    // maybe_value, exists = op.Box.get(box_key)
+    box_get
+    // contract.py:75
+    // if exists:
+    bz save_entity_else_body@8
+    // contract.py:77
+    // assert old_value.length >= 32, "Corrupted entity box"
+    dupn 2
+    len
+    dup
+    cover 2
+    dup
+    intc_1 // 32
+    >=
+    assert // Corrupted entity box
+    // contract.py:79
+    // current_owner = Account(old_value[:32])
+    intc_1 // 32
+    dig 1
+    >=
+    intc_1 // 32
+    dig 2
+    uncover 2
+    select
+    uncover 2
+    intc_0 // 0
+    uncover 2
+    substring3
+    dup
+    len
+    intc_1 // 32
+    dig 1
+    ==
+    assert // Address length is 32 bytes
+    // contract.py:80
+    // assert current_owner.bytes.length == 32, "Invalid owner address"
+    intc_1 // 32
+    ==
+    assert // Invalid owner address
+    // contract.py:81
+    // assert Txn.sender == current_owner, "Only owner can update entity"
+    txn Sender
+    ==
+    assert // Only owner can update entity
+    // contract.py:84
+    // new_size = new_content.length
+    dig 3
+    len
+    dup
+    bury 8
+    // contract.py:86
+    // if new_size > old_size:
+    <
+    bz save_entity_else_body@4
+    // contract.py:87
+    // delta = new_size - old_size
+    dig 5
+    dup
+    uncover 2
+    -
+    // contract.py:88
+    // self._verify_mbr_payment(400 * delta)
+    intc 4 // 400
+    *
+    callsub _verify_mbr_payment
+    // contract.py:89
+    // op.Box.resize(box_key, new_size)
+    dig 3
+    swap
+    box_resize
+
+save_entity_after_if_else@7:
+    // contract.py:93
+    // op.Box.put(box_key, new_content)
+    dig 2
+    dig 2
+    box_put
+
+save_entity_after_if_else@9:
+    // contract.py:62
+    // @arc4.abimethod
+    bytec_1 // 0x151f7c75
+    dig 4
+    concat
+    log
+    intc_2 // 1
+    return
+
+save_entity_else_body@4:
+    // contract.py:90
+    // elif new_size < old_size:
+    dig 5
+    >
+    bz save_entity_after_if_else@7
+    // contract.py:91
+    // op.Box.resize(box_key, new_size)
+    dig 2
+    dig 5
+    box_resize
+    b save_entity_after_if_else@7
+
+save_entity_else_body@8:
+    // contract.py:95
+    // total_size = box_key.length + new_content.length
+    dig 2
+    dup
+    len
+    dig 3
+    dup
+    cover 2
+    len
+    +
+    // contract.py:96
+    // min_mbr = 2500 + (400 * total_size)
+    intc 4 // 400
+    *
+    intc 6 // 2500
+    +
+    // contract.py:97
+    // self._verify_mbr_payment(min_mbr)
+    callsub _verify_mbr_payment
+    // contract.py:98
+    // op.Box.put(box_key, new_content)
+    box_put
+    b save_entity_after_if_else@9
+
+
+// contract.UniversalStateMachine.load_entity[routing]() -> void:
+load_entity:
+    // contract.py:102
+    // @arc4.abimethod(readonly=True)
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // contract.py:104
+    // box_key = b"e:" + entity_id.native.bytes
+    extract 2 0
+    bytec_3 // 0x653a
+    swap
+    concat
+    // contract.py:105
+    // maybe_value, exists = op.Box.get(box_key)
+    box_get
+    // contract.py:106
+    // assert exists, "Entity does not exist"
+    assert // Entity does not exist
+    // contract.py:107
+    // return arc4.String.from_bytes(maybe_value[32:])
+    dup
+    len
+    intc_1 // 32
+    dig 1
+    >=
+    intc_1 // 32
+    dig 2
+    uncover 2
+    select
+    swap
+    substring3
+    // contract.py:102
+    // @arc4.abimethod(readonly=True)
+    bytec_1 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_2 // 1
+    return
+
+
+// contract.UniversalStateMachine.delete_entity[routing]() -> void:
+delete_entity:
+    // contract.py:109
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // contract.py:111
+    // box_key = b"e:" + entity_id.native.bytes
+    extract 2 0
+    bytec_3 // 0x653a
+    swap
+    concat
+    // contract.py:112
+    // maybe_value, exists = op.Box.get(box_key)
+    dup
+    box_get
+    // contract.py:113
+    // assert exists, "Entity does not exist"
+    assert // Entity does not exist
+    // contract.py:116
+    // assert value.length >= 32, "Corrupted entity box"
+    dup
+    len
+    dup
+    intc_1 // 32
+    >=
+    assert // Corrupted entity box
+    // contract.py:118
+    // owner = Account(value[:32])
+    intc_1 // 32
+    dig 1
+    >=
+    intc_1 // 32
+    dig 2
+    uncover 2
+    select
+    uncover 2
+    intc_0 // 0
+    uncover 2
+    substring3
+    dup
+    len
+    intc_1 // 32
+    ==
+    assert // Address length is 32 bytes
+    // contract.py:119
+    // assert Txn.sender == owner, "Only owner can delete entity"
+    txn Sender
+    ==
+    assert // Only owner can delete entity
+    // contract.py:121
+    // total_size = box_key.length + value.length
+    dig 1
+    len
+    +
+    // contract.py:122
+    // op.Box.delete(box_key)
+    swap
+    box_del
+    pop
+    // contract.py:123
+    // self._refund_mbr(Txn.sender, total_size)
+    txn Sender
+    swap
+    callsub _refund_mbr
+    // contract.py:109
+    // @arc4.abimethod
+    intc_2 // 1
+    return
+
+
+// contract.UniversalStateMachine.start_process[routing]() -> void:
+start_process:
+    // contract.py:127
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dupn 2
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 2
+    dup
+    cover 2
+    len
+    intc_1 // 32
+    ==
+    assert // invalid number of bytes for arc4.static_array<arc4.uint8, 32>
+    txna ApplicationArgs 3
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 4
+    dup
+    len
+    pushint 8 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    // contract.py:135
+    // process_id_bytes = process_id.native.bytes
+    uncover 2
+    extract 2 0
+    // contract.py:136
+    // initial_state_bytes = initial_state.native.bytes
+    uncover 2
+    extract 2 0
+    dup
+    cover 2
+    cover 3
+    // contract.py:138
+    // assert process_id_bytes.length <= 62, "Process ID too long"
+    dup
+    len
+    pushint 62 // 62
+    <=
+    assert // Process ID too long
+    // contract.py:139
+    // assert initial_state_bytes.length <= 32000, "State exceeds limit"
+    swap
+    len
+    intc 5 // 32000
+    <=
+    assert // State exceeds limit
+    // contract.py:142
+    // box_key = b"p:" + process_id_bytes
+    bytec_0 // 0x703a
+    swap
+    concat
+    dup
+    cover 2
+    // contract.py:143
+    // length, exists = op.Box.length(box_key)
+    box_len
+    bury 1
+    // contract.py:144
+    // assert not exists, "Process already exists"
+    !
+    assert // Process already exists
+    // contract.py:146
+    // timeout_round = Global.round + timeout_rounds.native if timeout_rounds.native > 0 else UInt64(0)
+    btoi
+    dup
+    bz start_process_ternary_false@3
+    global Round
+    dig 1
+    +
+
+start_process_ternary_merge@4:
+    // contract.py:150
+    // Txn.sender.bytes +
+    txn Sender
+    // contract.py:150-151
+    // Txn.sender.bytes +
+    // other_party.native.bytes +
+    dig 5
+    concat
+    // contract.py:152
+    // op.itob(0) +
+    intc_0 // 0
+    itob
+    // contract.py:150-152
+    // Txn.sender.bytes +
+    // other_party.native.bytes +
+    // op.itob(0) +
+    concat
+    // contract.py:153
+    // b"\x00" +
+    bytec_2 // 0x00
+    // contract.py:150-153
+    // Txn.sender.bytes +
+    // other_party.native.bytes +
+    // op.itob(0) +
+    // b"\x00" +
+    concat
+    // contract.py:154
+    // op.itob(timeout_round) +
+    swap
+    itob
+    // contract.py:150-154
+    // Txn.sender.bytes +
+    // other_party.native.bytes +
+    // op.itob(0) +
+    // b"\x00" +
+    // op.itob(timeout_round) +
+    concat
+    // contract.py:150-155
+    // Txn.sender.bytes +
+    // other_party.native.bytes +
+    // op.itob(0) +
+    // b"\x00" +
+    // op.itob(timeout_round) +
+    // initial_state_bytes
+    dig 3
+    concat
+    // contract.py:158
+    // total_size = box_key.length + new_content.length
+    dig 2
+    dup
+    cover 2
+    len
+    dig 1
+    len
+    +
+    // contract.py:159
+    // min_mbr = 2500 + (400 * total_size)
+    intc 4 // 400
+    *
+    intc 6 // 2500
+    +
+    // contract.py:161
+    // self._verify_mbr_payment(min_mbr)
+    callsub _verify_mbr_payment
+    // contract.py:162
+    // op.Box.put(box_key, new_content)
+    box_put
+    // contract.py:127
+    // @arc4.abimethod
+    bytec_1 // 0x151f7c75
+    dig 5
+    concat
+    log
+    intc_2 // 1
+    return
+
+start_process_ternary_false@3:
+    // contract.py:146
+    // timeout_round = Global.round + timeout_rounds.native if timeout_rounds.native > 0 else UInt64(0)
+    intc_0 // 0
+    b start_process_ternary_merge@4
+
+
+// contract.UniversalStateMachine.update_process[routing]() -> void:
+update_process:
+    intc_0 // 0
+    pushbytes ""
+    dupn 3
+    // contract.py:166
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dupn 2
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 2
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // contract.py:168
+    // new_state_bytes = new_state.native.bytes
+    extract 2 0
+    dup
+    cover 2
+    // contract.py:169
+    // assert new_state_bytes.length <= 32000, "State exceeds limit"
+    len
+    intc 5 // 32000
+    <=
+    assert // State exceeds limit
+    // contract.py:171
+    // box_key = b"p:" + process_id.native.bytes
+    extract 2 0
+    bytec_0 // 0x703a
+    swap
+    concat
+    dup
+    // contract.py:172
+    // maybe_value, exists = op.Box.get(box_key)
+    box_get
+    swap
+    dup
+    uncover 2
+    // contract.py:173
+    // assert exists, "Process does not exist"
+    assert // Process does not exist
+    // contract.py:176
+    // assert old_value.length >= 81, "Corrupted process box"
+    dup
+    len
+    dup
+    cover 2
+    dup
+    pushint 81 // 81
+    >=
+    assert // Corrupted process box
+    // contract.py:178
+    // p1 = Account(old_value[:32])
+    intc_1 // 32
+    dig 1
+    >=
+    intc_1 // 32
+    dig 2
+    uncover 2
+    select
+    dig 2
+    intc_0 // 0
+    dig 2
+    substring3
+    dup
+    cover 4
+    dup
+    len
+    intc_1 // 32
+    ==
+    assert // Address length is 32 bytes
+    // contract.py:179
+    // p2 = Account(old_value[32:64])
+    pushint 64 // 64
+    dig 3
+    >=
+    pushint 64 // 64
+    uncover 4
+    uncover 2
+    select
+    dup
+    cover 4
+    uncover 3
+    uncover 3
+    uncover 2
+    substring3
+    dup
+    cover 2
+    len
+    intc_1 // 32
+    ==
+    assert // Address length is 32 bytes
+    // contract.py:180
+    // assert Txn.sender == p1 or Txn.sender == p2, "Caller is not a participant"
+    txn Sender
+    ==
+    bnz update_process_bool_true@3
+    txn Sender
+    dig 1
+    ==
+    bz update_process_bool_false@4
+
+update_process_bool_true@3:
+    intc_2 // 1
+
+update_process_bool_merge@5:
+    // contract.py:180
+    // assert Txn.sender == p1 or Txn.sender == p2, "Caller is not a participant"
+    assert // Caller is not a participant
+    // contract.py:182-183
+    // # FIXED: Use slice [72:73] to get Bytes for comparison with b"\x00"
+    // final_flag = old_value[72:73]
+    pushint 72 // 72
+    dig 4
+    dup
+    cover 2
+    >=
+    pushint 72 // 72
+    dig 2
+    uncover 2
+    select
+    dup
+    cover 2
+    bury 14
+    pushint 73 // 73
+    dig 1
+    >=
+    pushint 73 // 73
+    dig 2
+    uncover 2
+    select
+    dig 7
+    dup
+    cover 4
+    uncover 3
+    dig 2
+    substring3
+    // contract.py:184
+    // timeout_round = op.btoi(old_value[73:81])
+    pushint 81 // 81
+    dig 3
+    >=
+    pushint 81 // 81
+    uncover 4
+    uncover 2
+    select
+    dup
+    bury 15
+    uncover 3
+    uncover 3
+    uncover 2
+    substring3
+    btoi
+    dup
+    bury 11
+    // contract.py:186
+    // assert final_flag == b"\x00", "Cannot update finalized process"
+    swap
+    bytec_2 // 0x00
+    ==
+    assert // Cannot update finalized process
+    // contract.py:188
+    // if timeout_round > 0:
+    bz update_process_after_if_else@7
+    // contract.py:189
+    // assert Global.round < timeout_round, "Process timed out"
+    global Round
+    dig 9
+    <
+    assert // Process timed out
+
+update_process_after_if_else@7:
+    // contract.py:191
+    // current_turn = op.btoi(old_value[64:72])
+    dig 4
+    dup
+    dig 3
+    dig 14
+    dup
+    cover 3
+    substring3
+    btoi
+    // contract.py:192
+    // new_turn = current_turn + 1
+    intc_2 // 1
+    +
+    // contract.py:195-196
+    // p1.bytes +
+    // p2.bytes +
+    dig 5
+    dig 4
+    concat
+    // contract.py:197
+    // op.itob(new_turn) +
+    swap
+    itob
+    // contract.py:195-197
+    // p1.bytes +
+    // p2.bytes +
+    // op.itob(new_turn) +
+    concat
+    // contract.py:198
+    // old_value[72:81] +
+    cover 2
+    dig 13
+    substring3
+    // contract.py:195-198
+    // p1.bytes +
+    // p2.bytes +
+    // op.itob(new_turn) +
+    // old_value[72:81] +
+    concat
+    // contract.py:195-199
+    // p1.bytes +
+    // p2.bytes +
+    // op.itob(new_turn) +
+    // old_value[72:81] +
+    // new_state_bytes
+    dig 7
+    concat
+    dup
+    bury 14
+    // contract.py:203
+    // new_size = new_content.length
+    len
+    dup
+    bury 11
+    // contract.py:205
+    // if new_size > old_size:
+    dig 4
+    >
+    bz update_process_else_body@9
+    // contract.py:206
+    // delta = new_size - old_size
+    dig 9
+    dup
+    dig 5
+    -
+    // contract.py:207
+    // self._verify_mbr_payment(400 * delta)
+    intc 4 // 400
+    *
+    callsub _verify_mbr_payment
+    // contract.py:208
+    // op.Box.resize(box_key, new_size)
+    dig 6
+    swap
+    box_resize
+
+update_process_after_if_else@12:
+    // contract.py:212
+    // op.Box.put(box_key, new_content)
+    dig 5
+    dig 13
+    box_put
+    // contract.py:166
+    // @arc4.abimethod
+    bytec_1 // 0x151f7c75
+    dig 8
+    concat
+    log
+    intc_2 // 1
+    return
+
+update_process_else_body@9:
+    // contract.py:209
+    // elif new_size < old_size:
+    dig 9
+    dig 4
+    <
+    bz update_process_after_if_else@12
+    // contract.py:210
+    // op.Box.resize(box_key, new_size)
+    dig 5
+    dig 10
+    box_resize
+    b update_process_after_if_else@12
+
+update_process_bool_false@4:
+    intc_0 // 0
+    b update_process_bool_merge@5
+
+
+// contract.UniversalStateMachine.resign_process[routing]() -> void:
+resign_process:
+    // contract.py:215
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // contract.py:217
+    // box_key = b"p:" + process_id.native.bytes
+    extract 2 0
+    bytec_0 // 0x703a
+    swap
+    concat
+    dup
+    // contract.py:218
+    // maybe_value, exists = op.Box.get(box_key)
+    box_get
+    swap
+    dup
+    uncover 2
+    // contract.py:219
+    // assert exists, "Process does not exist"
+    assert // Process does not exist
+    // contract.py:222
+    // assert old_value.length >= 81, "Corrupted process box"
+    dup
+    len
+    dup
+    cover 2
+    dup
+    pushint 81 // 81
+    >=
+    assert // Corrupted process box
+    // contract.py:224
+    // p1 = Account(old_value[:32])
+    intc_1 // 32
+    dig 1
+    >=
+    intc_1 // 32
+    dig 2
+    uncover 2
+    select
+    dig 2
+    intc_0 // 0
+    dig 2
+    substring3
+    dup
+    len
+    intc_1 // 32
+    ==
+    assert // Address length is 32 bytes
+    // contract.py:225
+    // p2 = Account(old_value[32:64])
+    pushint 64 // 64
+    dig 3
+    >=
+    pushint 64 // 64
+    uncover 4
+    uncover 2
+    select
+    uncover 3
+    uncover 3
+    uncover 2
+    substring3
+    dup
+    cover 2
+    len
+    intc_1 // 32
+    ==
+    assert // Address length is 32 bytes
+    // contract.py:226
+    // assert Txn.sender == p1 or Txn.sender == p2, "Caller is not a participant"
+    txn Sender
+    ==
+    bnz resign_process_bool_true@3
+    txn Sender
+    dig 1
+    ==
+    bz resign_process_bool_false@4
+
+resign_process_bool_true@3:
+    intc_2 // 1
+
+resign_process_bool_merge@5:
+    // contract.py:226
+    // assert Txn.sender == p1 or Txn.sender == p2, "Caller is not a participant"
+    assert // Caller is not a participant
+    // contract.py:228-229
+    // # FIXED: Use slice [72:73] to get Bytes for comparison
+    // final_flag = old_value[72:73]
+    pushint 72 // 72
+    dig 2
+    dup
+    cover 2
+    >=
+    pushint 72 // 72
+    dig 2
+    uncover 2
+    select
+    pushint 73 // 73
+    dig 2
+    >=
+    pushint 73 // 73
+    dig 3
+    uncover 2
+    select
+    dig 5
+    dup
+    cover 3
+    dig 2
+    dig 2
+    substring3
+    // contract.py:230
+    // assert final_flag == b"\x00", "Process already finalized"
+    bytec_2 // 0x00
+    ==
+    assert // Process already finalized
+    // contract.py:233
+    // old_value[:72] +
+    dig 2
+    intc_0 // 0
+    uncover 3
+    substring3
+    // contract.py:234
+    // b"\x01" +            # Set finalized flag to 1
+    pushbytes 0x01
+    // contract.py:233-234
+    // old_value[:72] +
+    // b"\x01" +            # Set finalized flag to 1
+    concat
+    // contract.py:235
+    // old_value[73:]
+    cover 2
+    uncover 3
+    substring3
+    // contract.py:233-235
+    // old_value[:72] +
+    // b"\x01" +            # Set finalized flag to 1
+    // old_value[73:]
+    concat
+    // contract.py:237
+    // op.Box.put(box_key, new_content)
+    dig 4
+    swap
+    box_put
+    // contract.py:215
+    // @arc4.abimethod
+    intc_2 // 1
+    return
+
+resign_process_bool_false@4:
+    intc_0 // 0
+    b resign_process_bool_merge@5
+
+
+// contract.UniversalStateMachine.load_process[routing]() -> void:
+load_process:
+    // contract.py:239
+    // @arc4.abimethod(readonly=True)
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // contract.py:241
+    // box_key = b"p:" + process_id.native.bytes
+    extract 2 0
+    bytec_0 // 0x703a
+    swap
+    concat
+    // contract.py:242
+    // maybe_value, exists = op.Box.get(box_key)
+    box_get
+    // contract.py:243
+    // assert exists, "Process does not exist"
+    assert // Process does not exist
+    // contract.py:246
+    // assert value.length >= 81, "Corrupted process box"
+    dup
+    len
+    dup
+    pushint 81 // 81
+    >=
+    assert // Corrupted process box
+    // contract.py:247
+    // return arc4.String.from_bytes(value[81:])
+    pushint 81 // 81
+    dig 1
+    >=
+    pushint 81 // 81
+    dig 2
+    uncover 2
+    select
+    swap
+    substring3
+    // contract.py:239
+    // @arc4.abimethod(readonly=True)
+    bytec_1 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_2 // 1
+    return
+
+
+// contract.UniversalStateMachine.get_process_info[routing]() -> void:
+get_process_info:
+    // contract.py:249
+    // @arc4.abimethod(readonly=True)
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // contract.py:251
+    // box_key = b"p:" + process_id.native.bytes
+    extract 2 0
+    bytec_0 // 0x703a
+    swap
+    concat
+    // contract.py:252
+    // maybe_value, exists = op.Box.get(box_key)
+    box_get
+    // contract.py:253
+    // assert exists, "Process does not exist"
+    assert // Process does not exist
+    // contract.py:256
+    // assert value.length >= 81, "Corrupted process box"
+    dup
+    len
+    dup
+    pushint 81 // 81
+    >=
+    assert // Corrupted process box
+    // contract.py:258
+    // p1 = arc4.Address(value[:32])
+    intc_1 // 32
+    dig 1
+    >=
+    intc_1 // 32
+    dig 2
+    uncover 2
+    select
+    dig 2
+    intc_0 // 0
+    dig 2
+    substring3
+    dup
+    len
+    intc_1 // 32
+    ==
+    assert // Address length is 32 bytes
+    // contract.py:259
+    // p2 = arc4.Address(value[32:64])
+    pushint 64 // 64
+    dig 3
+    >=
+    pushint 64 // 64
+    dig 4
+    uncover 2
+    select
+    dig 4
+    uncover 3
+    dig 2
+    substring3
+    dup
+    len
+    intc_1 // 32
+    ==
+    assert // Address length is 32 bytes
+    // contract.py:260
+    // turn = arc4.UInt64.from_bytes(value[64:72])
+    pushint 72 // 72
+    dig 4
+    >=
+    pushint 72 // 72
+    dig 5
+    uncover 2
+    select
+    dig 5
+    uncover 3
+    dig 2
+    substring3
+    // contract.py:262-263
+    // # FIXED: Use slice [72:73] to compare against Bytes
+    // is_finalized = arc4.Bool(value[72:73] != b"\x00")
+    pushint 73 // 73
+    dig 5
+    >=
+    pushint 73 // 73
+    dig 6
+    uncover 2
+    select
+    dig 6
+    uncover 3
+    dig 2
+    substring3
+    bytec_2 // 0x00
+    !=
+    bytec_2 // 0x00
+    intc_0 // 0
+    uncover 2
+    setbit
+    // contract.py:265
+    // timeout_round = arc4.UInt64.from_bytes(value[73:81])
+    pushint 81 // 81
+    dig 6
+    >=
+    pushint 81 // 81
+    uncover 7
+    uncover 2
+    select
+    uncover 6
+    uncover 3
+    uncover 2
+    substring3
+    // contract.py:267
+    // return arc4.Tuple((p1, p2, turn, is_finalized, timeout_round))
+    uncover 4
+    uncover 4
+    concat
+    uncover 3
+    concat
+    uncover 2
+    concat
+    swap
+    concat
+    // contract.py:249
+    // @arc4.abimethod(readonly=True)
+    bytec_1 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_2 // 1
+    return
+
+
+// contract.UniversalStateMachine.delete_process[routing]() -> void:
+delete_process:
+    pushbytes ""
+    dup
+    // contract.py:269
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // contract.py:271
+    // box_key = b"p:" + process_id.native.bytes
+    extract 2 0
+    bytec_0 // 0x703a
+    swap
+    concat
+    dup
+    // contract.py:272
+    // maybe_value, exists = op.Box.get(box_key)
+    box_get
+    swap
+    dup
+    uncover 2
+    // contract.py:273
+    // assert exists, "Process does not exist"
+    assert // Process does not exist
+    // contract.py:276
+    // assert value.length >= 81, "Corrupted process box"
+    dup
+    len
+    dup
+    cover 2
+    dup
+    pushint 81 // 81
+    >=
+    assert // Corrupted process box
+    // contract.py:278
+    // p1 = Account(value[:32])
+    intc_1 // 32
+    dig 1
+    >=
+    intc_1 // 32
+    dig 2
+    uncover 2
+    select
+    dig 2
+    intc_0 // 0
+    dig 2
+    substring3
+    dup
+    len
+    intc_1 // 32
+    ==
+    assert // Address length is 32 bytes
+    // contract.py:279
+    // p2 = Account(value[32:64])
+    pushint 64 // 64
+    dig 3
+    >=
+    pushint 64 // 64
+    uncover 4
+    uncover 2
+    select
+    uncover 3
+    uncover 3
+    uncover 2
+    substring3
+    dup
+    cover 2
+    len
+    intc_1 // 32
+    ==
+    assert // Address length is 32 bytes
+    // contract.py:280
+    // assert Txn.sender == p1 or Txn.sender == p2, "Caller is not a participant"
+    txn Sender
+    ==
+    bnz delete_process_bool_true@3
+    txn Sender
+    dig 1
+    ==
+    bz delete_process_bool_false@4
+
+delete_process_bool_true@3:
+    intc_2 // 1
+
+delete_process_bool_merge@5:
+    // contract.py:280
+    // assert Txn.sender == p1 or Txn.sender == p2, "Caller is not a participant"
+    assert // Caller is not a participant
+    // contract.py:282-283
+    // # FIXED: Use slice [72:73] to get Bytes for comparison
+    // final_flag = value[72:73]
+    pushint 72 // 72
+    dig 2
+    dup
+    cover 2
+    >=
+    pushint 72 // 72
+    dig 2
+    uncover 2
+    select
+    pushint 73 // 73
+    dig 2
+    >=
+    pushint 73 // 73
+    dig 3
+    uncover 2
+    select
+    dig 5
+    dup
+    cover 4
+    uncover 2
+    dig 2
+    substring3
+    // contract.py:284
+    // timeout_round = op.btoi(value[73:81])
+    pushint 81 // 81
+    dig 3
+    >=
+    pushint 81 // 81
+    uncover 4
+    uncover 2
+    select
+    uncover 3
+    uncover 3
+    uncover 2
+    substring3
+    btoi
+    dup
+    bury 7
+    // contract.py:286
+    // is_finalized = final_flag == b"\x01"
+    swap
+    pushbytes 0x01
+    ==
+    bury 7
+    // contract.py:287
+    // is_timed_out = (timeout_round > 0) and (Global.round >= timeout_round)
+    bz delete_process_bool_false@8
+    global Round
+    dig 5
+    >=
+    bz delete_process_bool_false@8
+    intc_2 // 1
+
+delete_process_bool_merge@9:
+    // contract.py:289
+    // assert is_finalized or is_timed_out, "Can only delete finalized or timed out processes"
+    dig 6
+    ||
+    assert // Can only delete finalized or timed out processes
+    // contract.py:291
+    // total_size = box_key.length + value.length
+    dig 3
+    dup
+    len
+    dig 3
+    +
+    // contract.py:292
+    // op.Box.delete(box_key)
+    swap
+    box_del
+    pop
+    // contract.py:293
+    // self._refund_mbr(Txn.sender, total_size)
+    txn Sender
+    swap
+    callsub _refund_mbr
+    // contract.py:269
+    // @arc4.abimethod
+    intc_2 // 1
+    return
+
+delete_process_bool_false@8:
+    intc_0 // 0
+    b delete_process_bool_merge@9
+
+delete_process_bool_false@4:
+    intc_0 // 0
+    b delete_process_bool_merge@5
+
+
+// contract.UniversalStateMachine.admin_delete_entity[routing]() -> void:
+admin_delete_entity:
+    // contract.py:297
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // contract.py:299
+    // assert Txn.sender == self.admin, "Only admin can force delete"
+    txn Sender
+    intc_0 // 0
+    bytec 4 // "admin"
+    app_global_get_ex
+    assert // check self.admin exists
+    ==
+    assert // Only admin can force delete
+    // contract.py:300
+    // box_key = b"e:" + entity_id.native.bytes
+    extract 2 0
+    bytec_3 // 0x653a
+    swap
+    concat
+    // contract.py:301
+    // maybe_value, exists = op.Box.get(box_key)
+    dup
+    box_get
+    // contract.py:302
+    // assert exists, "Entity does not exist"
+    assert // Entity does not exist
+    // contract.py:305
+    // total_size = box_key.length + value.length
+    dig 1
+    len
+    swap
+    len
+    +
+    // contract.py:306
+    // op.Box.delete(box_key)
+    swap
+    box_del
+    pop
+    // contract.py:307
+    // self._refund_mbr(Txn.sender, total_size)
+    txn Sender
+    swap
+    callsub _refund_mbr
+    // contract.py:297
+    // @arc4.abimethod
+    intc_2 // 1
+    return
+
+
+// contract.UniversalStateMachine.admin_delete_process[routing]() -> void:
+admin_delete_process:
+    // contract.py:309
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_3 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // contract.py:311
+    // assert Txn.sender == self.admin, "Only admin can force delete"
+    txn Sender
+    intc_0 // 0
+    bytec 4 // "admin"
+    app_global_get_ex
+    assert // check self.admin exists
+    ==
+    assert // Only admin can force delete
+    // contract.py:312
+    // box_key = b"p:" + process_id.native.bytes
+    extract 2 0
+    bytec_0 // 0x703a
+    swap
+    concat
+    // contract.py:313
+    // maybe_value, exists = op.Box.get(box_key)
+    dup
+    box_get
+    // contract.py:314
+    // assert exists, "Process does not exist"
+    assert // Process does not exist
+    // contract.py:317
+    // total_size = box_key.length + value.length
+    dig 1
+    len
+    swap
+    len
+    +
+    // contract.py:318
+    // op.Box.delete(box_key)
+    swap
+    box_del
+    pop
+    // contract.py:319
+    // self._refund_mbr(Txn.sender, total_size)
+    txn Sender
+    swap
+    callsub _refund_mbr
+    // contract.py:309
+    // @arc4.abimethod
+    intc_2 // 1
+    return
+
+
+// contract.UniversalStateMachine._verify_mbr_payment(amount_needed: uint64) -> void:
+_verify_mbr_payment:
+    // contract.py:43-44
+    // @subroutine
+    // def _verify_mbr_payment(self, amount_needed: UInt64) -> None:
+    proto 1 0
+    // contract.py:45
+    // assert Txn.group_index > 0, "MBR payment transaction required"
+    txn GroupIndex
+    assert // MBR payment transaction required
+    // contract.py:46
+    // mbr_txn = gtxn.PaymentTransaction(Txn.group_index - 1)
+    txn GroupIndex
+    intc_2 // 1
+    -
+    dup
+    gtxns TypeEnum
+    intc_2 // pay
+    ==
+    assert // transaction type is pay
+    // contract.py:47
+    // assert mbr_txn.sender == Txn.sender, "Payment must come from caller"
+    dup
+    gtxns Sender
+    txn Sender
+    ==
+    assert // Payment must come from caller
+    // contract.py:48
+    // assert mbr_txn.receiver == Global.current_application_address, "MBR must be sent to app"
+    dup
+    gtxns Receiver
+    global CurrentApplicationAddress
+    ==
+    assert // MBR must be sent to app
+    // contract.py:49
+    // assert mbr_txn.amount >= amount_needed, "Insufficient MBR payment"
+    gtxns Amount
+    frame_dig -1
+    >=
+    assert // Insufficient MBR payment
+    retsub
+
+
+// contract.UniversalStateMachine._refund_mbr(recipient: bytes, total_bytes: uint64) -> void:
+_refund_mbr:
+    // contract.py:51-52
+    // @subroutine
+    // def _refund_mbr(self, recipient: Account, total_bytes: UInt64) -> None:
+    proto 2 0
+    // contract.py:53
+    // refund_amount = 2500 + (400 * total_bytes)
+    intc 4 // 400
+    frame_dig -1
+    *
+    intc 6 // 2500
+    +
+    // contract.py:54-58
+    // itxn.Payment(
+    //     receiver=recipient,
+    //     amount=refund_amount,
+    //     fee=0,
+    // ).submit()
+    itxn_begin
+    itxn_field Amount
+    frame_dig -2
+    itxn_field Receiver
+    // contract.py:54
+    // itxn.Payment(
+    intc_2 // pay
+    itxn_field TypeEnum
+    // contract.py:57
+    // fee=0,
+    intc_0 // 0
+    itxn_field Fee
+    // contract.py:54-58
+    // itxn.Payment(
+    //     receiver=recipient,
+    //     amount=refund_amount,
+    //     fee=0,
+    // ).submit()
+    itxn_submit
+    retsub

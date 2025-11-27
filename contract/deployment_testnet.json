@@ -1,0 +1,13 @@
+{
+  "version": "v1.0",
+  "app_id": 750081112,
+  "txid": "KXRYJJMB4T5CTKVSLMBQDQO5EG36PO4ZM3KQCX5TLSIPWIBERX3Q",
+  "network": "testnet",
+  "deployer": "YSB5WAB3Y2VBPCU36RAX3ERB4GOOPJXPKK4FPLT7YAMBNHRK4246VP7INY",
+  "approval_size": 1632,
+  "clear_size": 4,
+  "extra_pages": 0,
+  "timestamp": 1763897372,
+  "description": "Production-ready with finalization & timeout",
+  "platform": "win32"
+}

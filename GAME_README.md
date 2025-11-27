@@ -44,7 +44,7 @@ Eternal Bliss demonstrates that decentralized games can be **fun, fair, permanen
 - **Save** from the menu (connect wallet if needed); **Load** auto‑fetches the last saved snapshot.
 
 **Deployed (TestNet)**
-- **Application ID:** 749599252
+- **Application ID:** 750081112
 - **Demo options:**
   - **Lora DApp Lab** (ABI calls): call `save_entity` + read back.
   - **Static site:** use the project's `index.html` or published demo to move, save, and restore.

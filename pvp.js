@@ -332,9 +332,35 @@ async function checkForIncomingChallenges() {
             if (!appCall || !appCall['application-args']) continue;
 
             try {
-                // start_process has: method_selector, process_id (battleId), other_party (opponent), initial_state, payment_txn
-                // We need to check for 4 method args (payment is separate in the group)
-                if (appCall['application-args'].length >= 4) {
+                // start_process (v3.2): method_selector, process_id (battleId), other_party (opponent), initial_state, timeout_rounds
+                // We need to check for 5 method args (payment is separate in the group)
+                const numArgs = appCall['application-args'].length;
+
+                if (numArgs >= 5) {
+                    // Verify this is a start_process call by checking method selector
+                    const methodSelectorBytes = Uint8Array.from(atob(appCall['application-args'][0]), c => c.charCodeAt(0));
+
+                    // Get expected selector for start_process(string,address,string,uint64)string
+                    const expectedMethod = algosdk.ABIMethod.fromSignature('start_process(string,address,string,uint64)string');
+                    const expectedSelector = expectedMethod.getSelector();
+
+                    // Debug logging
+                    console.log(`📋 Transaction with ${numArgs} args`);
+                    console.log(`   Selector (got): ${Array.from(methodSelectorBytes.slice(0, 4)).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+                    console.log(`   Selector (exp): ${Array.from(expectedSelector).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+
+                    // Check if method selector matches (first 4 bytes)
+                    if (methodSelectorBytes.length < 4 ||
+                        methodSelectorBytes[0] !== expectedSelector[0] ||
+                        methodSelectorBytes[1] !== expectedSelector[1] ||
+                        methodSelectorBytes[2] !== expectedSelector[2] ||
+                        methodSelectorBytes[3] !== expectedSelector[3]) {
+                        console.log('   ❌ Selector mismatch - skipping');
+                        continue; // Not a start_process call, skip
+                    }
+
+                    console.log('✅ Found start_process call');
+
                     // Decode battleId (arg 1) - skip ARC4 length prefix
                     const battleIdBytes = Uint8Array.from(atob(appCall['application-args'][1]), c => c.charCodeAt(0));
                     const battleId = new TextDecoder().decode(battleIdBytes.slice(2));
@@ -343,6 +369,11 @@ async function checkForIncomingChallenges() {
                     const opponentBytes = Uint8Array.from(atob(appCall['application-args'][2]), c => c.charCodeAt(0));
                     const opponentAddress = algosdk.encodeAddress(opponentBytes);
 
+                    console.log(`Battle ID: ${battleId.substring(0, 20)}...`);
+                    console.log(`Opponent: ${opponentAddress}`);
+                    console.log(`My address: ${account.addr}`);
+                    console.log(`Match: ${opponentAddress === account.addr}`);
+
                     // Check if I'm the opponent being challenged
                     if (opponentAddress === account.addr) {
                         // Check if already processed
@@ -350,16 +381,47 @@ async function checkForIncomingChallenges() {
                             continue;  // Silently skip already processed
                         }
 
-                        // Load battle state to check age and status
-                        const battleState = await contract.loadBattle(battleId);
+                        // Check if we already have a pending challenge for this specific battleId
+                        if (gameState.pvp.pendingChallenge?.battleId === battleId) {
+                            continue;  // Already showing modal for this battle
+                        }
 
-                        if (!battleState || battleState.status !== 'active') {
+                        // Try to load battle state, but don't require it to show modal
+                        // (handles race condition where transaction is visible before box is created)
+                        let battleState = null;
+                        let retryCount = 0;
+                        const MAX_RETRIES = 3;
+
+                        while (retryCount < MAX_RETRIES && !battleState) {
+                            try {
+                                battleState = await contract.loadBattle(battleId);
+                                if (battleState) break;
+                            } catch (loadError) {
+                                console.log(`⏳ Battle box not ready yet (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+                            }
+                            retryCount++;
+                            if (retryCount < MAX_RETRIES) {
+                                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second between retries
+                            }
+                        }
+
+                        // Check if battle is already accepted, completed, or resigned (skip if so)
+                        if (battleState && (battleState.status === 'completed' || battleState.status === 'resigned' || battleState.status === 'accepted' || battleState.status === 'active')) {
+                            console.log(`⏭️ Skipping battle with status: ${battleState.status}`);
                             processedChallenges.set(battleId, Date.now());
                             continue;
                         }
 
-                        // Check age BEFORE logging
-                        const battleAge = Date.now() - (battleState.timestamp || 0);
+                        // Only show modal for 'pending' battles (new challenges)
+                        if (battleState && battleState.status !== 'pending') {
+                            console.log(`⏭️ Skipping battle - status is ${battleState.status}, not pending`);
+                            processedChallenges.set(battleId, Date.now());
+                            continue;
+                        }
+
+                        // Check age based on transaction timestamp (fallback if no battleState)
+                        const txnTimestamp = txn['round-time'] ? txn['round-time'] * 1000 : Date.now();
+                        const battleAge = Date.now() - (battleState?.timestamp || txnTimestamp);
                         const MAX_CHALLENGE_AGE = 5 * 60 * 1000; // 5 minutes
 
                         if (battleAge > MAX_CHALLENGE_AGE) {
@@ -373,16 +435,12 @@ async function checkForIncomingChallenges() {
                         const challengerAddress = txn.sender;
                         processedChallenges.set(battleId, Date.now());
 
-                        // Check if we already have a pending challenge for this specific battleId
-                        if (gameState.pvp.pendingChallenge?.battleId === battleId) {
-                            continue;  // Already showing modal for this battle
-                        }
-
-                        const wager = battleState.wager || {
+                        // Use wager from battle state if available, otherwise use defaults
+                        const wager = battleState?.wager || {
                             boats: 0,
                             keys: 0,
                             pickaxe: 0,
-                            gold: 0
+                            gold: 10 // Default minimum wager
                         };
 
                         gameState.pvp.pendingChallenge = {
@@ -396,7 +454,8 @@ async function checkForIncomingChallenges() {
                             },
                             battleId: battleId,
                             txId: txn.id,
-                            timestamp: Date.now()
+                            timestamp: Date.now(),
+                            battleStateLoaded: !!battleState // Track if we loaded state successfully
                         };
 
                         const challengeData = {
@@ -407,11 +466,14 @@ async function checkForIncomingChallenges() {
                             wager
                         };
 
+                        console.log('🎯 Showing PvP challenge modal (battleState loaded:', !!battleState, ')');
                         showPvPChallengeModal(challengeData, challengerAddress);
                     }
+                } else if (numArgs > 0) {
+                    console.log(`⏭️ Skipping transaction with ${numArgs} args (need 5+)`);
                 }
             } catch (e) {
-                console.warn('Error processing transaction:', e.message);
+                console.error('❌ Error processing transaction:', e.message, e);
                 continue;
             }
         }
@@ -486,24 +548,52 @@ async function acceptPvPChallengeHandler() {
     const challenge = gameState.pvp.pendingChallenge;
 
     try {
-        console.log('📝 Accepting challenge locally - battleId:', challenge.battleId);
+        console.log('📝 Accepting challenge - battleId:', challenge.battleId);
 
-        // Load battle state to get wager and opponent info
-        const battleState = await contract.loadBattle(challenge.battleId);
+        // Disable accept button to prevent double-click
+        const acceptBtn = document.getElementById('acceptPvPBtn');
+        if (acceptBtn) acceptBtn.disabled = true;
 
-        if (!battleState) {
-            throw new Error('Battle not found on blockchain');
+        // Load battle state with retry logic (handles race condition)
+        let battleState = null;
+        let retryCount = 0;
+        const MAX_RETRIES = 5;
+
+        while (retryCount < MAX_RETRIES && !battleState) {
+            try {
+                battleState = await contract.loadBattle(challenge.battleId);
+                if (battleState) {
+                    console.log(`✅ Battle state loaded on attempt ${retryCount + 1}`);
+                    break;
+                }
+            } catch (loadError) {
+                console.log(`⏳ Battle box not ready yet (attempt ${retryCount + 1}/${MAX_RETRIES}): ${loadError.message}`);
+            }
+            retryCount++;
+            if (retryCount < MAX_RETRIES) {
+                await new Promise(resolve => setTimeout(resolve, 1500));
+            }
         }
 
-        console.log('📊 Battle state loaded:', battleState);
+        if (!battleState) {
+            throw new Error('Could not load battle state from blockchain');
+        }
 
-        // NOTE: We do NOT call contract.acceptBattle() because:
-        // - The contract uses turn-based access control
-        // - Turn 1 = challenger (participant1) can update
-        // - Receiver (participant2) cannot update until their turn
-        // - Acceptance is implicit - just start the battle
+        console.log('📊 Battle state:', battleState);
 
-        console.log('✅ Challenge accepted locally (no blockchain call needed)');
+        // CRITICAL: Update battle status to 'accepted' on blockchain
+        // This signals to the challenger that we're ready
+        console.log('📤 Updating battle status to accepted on blockchain...');
+
+        const updatedState = {
+            ...battleState,
+            status: 'accepted',
+            acceptedBy: account.addr,
+            acceptedAt: Date.now()
+        };
+
+        await contract.writeBattleState(account, challenge.battleId, updatedState);
+        console.log('✅ Battle status updated to accepted');
 
         // Close modal
         document.getElementById('pvpChallengeModal')?.remove();
@@ -515,8 +605,7 @@ async function acceptPvPChallengeHandler() {
             '#10b981'
         );
 
-        // Get opponent info and wager from battle state
-        // First try to load from blockchain for accurate stats
+        // Get opponent info from battle state or blockchain
         let opponent;
         try {
             const opponentState = await contract.loadPlayerState(challenge.from);
@@ -524,11 +613,10 @@ async function acceptPvPChallengeHandler() {
                 console.log('✅ Loaded opponent state from blockchain:', opponentState);
                 opponent = opponentState;
             } else {
-                throw new Error('Opponent state not found on blockchain');
+                throw new Error('Opponent state not found');
             }
         } catch (error) {
             console.warn('⚠️ Failed to load opponent from blockchain, using fallback:', error.message);
-            // Fallback to pvpBroadcasts or otherPlayers
             opponent = pvpBroadcasts.get(challenge.from) || otherPlayers.get(challenge.from) || {
                 address: challenge.from,
                 name: 'Challenger',
@@ -543,7 +631,7 @@ async function acceptPvPChallengeHandler() {
             };
         }
 
-        // Use wager from battle state (single source of truth!)
+        // Use wager from battle state
         opponent.wager = battleState.wager || { boats: 0, keys: 0, pickaxe: 0, gold: 0 };
         gameState.pvp.pendingChallenge.wager = opponent.wager;
         gameState.pvp.pendingChallenge.totalWager = {
@@ -554,17 +642,9 @@ async function acceptPvPChallengeHandler() {
         };
 
         console.log('💎 Wager from blockchain:', opponent.wager);
-        console.log('👤 Opponent stats:', {
-            name: opponent.name,
-            level: opponent.level,
-            hp: opponent.hp,
-            attack: opponent.attack,
-            defense: opponent.defense
-        });
-
         console.log('🎯 Starting battle as receiver with battleId:', challenge.battleId);
 
-        // Start the battle - receiver goes second
+        // Start the battle - receiver goes second (waits for challenger's first move)
         await startPvPBattle(opponent, challenge.from, false, challenge.battleId);
 
         // Clear challenge
@@ -577,6 +657,9 @@ async function acceptPvPChallengeHandler() {
             gameState.player.y * 32 - 40,
             '#ef4444'
         );
+        // Re-enable button on error
+        const acceptBtn = document.getElementById('acceptPvPBtn');
+        if (acceptBtn) acceptBtn.disabled = false;
     }
 }
 
@@ -672,7 +755,10 @@ async function broadcastPvPStatus() {
 
 // Blockchain-based matchmaking: Load waiting players
 async function loadPvPBroadcasts() {
-    if (!contract) return;
+    if (!contract) {
+        console.log('⏳ loadPvPBroadcasts: Waiting for contract...');
+        return;
+    }
 
     try {
         // Get all waiting players from blockchain (spam-proof!)
@@ -681,13 +767,14 @@ async function loadPvPBroadcasts() {
         pvpBroadcasts.clear();
 
         // Convert to map format (address -> playerData)
+        const myAddress = account?.addr;
         for (const player of waitingPlayers) {
-            if (player.address === account.addr) continue; // Skip self
+            if (myAddress && player.address === myAddress) continue; // Skip self
             pvpBroadcasts.set(player.address, player);
         }
 
         updatePvPBroadcastsList();
-        console.log(`📡 Loaded ${waitingPlayers.length} players from blockchain matchmaking`);
+        console.log(`📡 Loaded ${waitingPlayers.length} players from blockchain matchmaking (showing ${pvpBroadcasts.size})`);
     } catch (error) {
         console.error('Failed to load waiting players:', error);
     }
@@ -904,6 +991,13 @@ async function acceptPvPChallenge(targetAddress) {
         console.log('✅ TxID:', txId);
         console.log('✅ Wager stored:', opponent.wager);
 
+        // Remove opponent from broadcasts list immediately (they're now in battle)
+        if (pvpBroadcasts.has(targetAddress)) {
+            pvpBroadcasts.delete(targetAddress);
+            updatePvPBroadcastsList();
+            console.log('🧹 Removed opponent from broadcasts list (battle started)');
+        }
+
         // Track active challenge to prevent duplicates
         activeChallenges.set(targetAddress, {
             battleId: battleId,
@@ -936,44 +1030,193 @@ async function acceptPvPChallenge(targetAddress) {
 let acceptanceCheckInterval = null;
 
 async function startWaitingForChallengeAcceptance(opponentAddress, opponentData, battleId) {
-    // Since we removed explicit blockchain acceptance, we start immediately
-    // Both players have the battle state on blockchain now
-    // Receiver will start when they click accept in modal
-    // Challenger starts immediately
+    // Show waiting modal instead of starting battle immediately
+    showWaitingForAcceptanceModal(opponentData, battleId);
 
-    console.log('✅ Challenge sent - starting battle immediately (no acceptance wait needed)');
+    console.log('⏳ Waiting for opponent to accept challenge...');
 
-    // Load opponent's real state from blockchain for accurate stats
-    try {
-        const opponentState = await contract.loadPlayerState(opponentAddress);
-        if (opponentState) {
-            console.log('✅ Loaded fresh opponent state from blockchain:', opponentState);
-            opponentData = opponentState;
-        } else {
-            console.warn('⚠️ Could not load opponent state, using cached data');
-        }
-    } catch (error) {
-        console.warn('⚠️ Failed to load opponent state from blockchain:', error.message);
+    // Clear any existing interval
+    if (acceptanceCheckInterval) {
+        clearInterval(acceptanceCheckInterval);
     }
 
-    // Wager was already passed when creating battle - no need to reload
-    // Ensure wager exists with defaults if missing
-    opponentData.wager = opponentData.wager || { boats: 0, keys: 0, pickaxe: 0, gold: 0 };
-    console.log('💎 Using wager from opponent data (already on blockchain):', opponentData.wager);
+    // Poll for acceptance every 2 seconds
+    let checksRemaining = 90; // 3 minutes timeout (90 * 2 seconds)
 
-    console.log('👤 Opponent stats:', {
-        name: opponentData.name,
-        level: opponentData.level,
-        hp: opponentData.hp,
-        attack: opponentData.attack,
-        defense: opponentData.defense
-    });
+    acceptanceCheckInterval = setInterval(async () => {
+        checksRemaining--;
 
-    activeChallenges.delete(opponentAddress); // Clean up challenge
+        try {
+            const battleState = await contract.loadBattle(battleId);
 
-    // Start battle immediately - challenger goes first
-    console.log('Starting battle immediately with Battle ID:', battleId);
-    await startPvPBattle(opponentData, opponentAddress, true, battleId);
+            if (!battleState) {
+                console.warn('⚠️ Battle not found - may have been deleted');
+                clearInterval(acceptanceCheckInterval);
+                acceptanceCheckInterval = null;
+                closeWaitingModal();
+                showFloatingText('Challenge expired or declined',
+                    gameState.player.x * 32 + 16,
+                    gameState.player.y * 32 - 40,
+                    '#ef4444'
+                );
+                activeChallenges.delete(opponentAddress);
+                return;
+            }
+
+            console.log(`🔍 Checking acceptance status: ${battleState.status} (${checksRemaining} checks left)`);
+
+            // Check if opponent accepted
+            if (battleState.status === 'accepted') {
+                console.log('✅ Opponent accepted! Starting battle...');
+                clearInterval(acceptanceCheckInterval);
+                acceptanceCheckInterval = null;
+                closeWaitingModal();
+
+                // Load fresh opponent state
+                try {
+                    const opponentState = await contract.loadPlayerState(opponentAddress);
+                    if (opponentState) {
+                        opponentData = opponentState;
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Failed to load opponent state:', error.message);
+                }
+
+                opponentData.wager = battleState.wager || { boats: 0, keys: 0, pickaxe: 0, gold: 0 };
+                activeChallenges.delete(opponentAddress);
+
+                // Now start the battle - challenger goes first
+                await startPvPBattle(opponentData, opponentAddress, true, battleId);
+                return;
+            }
+
+            // Check if opponent declined or battle was deleted
+            if (battleState.status === 'declined' || battleState.status === 'resigned') {
+                console.log('❌ Opponent declined the challenge');
+                clearInterval(acceptanceCheckInterval);
+                acceptanceCheckInterval = null;
+                closeWaitingModal();
+                showFloatingText('Challenge declined',
+                    gameState.player.x * 32 + 16,
+                    gameState.player.y * 32 - 40,
+                    '#ef4444'
+                );
+                activeChallenges.delete(opponentAddress);
+                return;
+            }
+
+        } catch (error) {
+            console.error('Error checking acceptance:', error);
+        }
+
+        // Timeout check
+        if (checksRemaining <= 0) {
+            console.warn('⏰ Challenge acceptance timed out');
+            clearInterval(acceptanceCheckInterval);
+            acceptanceCheckInterval = null;
+            closeWaitingModal();
+            showFloatingText('Challenge timed out - no response',
+                gameState.player.x * 32 + 16,
+                gameState.player.y * 32 - 40,
+                '#f59e0b'
+            );
+            activeChallenges.delete(opponentAddress);
+
+            // Try to clean up the battle
+            try {
+                await contract.deleteBattle(account, battleId);
+            } catch (e) {
+                console.warn('Failed to cleanup timed out battle:', e.message);
+            }
+        }
+    }, 2000);
+}
+
+function showWaitingForAcceptanceModal(opponent, battleId) {
+    // Remove any existing modal
+    closeWaitingModal();
+
+    const modal = document.createElement('div');
+    modal.id = 'pvpWaitingModal';
+    modal.className = 'modal';
+    modal.style.cssText = `
+        display: flex;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.8);
+        z-index: 10000;
+        align-items: center;
+        justify-content: center;
+    `;
+
+    modal.innerHTML = `
+        <div style="background: #1f2937; padding: 30px; border-radius: 12px; max-width: 400px; color: white; text-align: center;">
+            <h2 style="color: #fbbf24; margin-bottom: 20px;">⏳ Challenge Sent!</h2>
+            <p style="margin-bottom: 10px;">Waiting for <strong>${opponent.name || 'opponent'}</strong> to accept...</p>
+            <div style="margin: 20px 0;">
+                <div class="spinner" style="
+                    border: 4px solid #374151;
+                    border-top: 4px solid #fbbf24;
+                    border-radius: 50%;
+                    width: 40px;
+                    height: 40px;
+                    animation: spin 1s linear infinite;
+                    margin: 0 auto;
+                "></div>
+            </div>
+            <p style="font-size: 12px; opacity: 0.7; margin-bottom: 20px;">
+                Battle will start automatically when accepted.<br>
+                Timeout: 3 minutes
+            </p>
+            <button id="cancelChallengeBtn" style="
+                padding: 12px 24px;
+                background: #ef4444;
+                border: none;
+                border-radius: 6px;
+                color: white;
+                font-weight: bold;
+                cursor: pointer;
+            ">Cancel Challenge</button>
+        </div>
+        <style>
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        </style>
+    `;
+
+    document.body.appendChild(modal);
+
+    document.getElementById('cancelChallengeBtn').onclick = async () => {
+        if (acceptanceCheckInterval) {
+            clearInterval(acceptanceCheckInterval);
+            acceptanceCheckInterval = null;
+        }
+        closeWaitingModal();
+
+        // Try to delete the battle
+        try {
+            await contract.deleteBattle(account, battleId);
+            console.log('✅ Challenge cancelled');
+        } catch (e) {
+            console.warn('Failed to delete battle:', e.message);
+        }
+
+        showFloatingText('Challenge cancelled',
+            gameState.player.x * 32 + 16,
+            gameState.player.y * 32 - 40,
+            '#94a3b8'
+        );
+    };
+}
+
+function closeWaitingModal() {
+    const modal = document.getElementById('pvpWaitingModal');
+    if (modal) modal.remove();
 }
 
 async function startPvPBattle(opponent, opponentAddress, iAmChallenger = false, sharedBattleId = null) {
@@ -994,6 +1237,14 @@ async function startPvPBattle(opponent, opponentAddress, iAmChallenger = false, 
             }).catch(error => {
                 console.warn('Failed to leave waiting list (non-blocking):', error.message);
             });
+        }
+
+        // Remove opponent from local broadcasts list (they're now in battle with us)
+        // This ensures they don't show in the UI while blockchain cleanup happens
+        if (pvpBroadcasts.has(opponentAddress)) {
+            pvpBroadcasts.delete(opponentAddress);
+            updatePvPBroadcastsList();
+            console.log('🧹 Removed opponent from broadcasts list (battle started)');
         }
 
         gameState.pvp.monitorHandle = await monitorPvPBattle(opponentAddress, 60);
@@ -1280,7 +1531,7 @@ function showPvPBattleModal(opponent) {
     createParticleEffect(gameState.player.x * 32 + 16, gameState.player.y * 32, '#dc2626');
 }
 
-function pvpBattleAction(action) {
+async function pvpBattleAction(action) {
     console.log('🎮 pvpBattleAction called:', action);
 
     const state = gameState.pvp.currentChallenge;
@@ -1299,6 +1550,10 @@ function pvpBattleAction(action) {
         addPvPBattleLog(`⏳ Wait for opponent's turn!`, 'log-info');
         return;
     }
+
+    // Disable buttons while processing turn
+    const actionButtons = document.querySelectorAll('#pvpBattleModal button');
+    actionButtons.forEach(btn => btn.disabled = true);
 
     console.log('✅ Executing action:', action);
     let playerDamage = 0;
@@ -1366,7 +1621,11 @@ function pvpBattleAction(action) {
             break;
     }
 
-    if (!actionValid) return;
+    if (!actionValid) {
+        // Re-enable buttons if action was invalid
+        actionButtons.forEach(btn => btn.disabled = false);
+        return;
+    }
 
     updatePvPBattleUI();
     updateUI();
@@ -1376,78 +1635,85 @@ function pvpBattleAction(action) {
         return;
     }
 
+    // Store previous turn state for rollback on failure
+    const previousTurnNumber = state.turnNumber;
+
     // Increment turn BEFORE broadcasting
     state.turnNumber++;
     state.isMyTurn = false;
 
-    // Broadcast turn to blockchain with updated turn number
-    broadcastPvPTurn(action, playerDamage);
+    addPvPBattleLog(`📤 Submitting turn to blockchain...`, 'log-info');
 
-    addPvPBattleLog(`⏳ Waiting for opponent...`, 'log-info');
+    // Broadcast turn to blockchain with error handling
+    try {
+        await broadcastPvPTurn(action, playerDamage);
+        addPvPBattleLog(`⏳ Waiting for opponent...`, 'log-info');
+    } catch (error) {
+        console.error('❌ Failed to broadcast turn:', error);
+        // Rollback turn state on failure
+        state.turnNumber = previousTurnNumber;
+        state.isMyTurn = true;
+        addPvPBattleLog(`❌ Turn failed to sync! Try again.`, 'log-damage');
+        // Re-enable buttons so player can retry
+        actionButtons.forEach(btn => btn.disabled = false);
+        return;
+    }
+
+    // Keep buttons disabled while waiting for opponent
+    // They will be re-enabled when it's our turn again (in processPvPOpponentTurn)
 }
 
 // Update battle state on blockchain using contract method
 async function broadcastPvPTurn(action, damage) {
-    if (!account || !contract) return;
-
-    try {
-        const state = gameState.pvp.currentChallenge;
-
-        // CRITICAL: Load existing battle state and MERGE with new data
-        const existingState = await contract.loadBattle(state.battleId);
-
-        if (!existingState) {
-            console.error('❌ Cannot load battle state from blockchain');
-            addPvPBattleLog(`⚠️ Network error - turn not saved`, 'log-info');
-            return;
-        }
-
-        // Merge new turn data with existing state (preserve wager, challenger, etc.)
-        const updatedState = {
-            ...existingState,  // Keep all existing fields (wager, challenger, opponent, etc.)
-            turnNumber: state.turnNumber,
-            action: action,
-            damage: damage,
-            player1: {
-                address: state.iAmChallenger ? account.addr : state.address,
-                hp: state.iAmChallenger ? gameState.player.hp : state.opponent.hp,
-                maxHp: state.iAmChallenger ? gameState.player.maxHp : (state.opponent.maxHp || 100),
-                mp: state.iAmChallenger ? gameState.player.mp : (state.opponent.mp || 100),
-                maxMp: state.iAmChallenger ? gameState.player.maxMp : (state.opponent.maxMp || 100)
-            },
-            player2: {
-                address: state.iAmChallenger ? state.address : account.addr,
-                hp: state.iAmChallenger ? state.opponent.hp : gameState.player.hp,
-                maxHp: state.iAmChallenger ? (state.opponent.maxHp || 100) : gameState.player.maxHp,
-                mp: state.iAmChallenger ? (state.opponent.mp || 100) : gameState.player.mp,
-                maxMp: state.iAmChallenger ? (state.opponent.maxMp || 100) : gameState.player.maxMp
-            },
-            status: 'active',
-            currentTurn: state.address,  // Next player's turn (opponent)
-            lastUpdated: account.addr,
-            timestamp: Date.now()
-        };
-
-        console.log(`📤 Submitting turn ${updatedState.turnNumber} to blockchain: ${action} (${damage} damage)`);
-
-        // Use blockchain contract method
-        await contract.submitPvPTurn(
-            account,
-            state.battleId,
-            updatedState
-        );
-
-        console.log('✅ Turn submitted successfully to blockchain');
-
-    } catch (error) {
-        console.error('Failed to submit turn to blockchain:', error);
-        console.error('Error details:', {
-            message: error.message,
-            response: error.response?.text || error.response?.body,
-            status: error.status
-        });
-        addPvPBattleLog(`⚠️ Network error - turn not saved: ${error.message}`, 'log-info');
+    if (!account || !contract) {
+        throw new Error('Wallet not connected');
     }
+
+    const state = gameState.pvp.currentChallenge;
+
+    // CRITICAL: Load existing battle state and MERGE with new data
+    const existingState = await contract.loadBattle(state.battleId);
+
+    if (!existingState) {
+        throw new Error('Cannot load battle state from blockchain');
+    }
+
+    // Merge new turn data with existing state (preserve wager, challenger, etc.)
+    const updatedState = {
+        ...existingState,  // Keep all existing fields (wager, challenger, opponent, etc.)
+        turnNumber: state.turnNumber,
+        action: action,
+        damage: damage,
+        player1: {
+            address: state.iAmChallenger ? account.addr : state.address,
+            hp: state.iAmChallenger ? gameState.player.hp : state.opponent.hp,
+            maxHp: state.iAmChallenger ? gameState.player.maxHp : (state.opponent.maxHp || 100),
+            mp: state.iAmChallenger ? gameState.player.mp : (state.opponent.mp || 100),
+            maxMp: state.iAmChallenger ? gameState.player.maxMp : (state.opponent.maxMp || 100)
+        },
+        player2: {
+            address: state.iAmChallenger ? state.address : account.addr,
+            hp: state.iAmChallenger ? state.opponent.hp : gameState.player.hp,
+            maxHp: state.iAmChallenger ? (state.opponent.maxHp || 100) : gameState.player.maxHp,
+            mp: state.iAmChallenger ? (state.opponent.mp || 100) : gameState.player.mp,
+            maxMp: state.iAmChallenger ? (state.opponent.maxMp || 100) : gameState.player.maxMp
+        },
+        status: 'active',
+        currentTurn: state.address,  // Next player's turn (opponent)
+        lastUpdated: account.addr,
+        timestamp: Date.now()
+    };
+
+    console.log(`📤 Submitting turn ${updatedState.turnNumber} to blockchain: ${action} (${damage} damage)`);
+
+    // Use blockchain contract method - this will throw on failure
+    await contract.submitPvPTurn(
+        account,
+        state.battleId,
+        updatedState
+    );
+
+    console.log('✅ Turn submitted successfully to blockchain');
 }
 
 // Check for opponent's turns using blockchain state
@@ -1581,6 +1847,10 @@ function processPvPOpponentTurn(battleState) {
 
     state.isMyTurn = true;
     addPvPBattleLog(`🎯 Your turn!`, 'log-info');
+
+    // Re-enable action buttons now that it's our turn
+    const actionButtons = document.querySelectorAll('#pvpBattleModal button:not(#pvpResignBtn)');
+    actionButtons.forEach(btn => btn.disabled = false);
 }
 
 async function finalizePvPBattleOnChain(victory) {
@@ -1625,6 +1895,20 @@ async function finalizePvPBattleOnChain(victory) {
         const mergedState = contract.mergeBattleState(battleState, updates);
         await contract.writeBattleState(account, state.battleId, mergedState);
         console.log('🏁 Battle finalized on blockchain');
+
+        // Auto-cleanup: Delete battle box to reclaim MBR (cost-effective for players)
+        try {
+            console.log('🧹 Auto-cleaning battle box...');
+            await contract.resignBattle(account, state.battleId);
+            console.log('✅ Battle resigned (finalized)');
+            await contract.deleteBattle(account, state.battleId);
+            console.log('💰 Battle box deleted - MBR refunded (~0.12 ALGO)');
+            addPvPBattleLog('💰 Battle cleaned up - MBR refunded!', 'log-heal');
+        } catch (cleanupError) {
+            // Non-critical error - battle is already finalized
+            console.warn('⚠️ Battle cleanup failed (non-critical):', cleanupError.message);
+            // Battle is finalized, cleanup can be done manually later if needed
+        }
     } catch (error) {
         console.error('Failed to finalize PvP battle on blockchain:', error);
     }
@@ -1801,11 +2085,21 @@ async function resignPvPBattle() {
 }
 
 function endPvPBattle(victory) {
+    // Capture opponent address before clearing state (for cleanup)
+    const opponentAddress = gameState.pvp.currentChallenge?.address;
+
     gameState.pvp.inPvPBattle = false;
     gameState.inBattle = false;
     gameState.pvp.currentChallenge = null;
 
     document.getElementById('pvpBattleModal').style.display = 'none';
+
+    // Remove opponent from broadcasts list (cleanup in case they weren't removed earlier)
+    if (opponentAddress && pvpBroadcasts.has(opponentAddress)) {
+        pvpBroadcasts.delete(opponentAddress);
+        updatePvPBroadcastsList();
+        console.log('🧹 Removed opponent from broadcasts list (battle ended)');
+    }
 
     // Restore mobile controls only on actual mobile devices (let CSS media query handle it)
     const mobileControls = document.getElementById('mobile-controls');
@@ -1834,8 +2128,13 @@ function endPvPBattle(victory) {
     }
 
     // Refresh the waiting list to remove completed battles
+    // Do immediate refresh first, then delayed refresh to catch blockchain updates
     if (typeof loadPvPBroadcasts === 'function') {
         loadPvPBroadcasts();
+        // Delayed refresh to catch blockchain leaveWaitingList() confirmations
+        setTimeout(() => {
+            loadPvPBroadcasts();
+        }, 5000);
     }
 
     updateUI();
