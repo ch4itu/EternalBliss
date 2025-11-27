@@ -369,6 +369,4 @@ MIT License — see [LICENSE](LICENSE) file.
 ### AI Assistance
 Special thanks to Claude, ChatGPT, Gemini, and Grok for architecture design, code review, and documentation.
 
----
 
-*Built with the Universal State Machine Framework — Where data lives forever.*
