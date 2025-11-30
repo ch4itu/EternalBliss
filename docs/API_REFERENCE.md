@@ -863,4 +863,4 @@ Algorand produces approximately 1 block every 3-4 seconds.
 
 ---
 
-*Universal State Machine v3.2 - API Reference*
+*Universal State Machine v1.0 - API Reference*
