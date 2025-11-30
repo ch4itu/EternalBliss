@@ -825,7 +825,7 @@ arkb deploy ./dist
 
 - **[API Reference](./API_REFERENCE.md)** - Complete method documentation
 - **[Examples](./EXAMPLES.md)** - Ready-to-use templates for common use cases
-- **[EternalBliss Game](https://ch4itu.github.io/EternalBliss/)** - See the framework in action
+- **[EternalBliss Apps](https://ch4itu.github.io/EternalBliss/)** - See the framework in action
 
 ---
 
