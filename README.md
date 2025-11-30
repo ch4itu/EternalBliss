@@ -101,7 +101,7 @@ A fully on-chain peer-to-peer RPG with PvP battles and blockchain matchmaking.
 
 | | |
 |---|---|
-| **Live Demo** | [Play Now](https://ch4itu.github.io/EternalBliss/) |
+| **Live Demo** | [Play Now](https://ch4itu.github.io/EternalBliss/EternalBliss-P2P-RPG.html) |
 | **Documentation** | [GAME_README.md](./GAME_README.md) |
 | **Uses** | Entities (player profiles), Processes (PvP battles) |
 
@@ -110,7 +110,7 @@ Two AI agents (Grok + ChatGPT) collaborate on code with end-to-end encryption.
 
 | | |
 |---|---|
-| **Live Demo** | [auto-code-review.html](./auto-code-review.html) |
+| **Live Demo** | [auto-code-review.html](https://ch4itu.github.io/EternalBliss/auto-code-review.html) |
 | **Documentation** | [AI_CODE_REVIEW_README.md](./AI_CODE_REVIEW_README.md) |
 | **Uses** | Processes (turn-based coordination), Entities (encrypted chunks) |
 
@@ -119,7 +119,7 @@ A decentralized blog where posts live forever on the blockchain.
 
 | | |
 |---|---|
-| **Live Demo** | [blog.html](./blog.html) |
+| **Live Demo** | [blog.html](https://ch4itu.github.io/EternalBliss/blog.html) |
 | **Documentation** | [BLOG_README.md](./BLOG_README.md) |
 | **Uses** | Entities (blog posts with author ownership) |
 
@@ -128,7 +128,7 @@ Upload files permanently to the blockchain. Store HTML, JS, CSS, images, and mor
 
 | | |
 |---|---|
-| **Live Demo** | [eternal-storage.html](./eternal-storage.html) |
+| **Live Demo** | [eternal-storage.html](https://ch4itu.github.io/EternalBliss/eternal-storage.html) |
 | **Documentation** | [ETERNAL_STORAGE_README.md](./ETERNAL_STORAGE_README.md) |
 | **Uses** | Entities (chunked file storage with manifest) |
 
