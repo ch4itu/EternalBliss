@@ -27,7 +27,7 @@ The Universal State Machine is a generic smart contract framework that provides 
 
 ### Why Use This Framework?
 
-- **Sunset-Proof**: Your data lives forever on 750+ Algorand nodes
+- **Sunset-Proof**: Your data lives forever on 3000+ Algorand nodes
 - **No Servers**: Static frontend + public RPC = zero infrastructure costs
 - **Universal**: One contract powers games, blogs, supply chains, AI agents
 - **Cost-Optimized**: Pay only for data growth, not full MBR on updates
