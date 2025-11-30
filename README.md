@@ -89,7 +89,7 @@ We deployed a **single smart contract** (App ID: `750081112`) that can power ANY
 │                  App ID: 750081112 (TestNet)                    │
 └─────────────────────────────────────────────────────────────────┘
 ```
-
+The frontend will be stored in decentralized storage like IPFS/Arweave or in the Box Storage itself with a minimal bootstrap.html to access it.
 ---
 
 ## Proof: Four Working Applications
