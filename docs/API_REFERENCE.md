@@ -9,7 +9,7 @@ Complete reference documentation for all smart contract methods.
 | Property | Value |
 |----------|-------|
 | **Name** | UniversalStateMachine |
-| **Version** | v3.2 |
+| **Version** | v1.0 |
 | **App ID (TestNet)** | 750081112 |
 | **Language** | Algorand Python (AlgoPy) |
 | **Standard** | ARC-4 ABI |
