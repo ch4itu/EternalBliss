@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Eternal Storage - Upload to Algorand</title>
   <script src="https://cdn.jsdelivr.net/npm/algosdk@2.7.0/dist/browser/algosdk.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl-fast.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tweetnacl-util@0.15.1/nacl-util.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ed2curve@0.3.0/ed2curve.min.js"></script>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -351,6 +354,102 @@
       margin-top: 10px;
     }
     .download-link:hover { background: #27ae60; }
+
+    /* Encryption toggle */
+    .toggle-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 15px 0;
+    }
+    .toggle {
+      position: relative;
+      width: 50px;
+      height: 26px;
+    }
+    .toggle input { display: none; }
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(255,255,255,0.2);
+      border-radius: 26px;
+      transition: 0.3s;
+    }
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 3px;
+      bottom: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: 0.3s;
+    }
+    .toggle input:checked + .toggle-slider { background: #00d4ff; }
+    .toggle input:checked + .toggle-slider:before { transform: translateX(24px); }
+    .encrypt-options {
+      display: none;
+      margin-top: 15px;
+      padding: 15px;
+      background: rgba(0,212,255,0.1);
+      border-radius: 8px;
+      border: 1px solid rgba(0,212,255,0.3);
+    }
+    .encrypt-options.visible { display: block; }
+
+    /* Share link */
+    .share-box {
+      background: rgba(46,204,113,0.1);
+      border: 1px solid rgba(46,204,113,0.3);
+      border-radius: 8px;
+      padding: 15px;
+      margin-top: 15px;
+    }
+    .share-link {
+      background: rgba(0,0,0,0.3);
+      padding: 10px 15px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 13px;
+      word-break: break-all;
+      margin: 10px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .share-link code { flex: 1; color: #2ecc71; }
+
+    /* View others section */
+    .view-others {
+      background: rgba(155,89,182,0.1);
+      border: 1px solid rgba(155,89,182,0.3);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .view-others h4 { color: #9b59b6; margin: 0 0 15px 0; }
+
+    /* Launch app button */
+    .btn-launch {
+      background: linear-gradient(135deg, #9b59b6, #8e44ad);
+      color: #fff;
+    }
+    .btn-launch:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 15px rgba(155,89,182,0.4);
+    }
+
+    /* Encrypted badge */
+    .encrypted-badge {
+      background: rgba(0,212,255,0.2);
+      color: #00d4ff;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      margin-left: 5px;
+    }
   </style>
 </head>
 <body>
@@ -360,7 +459,8 @@
 
     <div class="tabs">
       <button class="tab active" onclick="switchTab('upload')">Upload</button>
-      <button class="tab" onclick="switchTab('browse')">Browse Files</button>
+      <button class="tab" onclick="switchTab('browse')">My Files</button>
+      <button class="tab" onclick="switchTab('view')">View Others</button>
     </div>
 
     <!-- UPLOAD TAB -->
@@ -392,6 +492,41 @@
           <p>Supports: HTML, JS, CSS, JSON, PNG, JPG, GIF, SVG, TXT, MD</p>
           <input type="file" id="fileInput" multiple accept=".html,.js,.css,.json,.png,.jpg,.jpeg,.gif,.svg,.txt,.md,.xml" onchange="analyzeFiles()" />
         </div>
+
+        <div class="toggle-container">
+          <label class="toggle">
+            <input type="checkbox" id="encryptToggle" onchange="toggleEncryption()">
+            <span class="toggle-slider"></span>
+          </label>
+          <span>Enable encryption</span>
+        </div>
+
+        <div id="encryptOptions" class="encrypt-options">
+          <div style="margin-bottom: 15px;">
+            <label style="color: #888; font-size: 12px; display: block; margin-bottom: 8px;">Encryption Mode:</label>
+            <select id="encryptMode" onchange="updateEncryptModeUI()" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: #fff; font-size: 14px;">
+              <option value="password">🔑 Password Protected - Anyone with password can view</option>
+              <option value="recipient">👤 Recipient Only - Only specific wallet can view</option>
+              <option value="private">🔒 Private - Only you can view</option>
+            </select>
+          </div>
+
+          <div id="passwordInput" style="margin-bottom: 15px;">
+            <label style="color: #888; font-size: 12px; display: block; margin-bottom: 5px;">Password:</label>
+            <input type="password" id="encryptPassword" placeholder="Enter encryption password" />
+          </div>
+
+          <div id="recipientInput" style="margin-bottom: 15px; display: none;">
+            <label style="color: #888; font-size: 12px; display: block; margin-bottom: 5px;">Recipient's Algorand Address:</label>
+            <input type="text" id="recipientAddress" placeholder="e.g., ABC123...XYZ (58 characters)" />
+            <p style="color: #666; font-size: 11px; margin-top: 5px;">Only this wallet owner can decrypt with their mnemonic</p>
+          </div>
+
+          <div id="encryptModeInfo" class="info-box" style="margin: 0;">
+            <strong>Password Mode:</strong> Files encrypted with a password. Share the password with anyone you want to give access.
+          </div>
+        </div>
+
         <div id="fileAnalysis"></div>
       </div>
 
@@ -410,6 +545,13 @@
       </div>
 
       <div class="card">
+        <h3>Share Your Storage</h3>
+        <div id="shareSection" style="color: #888;">
+          <p>Connect wallet and upload files to generate a shareable link</p>
+        </div>
+      </div>
+
+      <div class="card">
         <h3>Activity Log</h3>
         <div class="log" id="log"></div>
       </div>
@@ -423,6 +565,7 @@
 
         <div class="btn-group" style="margin-bottom: 20px;">
           <button class="btn btn-primary" onclick="loadStoredFiles()">Load Files</button>
+          <button class="btn btn-launch" onclick="launchApp()" id="launchAppBtn" disabled>Launch as App</button>
           <button class="btn btn-danger" onclick="deleteAllFiles()" id="deleteAllBtn" disabled>Delete All</button>
         </div>
 
@@ -464,6 +607,58 @@
         <div class="log" id="browseLog"></div>
       </div>
     </div>
+
+    <!-- VIEW OTHERS TAB -->
+    <div id="tab-view" class="tab-content">
+      <div class="card">
+        <h3>View Someone's Storage</h3>
+        <p style="color: #888; margin-bottom: 15px;">Enter a Storage ID to view files uploaded by someone else. No wallet required!</p>
+
+        <div style="margin-bottom: 15px;">
+          <label style="color: #888; font-size: 12px; display: block; margin-bottom: 5px;">Storage ID</label>
+          <input type="text" id="viewStorageId" placeholder="e.g., abc12345" />
+        </div>
+        <div class="info-box" style="margin-bottom: 15px;">
+          <strong>Note:</strong> Only public (unencrypted) files can be viewed here. Private files are encrypted with the owner's wallet key and can only be viewed by them.
+        </div>
+
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="viewOthersStorage()">Load Files</button>
+          <button class="btn btn-launch" onclick="launchOthersApp()" id="launchOthersBtn" disabled>Launch as App</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Files <span id="viewFileCount" style="color: #00d4ff; font-size: 12px;"></span></h3>
+        <div class="file-browser">
+          <div class="file-list">
+            <div class="file-list-header">
+              <h4>Files</h4>
+            </div>
+            <div class="file-list-content" id="viewFileList">
+              <div class="empty-state">
+                <p>Enter a Storage ID above</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="preview-panel">
+            <div class="preview-header">
+              <h4 id="viewPreviewTitle">Preview</h4>
+              <div id="viewPreviewActions"></div>
+            </div>
+            <div class="preview-content" id="viewPreviewContent">
+              <div class="preview-placeholder">Select a file to preview</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Activity Log</h3>
+        <div class="log" id="viewLog"></div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -474,6 +669,550 @@
 
     // Namespace is auto-generated from wallet address
     let currentNamespace = null;
+    let viewingNamespace = null;
+    let viewingManifest = null;
+
+    // ============ ENCRYPTION FUNCTIONS ============
+
+    // 1. PASSWORD-BASED ENCRYPTION (NaCl secretbox with key derived from password)
+    function deriveKeyFromPassword(password) {
+      // Simple key derivation - hash password to get 32-byte key
+      const encoder = new TextEncoder();
+      const passwordBytes = encoder.encode(password);
+      // Use multiple rounds of hashing for better security
+      let hash = passwordBytes;
+      for (let i = 0; i < 10000; i++) {
+        hash = nacl.hash(hash).slice(0, 32);
+      }
+      return hash;
+    }
+
+    function encryptWithPassword(data, password) {
+      try {
+        const key = deriveKeyFromPassword(password);
+        const nonce = nacl.randomBytes(nacl.secretbox.nonceLength);
+        const messageBytes = nacl.util.decodeUTF8(data);
+        const encrypted = nacl.secretbox(messageBytes, nonce, key);
+
+        const combined = new Uint8Array(nonce.length + encrypted.length);
+        combined.set(nonce);
+        combined.set(encrypted, nonce.length);
+
+        return nacl.util.encodeBase64(combined);
+      } catch (error) {
+        throw new Error('Password encryption failed: ' + error.message);
+      }
+    }
+
+    function decryptWithPassword(encryptedBase64, password) {
+      try {
+        const key = deriveKeyFromPassword(password);
+        const combined = nacl.util.decodeBase64(encryptedBase64);
+        const nonce = combined.slice(0, nacl.secretbox.nonceLength);
+        const encrypted = combined.slice(nacl.secretbox.nonceLength);
+
+        const decrypted = nacl.secretbox.open(encrypted, nonce, key);
+        if (!decrypted) {
+          throw new Error('Wrong password or corrupted data');
+        }
+        return nacl.util.encodeUTF8(decrypted);
+      } catch (e) {
+        throw new Error('Decryption failed: ' + e.message);
+      }
+    }
+
+    // 2. RECIPIENT-ONLY ENCRYPTION (NaCl box - sender encrypts for recipient's public key)
+    function encryptForRecipient(data, myAccount, recipientAddress) {
+      try {
+        const myEd25519SecretKey = myAccount.sk.slice(0, 32);
+        const recipientEd25519PubKey = algosdk.decodeAddress(recipientAddress).publicKey;
+
+        const myCurve25519SecretKey = ed2curve.convertSecretKey(myEd25519SecretKey);
+        const recipientCurve25519PubKey = ed2curve.convertPublicKey(recipientEd25519PubKey);
+
+        if (!myCurve25519SecretKey || !recipientCurve25519PubKey) {
+          throw new Error("Key conversion failed");
+        }
+
+        const nonce = nacl.randomBytes(nacl.box.nonceLength);
+        const messageBytes = nacl.util.decodeUTF8(data);
+        const encrypted = nacl.box(messageBytes, nonce, recipientCurve25519PubKey, myCurve25519SecretKey);
+
+        const combined = new Uint8Array(nonce.length + encrypted.length);
+        combined.set(nonce);
+        combined.set(encrypted, nonce.length);
+
+        return nacl.util.encodeBase64(combined);
+      } catch (error) {
+        throw new Error('Recipient encryption failed: ' + error.message);
+      }
+    }
+
+    function decryptFromSender(encryptedBase64, myAccount, senderAddress) {
+      try {
+        const combined = nacl.util.decodeBase64(encryptedBase64);
+        const nonce = combined.slice(0, nacl.box.nonceLength);
+        const encrypted = combined.slice(nacl.box.nonceLength);
+
+        const myEd25519SecretKey = myAccount.sk.slice(0, 32);
+        const senderEd25519PubKey = algosdk.decodeAddress(senderAddress).publicKey;
+
+        const myCurve25519SecretKey = ed2curve.convertSecretKey(myEd25519SecretKey);
+        const senderCurve25519PubKey = ed2curve.convertPublicKey(senderEd25519PubKey);
+
+        if (!myCurve25519SecretKey || !senderCurve25519PubKey) {
+          throw new Error("Key conversion failed");
+        }
+
+        const decrypted = nacl.box.open(encrypted, nonce, senderCurve25519PubKey, myCurve25519SecretKey);
+        if (!decrypted) {
+          throw new Error('Decryption failed - you are not the intended recipient');
+        }
+        return nacl.util.encodeUTF8(decrypted);
+      } catch (e) {
+        throw new Error('Decryption failed: ' + e.message);
+      }
+    }
+
+    // 3. PRIVATE ENCRYPTION (Owner encrypts for self)
+    function encryptForSelf(data, myAccount) {
+      try {
+        const myEd25519SecretKey = myAccount.sk.slice(0, 32);
+        const myEd25519PubKey = algosdk.decodeAddress(myAccount.addr).publicKey;
+
+        const myCurve25519PubKey = ed2curve.convertPublicKey(myEd25519PubKey);
+        const myCurve25519SecretKey = ed2curve.convertSecretKey(myEd25519SecretKey);
+
+        if (!myCurve25519PubKey || !myCurve25519SecretKey) {
+          throw new Error("Key conversion failed");
+        }
+
+        const nonce = nacl.randomBytes(nacl.box.nonceLength);
+        const messageBytes = nacl.util.decodeUTF8(data);
+        const encrypted = nacl.box(messageBytes, nonce, myCurve25519PubKey, myCurve25519SecretKey);
+
+        const combined = new Uint8Array(nonce.length + encrypted.length);
+        combined.set(nonce);
+        combined.set(encrypted, nonce.length);
+
+        return nacl.util.encodeBase64(combined);
+      } catch (error) {
+        throw new Error('Encryption failed: ' + error.message);
+      }
+    }
+
+    function decryptForSelf(encryptedBase64, myAccount) {
+      try {
+        const combined = nacl.util.decodeBase64(encryptedBase64);
+        const nonce = combined.slice(0, nacl.box.nonceLength);
+        const encrypted = combined.slice(nacl.box.nonceLength);
+
+        const myEd25519SecretKey = myAccount.sk.slice(0, 32);
+        const myEd25519PubKey = algosdk.decodeAddress(myAccount.addr).publicKey;
+
+        const myCurve25519PubKey = ed2curve.convertPublicKey(myEd25519PubKey);
+        const myCurve25519SecretKey = ed2curve.convertSecretKey(myEd25519SecretKey);
+
+        if (!myCurve25519PubKey || !myCurve25519SecretKey) {
+          throw new Error("Key conversion failed");
+        }
+
+        const decrypted = nacl.box.open(encrypted, nonce, myCurve25519PubKey, myCurve25519SecretKey);
+        if (!decrypted) {
+          throw new Error('Decryption failed - not your file or corrupted data');
+        }
+        return nacl.util.encodeUTF8(decrypted);
+      } catch (e) {
+        throw new Error('Decryption failed: ' + e.message);
+      }
+    }
+
+    // ============ ENCRYPTION UI FUNCTIONS ============
+
+    function toggleEncryption() {
+      const toggle = document.getElementById('encryptToggle');
+      const options = document.getElementById('encryptOptions');
+      if (toggle.checked) {
+        options.classList.add('visible');
+        updateEncryptModeUI();
+      } else {
+        options.classList.remove('visible');
+      }
+    }
+
+    function updateEncryptModeUI() {
+      const mode = document.getElementById('encryptMode').value;
+      const passwordInput = document.getElementById('passwordInput');
+      const recipientInput = document.getElementById('recipientInput');
+      const modeInfo = document.getElementById('encryptModeInfo');
+
+      passwordInput.style.display = 'none';
+      recipientInput.style.display = 'none';
+
+      if (mode === 'password') {
+        passwordInput.style.display = 'block';
+        modeInfo.innerHTML = '<strong>Password Mode:</strong> Files encrypted with a password. Share the password with anyone you want to give access.';
+      } else if (mode === 'recipient') {
+        recipientInput.style.display = 'block';
+        modeInfo.innerHTML = '<strong>Recipient Mode:</strong> Files encrypted for a specific wallet. Only that wallet owner can decrypt using their mnemonic.';
+      } else if (mode === 'private') {
+        modeInfo.innerHTML = '<strong>Private Mode:</strong> Files encrypted with your wallet keys. Only YOU can decrypt them. Cannot be shared.';
+      }
+    }
+
+    // Check for URL parameters (for shareable links)
+    async function checkUrlParams() {
+      const params = new URLSearchParams(window.location.search);
+      const ns = params.get('ns');
+      const launchApp = params.get('launch'); // ?launch=true or ?launch=index.html
+      const viewFile = params.get('file'); // ?file=readme.txt
+
+      if (!ns) return;
+
+      // Direct launch mode - render content like IPFS/Arweave
+      if (launchApp) {
+        await directLaunch(ns, launchApp === 'true' ? null : launchApp);
+        return;
+      }
+
+      // Direct file view mode
+      if (viewFile) {
+        await directViewFile(ns, viewFile);
+        return;
+      }
+
+      // Default: show View Others tab
+      document.getElementById('viewStorageId').value = ns;
+      switchTab('view');
+      viewOthersStorage();
+    }
+
+    // Direct launch - renders app directly in browser (like IPFS/Arweave)
+    async function directLaunch(namespace, htmlFileName = null) {
+      try {
+        // Load manifest
+        const boxKey = new TextEncoder().encode(`e:${namespace}:manifest`);
+        const boxResponse = await algodClient.getApplicationBoxByName(APP_ID, boxKey).do();
+        const content = new TextDecoder().decode(boxResponse.value.slice(32));
+        const manifest = JSON.parse(content);
+
+        // Check for encrypted files
+        const hasEncrypted = manifest.files.some(f => f.encrypted);
+        if (hasEncrypted) {
+          document.body.innerHTML = `
+            <div style="padding: 40px; text-align: center; font-family: sans-serif; background: #1a1a2e; color: #fff; min-height: 100vh;">
+              <h2 style="color: #f39c12;">⚠️ Private Content</h2>
+              <p>This content is encrypted and can only be viewed by the owner.</p>
+              <a href="${window.location.pathname}" style="color: #00d4ff;">Go to Eternal Storage</a>
+            </div>
+          `;
+          return;
+        }
+
+        // Find HTML file to launch
+        const htmlFiles = manifest.files.filter(f => f.name.endsWith('.html'));
+        if (htmlFiles.length === 0) {
+          document.body.innerHTML = `
+            <div style="padding: 40px; text-align: center; font-family: sans-serif; background: #1a1a2e; color: #fff; min-height: 100vh;">
+              <h2 style="color: #e74c3c;">No App Found</h2>
+              <p>No HTML files found in this storage.</p>
+              <a href="${window.location.pathname}?ns=${namespace}" style="color: #00d4ff;">View Files Instead</a>
+            </div>
+          `;
+          return;
+        }
+
+        // If multiple HTML files and none specified, show selector
+        if (htmlFiles.length > 1 && !htmlFileName) {
+          showAppSelector(namespace, htmlFiles);
+          return;
+        }
+
+        // Determine which HTML to launch
+        const targetHtml = htmlFileName || htmlFiles[0].name;
+
+        // Load all files and render
+        await renderAppDirectly(manifest, namespace, targetHtml);
+
+      } catch (e) {
+        document.body.innerHTML = `
+          <div style="padding: 40px; text-align: center; font-family: sans-serif; background: #1a1a2e; color: #fff; min-height: 100vh;">
+            <h2 style="color: #e74c3c;">Storage Not Found</h2>
+            <p>Could not find storage: ${namespace}</p>
+            <p style="color: #888; font-size: 14px;">${e.message}</p>
+            <a href="${window.location.pathname}" style="color: #00d4ff;">Go to Eternal Storage</a>
+          </div>
+        `;
+      }
+    }
+
+    // Show app selector when multiple HTML files exist
+    function showAppSelector(namespace, htmlFiles) {
+      const baseUrl = window.location.pathname;
+      let linksHtml = htmlFiles.map(f => `
+        <a href="${baseUrl}?ns=${namespace}&launch=${encodeURIComponent(f.name)}"
+           style="display: block; padding: 15px 25px; margin: 10px 0; background: rgba(0,212,255,0.2);
+                  border-radius: 8px; color: #00d4ff; text-decoration: none; font-size: 16px;">
+          🌐 ${f.name}
+        </a>
+      `).join('');
+
+      document.body.innerHTML = `
+        <div style="padding: 40px; text-align: center; font-family: sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #fff; min-height: 100vh;">
+          <h2 style="color: #00d4ff; margin-bottom: 10px;">Multiple Apps Available</h2>
+          <p style="color: #888; margin-bottom: 30px;">Storage <strong>${namespace}</strong> contains multiple websites. Choose one to launch:</p>
+          <div style="max-width: 400px; margin: 0 auto;">
+            ${linksHtml}
+          </div>
+          <p style="margin-top: 30px;">
+            <a href="${baseUrl}?ns=${namespace}" style="color: #888;">View all files instead →</a>
+          </p>
+        </div>
+      `;
+    }
+
+    // Render app directly (replace entire page)
+    async function renderAppDirectly(manifest, namespace, htmlFileName) {
+      const files = {};
+      const prefix = namespace + ':';
+
+      // Load all files
+      for (const file of manifest.files) {
+        const baseName = file.name.replace(/\.[^.]+$/, '');
+        let fullContent = '';
+
+        for (let i = 0; i < file.chunks; i++) {
+          const entityId = `${prefix}${baseName}:${i}`;
+          const boxKey = new TextEncoder().encode("e:" + entityId);
+          const boxResponse = await algodClient.getApplicationBoxByName(APP_ID, boxKey).do();
+          const chunk = new TextDecoder().decode(boxResponse.value.slice(32));
+          fullContent += chunk;
+        }
+
+        files[file.name] = { content: fullContent, isBase64: file.isBase64, mimeType: file.mimeType };
+      }
+
+      // Get HTML content
+      let html = files[htmlFileName]?.content;
+      if (!html) {
+        throw new Error(`HTML file "${htmlFileName}" not found`);
+      }
+
+      // Inject CSS files
+      const cssFiles = Object.keys(files).filter(name => name.endsWith('.css'));
+      for (const cssName of cssFiles) {
+        const cssContent = files[cssName].content;
+        const styleTag = `<style>/* ${cssName} */\n${cssContent}</style>`;
+        html = html.replace('</head>', styleTag + '\n</head>');
+      }
+
+      // Inject JS files
+      const jsFiles = Object.keys(files).filter(name => name.endsWith('.js'));
+      for (const jsName of jsFiles) {
+        const jsContent = files[jsName].content;
+        const scriptTag = `<script>/* ${jsName} */\n${jsContent}<\/script>`;
+        html = html.replace('</body>', scriptTag + '\n</body>');
+      }
+
+      // Embed images as data URLs
+      const imgFiles = Object.keys(files).filter(name => files[name].isBase64);
+      for (const imgName of imgFiles) {
+        const file = files[imgName];
+        const dataUrl = `data:${file.mimeType};base64,${file.content}`;
+        const regex = new RegExp(`(['"])(${imgName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})(['"])`, 'g');
+        html = html.replace(regex, `$1${dataUrl}$3`);
+      }
+
+      // Replace entire document
+      document.open();
+      document.write(html);
+      document.close();
+    }
+
+    // Direct file view - show a single file
+    async function directViewFile(namespace, fileName) {
+      try {
+        const boxKey = new TextEncoder().encode(`e:${namespace}:manifest`);
+        const boxResponse = await algodClient.getApplicationBoxByName(APP_ID, boxKey).do();
+        const content = new TextDecoder().decode(boxResponse.value.slice(32));
+        const manifest = JSON.parse(content);
+
+        const file = manifest.files.find(f => f.name === fileName);
+        if (!file) throw new Error(`File "${fileName}" not found`);
+
+        // Load file content first
+        const baseName = fileName.replace(/\.[^.]+$/, '');
+        let fullContent = '';
+        for (let i = 0; i < file.chunks; i++) {
+          const entityId = `${namespace}:${baseName}:${i}`;
+          const boxKeyFile = new TextEncoder().encode("e:" + entityId);
+          const boxResp = await algodClient.getApplicationBoxByName(APP_ID, boxKeyFile).do();
+          fullContent += new TextDecoder().decode(boxResp.value.slice(32));
+        }
+
+        // Handle encrypted files - show decryption prompt
+        if (file.encrypted) {
+          showDecryptionPrompt(file, fullContent, namespace);
+          return;
+        }
+
+        // Display unencrypted content
+        displayFileContent(file, fullContent, namespace);
+
+      } catch (e) {
+        document.body.innerHTML = `
+          <div style="padding: 40px; text-align: center; font-family: sans-serif; background: #1a1a2e; color: #fff; min-height: 100vh;">
+            <h2 style="color: #e74c3c;">File Not Found</h2>
+            <p>${e.message}</p>
+          </div>
+        `;
+      }
+    }
+
+    // Show decryption prompt for encrypted files
+    function showDecryptionPrompt(file, encryptedContent, namespace) {
+      const encryptMode = file.encryptMode || 'private';
+      let promptHtml = '';
+
+      if (encryptMode === 'password') {
+        promptHtml = `
+          <h2 style="color: #f39c12;">🔑 Password Protected File</h2>
+          <p style="margin-bottom: 20px;">This file is encrypted with a password.</p>
+          <input type="password" id="decryptPassword" placeholder="Enter password"
+                 style="width: 300px; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2);
+                        border-radius: 6px; color: #fff; font-size: 14px; margin-bottom: 15px;" />
+          <br>
+          <button onclick="decryptAndDisplay('password')"
+                  style="padding: 12px 30px; background: linear-gradient(135deg, #00d4ff, #0099cc); border: none;
+                         border-radius: 6px; color: #000; font-weight: 600; cursor: pointer;">
+            Decrypt
+          </button>
+        `;
+      } else if (encryptMode === 'recipient') {
+        promptHtml = `
+          <h2 style="color: #9b59b6;">👤 Recipient-Only File</h2>
+          <p style="margin-bottom: 10px;">This file is encrypted for a specific wallet address.</p>
+          <p style="color: #888; font-size: 13px; margin-bottom: 20px;">
+            Only the recipient can decrypt using their mnemonic.
+          </p>
+          <textarea id="decryptMnemonic" placeholder="Enter your 25-word mnemonic phrase"
+                    style="width: 400px; height: 80px; padding: 12px; background: rgba(0,0,0,0.3);
+                           border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: #fff;
+                           font-size: 14px; margin-bottom: 15px; resize: none;"></textarea>
+          <br>
+          <button onclick="decryptAndDisplay('recipient')"
+                  style="padding: 12px 30px; background: linear-gradient(135deg, #9b59b6, #8e44ad); border: none;
+                         border-radius: 6px; color: #fff; font-weight: 600; cursor: pointer;">
+            Decrypt with Mnemonic
+          </button>
+        `;
+      } else {
+        // Private mode - only owner can view
+        promptHtml = `
+          <h2 style="color: #e74c3c;">🔒 Private File</h2>
+          <p style="margin-bottom: 10px;">This file is encrypted with the owner's wallet key.</p>
+          <p style="color: #888; font-size: 13px; margin-bottom: 20px;">
+            Only the owner can decrypt using their mnemonic.
+          </p>
+          <textarea id="decryptMnemonic" placeholder="Enter your 25-word mnemonic phrase"
+                    style="width: 400px; height: 80px; padding: 12px; background: rgba(0,0,0,0.3);
+                           border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: #fff;
+                           font-size: 14px; margin-bottom: 15px; resize: none;"></textarea>
+          <br>
+          <button onclick="decryptAndDisplay('private')"
+                  style="padding: 12px 30px; background: linear-gradient(135deg, #e74c3c, #c0392b); border: none;
+                         border-radius: 6px; color: #fff; font-weight: 600; cursor: pointer;">
+            Decrypt with Mnemonic
+          </button>
+        `;
+      }
+
+      document.body.innerHTML = `
+        <div style="padding: 40px; text-align: center; font-family: sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #fff; min-height: 100vh;">
+          ${promptHtml}
+          <p id="decryptError" style="color: #e74c3c; margin-top: 15px; display: none;"></p>
+          <p style="margin-top: 30px;">
+            <a href="${window.location.pathname}" style="color: #888;">← Back to Eternal Storage</a>
+          </p>
+        </div>
+      `;
+
+      // Store file info for decryption
+      window._decryptFile = file;
+      window._decryptContent = encryptedContent;
+      window._decryptNamespace = namespace;
+    }
+
+    // Decrypt and display content
+    async function decryptAndDisplay(mode) {
+      const file = window._decryptFile;
+      const encryptedContent = window._decryptContent;
+      const errorEl = document.getElementById('decryptError');
+
+      try {
+        let decryptedContent;
+
+        if (mode === 'password') {
+          const password = document.getElementById('decryptPassword').value;
+          if (!password) {
+            errorEl.textContent = 'Please enter the password';
+            errorEl.style.display = 'block';
+            return;
+          }
+          decryptedContent = decryptWithPassword(encryptedContent, password);
+        } else if (mode === 'recipient') {
+          const mnemonic = document.getElementById('decryptMnemonic').value.trim();
+          if (!mnemonic || mnemonic.split(' ').length !== 25) {
+            errorEl.textContent = 'Please enter a valid 25-word mnemonic';
+            errorEl.style.display = 'block';
+            return;
+          }
+          const recipientAccount = algosdk.mnemonicToSecretKey(mnemonic);
+          decryptedContent = decryptFromSender(encryptedContent, recipientAccount, file.senderAddress);
+        } else {
+          // Private mode
+          const mnemonic = document.getElementById('decryptMnemonic').value.trim();
+          if (!mnemonic || mnemonic.split(' ').length !== 25) {
+            errorEl.textContent = 'Please enter a valid 25-word mnemonic';
+            errorEl.style.display = 'block';
+            return;
+          }
+          const ownerAccount = algosdk.mnemonicToSecretKey(mnemonic);
+          decryptedContent = decryptForSelf(encryptedContent, ownerAccount);
+        }
+
+        // Display decrypted content
+        displayFileContent(file, decryptedContent, window._decryptNamespace);
+
+      } catch (e) {
+        errorEl.textContent = e.message;
+        errorEl.style.display = 'block';
+      }
+    }
+
+    // Display file content (called after decryption or for unencrypted files)
+    function displayFileContent(file, content, namespace) {
+      const fileName = file.name;
+
+      if (file.isBase64) {
+        const mimeType = file.mimeType || 'image/png';
+        document.body.innerHTML = `
+          <div style="padding: 20px; background: #1a1a2e; min-height: 100vh; text-align: center;">
+            <img src="data:${mimeType};base64,${content}" style="max-width: 100%; border-radius: 8px;" />
+            <p style="color: #888; margin-top: 15px; font-family: sans-serif;">${fileName} from ${namespace}</p>
+          </div>
+        `;
+      } else if (fileName.endsWith('.html')) {
+        document.open();
+        document.write(content);
+        document.close();
+      } else {
+        document.body.innerHTML = `
+          <pre style="padding: 20px; background: #0a0a1a; color: #00ff88; font-family: monospace;
+                      white-space: pre-wrap; word-break: break-all; min-height: 100vh; margin: 0;">${content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+        `;
+      }
+    }
 
     function getNamespace() {
       return currentNamespace || 'default';
@@ -520,7 +1259,8 @@
     const EXPLORER_URL = 'https://testnet.explorer.perawallet.app/tx/';
 
     function log(msg, type = '', target = 'upload') {
-      const logId = target === 'browse' ? 'browseLog' : 'log';
+      const logIds = { browse: 'browseLog', view: 'viewLog', upload: 'log' };
+      const logId = logIds[target] || 'log';
       const logDiv = document.getElementById(logId);
       const time = new Date().toLocaleTimeString();
       logDiv.innerHTML += `<div class="log-entry ${type}"><span class="log-time">[${time}]</span> ${msg}</div>`;
@@ -565,9 +1305,140 @@
         log(`Balance: ${balance.toFixed(2)} ALGO`, 'info');
         log(`Namespace: ${currentNamespace}`, 'info');
 
+        // Update share section
+        updateShareSection();
+
       } catch (error) {
         log(`Error: ${error.message}`, 'error');
       }
+    }
+
+    function updateShareSection() {
+      if (!currentNamespace) return;
+
+      const baseUrl = window.location.href.split('?')[0];
+      const browseUrl = `${baseUrl}?ns=${currentNamespace}`;
+      const launchUrl = `${baseUrl}?ns=${currentNamespace}&launch=true`;
+
+      document.getElementById('shareSection').innerHTML = `
+        <div class="share-box">
+          <strong style="color: #2ecc71;">Your Storage ID:</strong>
+          <div class="share-link">
+            <code>${currentNamespace}</code>
+            <button class="btn btn-sm btn-secondary" onclick="copyToClipboard('${currentNamespace}')">Copy ID</button>
+          </div>
+
+          <strong style="color: #9b59b6;">🚀 Direct Launch Link (like IPFS/Arweave):</strong>
+          <div class="share-link" style="border-color: rgba(155,89,182,0.5);">
+            <code style="color: #9b59b6;">${launchUrl}</code>
+            <button class="btn btn-sm btn-secondary" onclick="copyToClipboard('${launchUrl}')">Copy</button>
+          </div>
+          <p style="color: #888; font-size: 11px; margin: 5px 0 15px 0;">
+            Opens your app/website directly in the browser. If multiple HTML files exist, shows a selector.
+          </p>
+
+          <strong style="color: #2ecc71;">📁 Browse Files Link:</strong>
+          <div class="share-link">
+            <code>${browseUrl}</code>
+            <button class="btn btn-sm btn-secondary" onclick="copyToClipboard('${browseUrl}')">Copy</button>
+          </div>
+          <p style="color: #888; font-size: 11px; margin: 5px 0 0 0;">
+            Opens file browser to view/download individual files.
+          </p>
+
+          <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
+            <strong style="color: #00d4ff;">📄 Direct File Links:</strong>
+            <p style="color: #666; font-size: 11px; margin: 5px 0;">
+              Share specific files: <code style="color: #00d4ff;">${baseUrl}?ns=${currentNamespace}&file=FILENAME</code><br>
+              Launch specific app: <code style="color: #9b59b6;">${baseUrl}?ns=${currentNamespace}&launch=index.html</code>
+            </p>
+          </div>
+
+          <p style="color: #f39c12; font-size: 12px; margin-top: 15px;">
+            ⚠️ Only <strong>public files</strong> can be shared. Private (encrypted) files can only be viewed by you.
+          </p>
+        </div>
+      `;
+    }
+
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        log('Copied to clipboard!', 'success');
+      }).catch(() => {
+        log('Failed to copy - please select and copy manually', 'error');
+      });
+    }
+
+    // Generate shareable link for a file
+    function getFileShareLink(filename, namespace) {
+      const baseUrl = window.location.href.split('?')[0];
+      const ns = namespace || currentNamespace;
+      // Use launch= for HTML files, file= for others
+      if (filename.endsWith('.html')) {
+        return `${baseUrl}?ns=${ns}&launch=${encodeURIComponent(filename)}`;
+      } else {
+        return `${baseUrl}?ns=${ns}&file=${encodeURIComponent(filename)}`;
+      }
+    }
+
+    // Show share link popup for a file
+    function copyFileLink(filename, namespace, logTarget = 'upload') {
+      const link = getFileShareLink(filename, namespace);
+      showShareLinkPopup(filename, link, logTarget);
+    }
+
+    // Show a popup with the share link
+    function showShareLinkPopup(filename, link, logTarget) {
+      // Remove any existing popup
+      const existingPopup = document.getElementById('shareLinkPopup');
+      if (existingPopup) existingPopup.remove();
+
+      const popup = document.createElement('div');
+      popup.id = 'shareLinkPopup';
+      popup.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.8); display: flex; align-items: center;
+        justify-content: center; z-index: 10000;
+      `;
+      popup.innerHTML = `
+        <div style="background: #1e3a5f; padding: 25px; border-radius: 12px; max-width: 500px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+          <h3 style="color: #00d4ff; margin: 0 0 15px 0; font-size: 16px;">📤 Share Link for "${filename}"</h3>
+          <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; margin-bottom: 15px; word-break: break-all;">
+            <code style="color: #2ecc71; font-size: 13px;" id="shareLinkText">${link}</code>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button onclick="copyShareLinkAndClose('${link}', '${logTarget}')" style="flex: 1; padding: 10px; background: linear-gradient(135deg, #00d4ff, #0099cc); border: none; border-radius: 6px; color: #000; font-weight: 600; cursor: pointer;">
+              Copy Link
+            </button>
+            <button onclick="closeShareLinkPopup()" style="padding: 10px 20px; background: #0f3460; border: none; border-radius: 6px; color: #fff; cursor: pointer;">
+              Close
+            </button>
+          </div>
+          <p style="color: #888; font-size: 11px; margin: 12px 0 0 0; text-align: center;">
+            Share this link to give others direct access to this file
+          </p>
+        </div>
+      `;
+      document.body.appendChild(popup);
+
+      // Close on background click
+      popup.addEventListener('click', (e) => {
+        if (e.target === popup) closeShareLinkPopup();
+      });
+    }
+
+    function copyShareLinkAndClose(link, logTarget) {
+      navigator.clipboard.writeText(link).then(() => {
+        log('Link copied to clipboard!', 'success', logTarget);
+        closeShareLinkPopup();
+      }).catch(() => {
+        log('Failed to copy - please select and copy manually', 'error', logTarget);
+      });
+    }
+
+    function closeShareLinkPopup() {
+      const popup = document.getElementById('shareLinkPopup');
+      if (popup) popup.remove();
     }
 
     function getFileIcon(filename) {
@@ -608,19 +1479,38 @@
 
         document.getElementById('fileCount').textContent = `${storedManifest.files.length} files`;
 
+        // Check if has launchable app (HTML file)
+        const hasHtml = storedManifest.files.some(f => f.name.endsWith('.html'));
+        document.getElementById('launchAppBtn').disabled = !hasHtml;
+
         let html = '';
         for (const file of storedManifest.files) {
           const icon = getFileIcon(file.name);
           const sizeKb = (file.size / 1024).toFixed(1);
+          // Show encryption type badge
+          let encBadge = '';
+          if (file.encrypted) {
+            if (file.encryptMode === 'password') {
+              encBadge = '<span class="encrypted-badge" style="background: rgba(243,156,18,0.2); color: #f39c12;">🔑 Password</span>';
+            } else if (file.encryptMode === 'recipient') {
+              encBadge = '<span class="encrypted-badge" style="background: rgba(155,89,182,0.2); color: #9b59b6;">👤 Recipient</span>';
+            } else {
+              encBadge = '<span class="encrypted-badge">🔒 Private</span>';
+            }
+          }
+          // Show share button for public files and password-protected files (since anyone with password can view)
+          const canShare = !file.encrypted || file.encryptMode === 'password';
+          const shareBtn = canShare ? `<button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); copyFileLink('${file.name}', null, 'browse')" title="Copy shareable link">Share</button>` : '';
 
           html += `
             <div class="file-item" onclick="selectFile('${file.name}')" data-filename="${file.name}">
               <div class="file-icon ${icon.class}">${icon.text}</div>
               <div class="file-info">
-                <div class="file-name">${file.name}</div>
+                <div class="file-name">${file.name}${encBadge}</div>
                 <div class="file-meta">${sizeKb} KB · ${file.chunks} chunks${file.isBase64 ? ' · Binary' : ''}</div>
               </div>
               <div class="file-actions">
+                ${shareBtn}
                 <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); viewFile('${file.name}')">View</button>
                 <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteSingleFile('${file.name}')" ${!account ? 'disabled' : ''}>Delete</button>
               </div>
@@ -682,6 +1572,18 @@
           const entityId = `${getAppPrefix()}${baseName}:${i}`;
           const chunk = await loadEntity(entityId);
           fullContent += chunk;
+        }
+
+        // Decrypt if private file (owner viewing their own encrypted files)
+        if (file.encrypted && account) {
+          try {
+            fullContent = decryptForSelf(fullContent, account);
+            logBrowse(`Decrypted ${filename} with your wallet key`, 'success');
+          } catch (e) {
+            previewContent.innerHTML = `<div class="preview-placeholder" style="color: #e74c3c;">Decryption failed: ${e.message}</div>`;
+            previewActions.innerHTML = '';
+            return;
+          }
         }
 
         // Determine how to display
@@ -983,9 +1885,41 @@
       if (!account) { log('Please connect wallet first', 'error'); return; }
       if (!filesToUpload.length) { log('Please select and analyze files first', 'error'); return; }
 
+      const isEncrypted = document.getElementById('encryptToggle').checked;
+      const encryptMode = isEncrypted ? document.getElementById('encryptMode').value : null;
+      const password = document.getElementById('encryptPassword')?.value || '';
+      const recipientAddress = document.getElementById('recipientAddress')?.value?.trim() || '';
+
+      // Validate encryption settings
+      if (isEncrypted) {
+        if (encryptMode === 'password' && !password) {
+          log('Please enter a password for encryption', 'error');
+          return;
+        }
+        if (encryptMode === 'recipient') {
+          if (!recipientAddress || recipientAddress.length !== 58) {
+            log('Please enter a valid 58-character Algorand address', 'error');
+            return;
+          }
+        }
+      }
+
       document.getElementById('uploadBtn').disabled = true;
       let uploadedChunks = 0;
       const totalChunks = manifest.totalChunks + 1;
+
+      // Log encryption mode
+      if (isEncrypted) {
+        if (encryptMode === 'password') {
+          log('Password mode: Files encrypted with password (shareable with password)', 'info');
+        } else if (encryptMode === 'recipient') {
+          log(`Recipient mode: Files encrypted for ${recipientAddress.slice(0,8)}...`, 'info');
+        } else {
+          log('Private mode: Files encrypted with your wallet key (only you can view)', 'info');
+        }
+      } else {
+        log('Public mode: Files will be shareable via link', 'info');
+      }
 
       try {
         // First, load existing manifest to merge with new files
@@ -1004,12 +1938,28 @@
         // Upload each file's chunks
         for (const file of filesToUpload) {
           const baseName = file.name.replace(/\.[^.]+$/, '');
-          log(`Uploading ${file.name}...`, 'info');
+          log(`Uploading ${file.name}${isEncrypted ? ` (${encryptMode})` : ''}...`, 'info');
 
-          for (let i = 0; i < file.chunks; i++) {
+          // Encrypt the entire file content based on mode
+          let contentToUpload = file.content;
+          if (isEncrypted) {
+            if (encryptMode === 'password') {
+              contentToUpload = encryptWithPassword(file.content, password);
+            } else if (encryptMode === 'recipient') {
+              contentToUpload = encryptForRecipient(file.content, account, recipientAddress);
+            } else {
+              contentToUpload = encryptForSelf(file.content, account);
+            }
+            log(`  Encrypted: ${file.content.length} → ${contentToUpload.length} chars`, 'info');
+          }
+
+          // Recalculate chunks for potentially larger encrypted content
+          const chunks = Math.ceil(contentToUpload.length / CHUNK_SIZE);
+
+          for (let i = 0; i < chunks; i++) {
             const start = i * CHUNK_SIZE;
-            const end = Math.min(start + CHUNK_SIZE, file.content.length);
-            const chunk = file.content.slice(start, end);
+            const end = Math.min(start + CHUNK_SIZE, contentToUpload.length);
+            const chunk = contentToUpload.slice(start, end);
             const entityId = `${getAppPrefix()}${baseName}:${i}`;
 
             try {
@@ -1020,7 +1970,7 @@
               document.getElementById('progressBar').style.width = progress + '%';
               document.getElementById('progressText').textContent = `Uploading: ${uploadedChunks}/${totalChunks} chunks (${progress}%)`;
 
-              log(`  Chunk ${i+1}/${file.chunks} uploaded - Tx: ${txLink(txId)}`, 'success');
+              log(`  Chunk ${i+1}/${chunks} uploaded - Tx: ${txLink(txId)}`, 'success');
             } catch (e) {
               log(`  Error uploading chunk ${i}: ${e.message}`, 'error');
               throw e;
@@ -1031,9 +1981,18 @@
         }
 
         // Merge new files with existing files (replace if same name exists)
-        const newFileNames = manifest.files.map(f => f.name);
+        // Update manifest with encryption info
+        const updatedManifestFiles = manifest.files.map(f => ({
+          ...f,
+          encrypted: isEncrypted,
+          encryptMode: isEncrypted ? encryptMode : null,
+          recipientAddress: encryptMode === 'recipient' ? recipientAddress : null,
+          senderAddress: encryptMode === 'recipient' ? account.addr : null
+        }));
+
+        const newFileNames = updatedManifestFiles.map(f => f.name);
         const mergedFiles = existingFiles.filter(f => !newFileNames.includes(f.name));
-        mergedFiles.push(...manifest.files);
+        mergedFiles.push(...updatedManifestFiles);
 
         // Create merged manifest
         const mergedManifest = {
@@ -1073,6 +2032,258 @@
       div.textContent = text;
       return div.innerHTML;
     }
+
+    // ============ VIEW OTHERS STORAGE ============
+
+    function logView(msg, type = '') {
+      log(msg, type, 'view');
+    }
+
+    async function viewOthersStorage() {
+      const storageId = document.getElementById('viewStorageId').value.trim().toLowerCase();
+      if (!storageId) {
+        logView('Please enter a Storage ID', 'error');
+        return;
+      }
+
+      viewingNamespace = storageId;
+      const fileList = document.getElementById('viewFileList');
+      fileList.innerHTML = '<div class="empty-state"><div class="spinner"></div><p>Loading files...</p></div>';
+
+      logView(`Loading manifest for "${storageId}"...`, 'info');
+
+      try {
+        const boxKey = new TextEncoder().encode(`e:${storageId}:manifest`);
+        const boxResponse = await algodClient.getApplicationBoxByName(APP_ID, boxKey).do();
+        const content = new TextDecoder().decode(boxResponse.value.slice(32));
+        viewingManifest = JSON.parse(content);
+
+        logView(`Manifest loaded: ${viewingManifest.files.length} files found`, 'success');
+
+        if (!viewingManifest.files || viewingManifest.files.length === 0) {
+          fileList.innerHTML = '<div class="empty-state"><p>No files found</p></div>';
+          return;
+        }
+
+        document.getElementById('viewFileCount').textContent = `(${viewingManifest.files.length} files)`;
+
+        // Check if any files are encrypted
+        const hasEncrypted = viewingManifest.files.some(f => f.encrypted);
+        if (hasEncrypted) {
+          logView('Some files are encrypted - you will need the password to view them', 'warn');
+        }
+
+        // Check if has launchable app (HTML file)
+        const hasHtml = viewingManifest.files.some(f => f.name.endsWith('.html'));
+        document.getElementById('launchOthersBtn').disabled = !hasHtml;
+
+        let html = '';
+        for (const file of viewingManifest.files) {
+          const icon = getFileIcon(file.name);
+          const sizeKb = (file.size / 1024).toFixed(1);
+          // Show encryption type badge
+          let encBadge = '';
+          if (file.encrypted) {
+            if (file.encryptMode === 'password') {
+              encBadge = '<span class="encrypted-badge" style="background: rgba(243,156,18,0.2); color: #f39c12;">🔑 Password</span>';
+            } else if (file.encryptMode === 'recipient') {
+              encBadge = '<span class="encrypted-badge" style="background: rgba(155,89,182,0.2); color: #9b59b6;">👤 Recipient</span>';
+            } else {
+              encBadge = '<span class="encrypted-badge">🔒 Private</span>';
+            }
+          }
+          // Show share button for public files and password-protected files
+          const canShare = !file.encrypted || file.encryptMode === 'password';
+          const shareBtn = canShare ? `<button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); copyFileLink('${file.name}', '${viewingNamespace}', 'view')" title="Copy shareable link">Share</button>` : '';
+
+          html += `
+            <div class="file-item" onclick="viewOthersFile('${file.name}')" data-filename="${file.name}">
+              <div class="file-icon ${icon.class}">${icon.text}</div>
+              <div class="file-info">
+                <div class="file-name">${file.name}${encBadge}</div>
+                <div class="file-meta">${sizeKb} KB · ${file.chunks} chunks${file.isBase64 ? ' · Binary' : ''}</div>
+              </div>
+              <div class="file-actions">
+                ${shareBtn}
+              </div>
+            </div>
+          `;
+        }
+
+        fileList.innerHTML = html;
+
+      } catch (e) {
+        logView(`No storage found for "${storageId}"`, 'error');
+        fileList.innerHTML = '<div class="empty-state"><p>Storage not found</p><p style="font-size: 12px; color: #666;">Check the Storage ID and try again</p></div>';
+      }
+    }
+
+    async function viewOthersFile(filename) {
+      if (!viewingManifest) return;
+
+      const file = viewingManifest.files.find(f => f.name === filename);
+      if (!file) return;
+
+      const previewContent = document.getElementById('viewPreviewContent');
+      const previewTitle = document.getElementById('viewPreviewTitle');
+      const previewActions = document.getElementById('viewPreviewActions');
+
+      previewTitle.textContent = filename;
+      previewContent.innerHTML = '<div class="preview-placeholder"><div class="spinner"></div></div>';
+
+      try {
+        const baseName = filename.replace(/\.[^.]+$/, '');
+        let fullContent = '';
+
+        for (let i = 0; i < file.chunks; i++) {
+          const entityId = `${viewingNamespace}:${baseName}:${i}`;
+          const boxKey = new TextEncoder().encode("e:" + entityId);
+          const boxResponse = await algodClient.getApplicationBoxByName(APP_ID, boxKey).do();
+          const chunk = new TextDecoder().decode(boxResponse.value.slice(32));
+          fullContent += chunk;
+        }
+
+        // Check if encrypted - cannot view others' encrypted files
+        if (file.encrypted) {
+          previewContent.innerHTML = '<div class="preview-placeholder" style="color: #f39c12;">This file is private (encrypted with owner\'s wallet key). Only the owner can view it.</div>';
+          previewActions.innerHTML = '';
+          return;
+        }
+
+        // Display content
+        if (file.isBase64) {
+          const mimeType = file.mimeType || 'image/png';
+          previewContent.innerHTML = `<img src="data:${mimeType};base64,${fullContent}" />`;
+          previewActions.innerHTML = `<a class="download-link" href="data:${mimeType};base64,${fullContent}" download="${filename}">Download</a>`;
+        } else {
+          previewContent.innerHTML = `<pre>${escapeHtml(fullContent)}</pre>`;
+          const blob = new Blob([fullContent], { type: 'text/plain' });
+          const url = URL.createObjectURL(blob);
+          previewActions.innerHTML = `<a class="download-link" href="${url}" download="${filename}">Download</a>`;
+        }
+
+      } catch (error) {
+        previewContent.innerHTML = `<div class="preview-placeholder" style="color: #e74c3c;">Error loading file: ${error.message}</div>`;
+        previewActions.innerHTML = '';
+      }
+    }
+
+    // ============ LAUNCH APP (Combine HTML/CSS/JS) ============
+
+    async function launchApp() {
+      if (!storedManifest) {
+        logBrowse('Please load files first', 'error');
+        return;
+      }
+      await launchAppFromManifest(storedManifest, getAppPrefix(), null, logBrowse, account);
+    }
+
+    async function launchOthersApp() {
+      if (!viewingManifest) {
+        logView('Please load files first', 'error');
+        return;
+      }
+
+      const hasEncrypted = viewingManifest.files.some(f => f.encrypted);
+
+      if (hasEncrypted) {
+        logView('Cannot launch: Some files are private (encrypted). Only public files can be launched.', 'warn');
+        return;
+      }
+
+      await launchAppFromManifest(viewingManifest, viewingNamespace + ':', null, logView, null);
+    }
+
+    async function launchAppFromManifest(manifest, prefix, unused, logFn, myAccount = null) {
+      logFn('Assembling app files...', 'info');
+
+      try {
+        const files = {};
+
+        // Load all files
+        for (const file of manifest.files) {
+          const baseName = file.name.replace(/\.[^.]+$/, '');
+          let fullContent = '';
+
+          for (let i = 0; i < file.chunks; i++) {
+            const entityId = `${prefix}${baseName}:${i}`;
+            const boxKey = new TextEncoder().encode("e:" + entityId);
+            const boxResponse = await algodClient.getApplicationBoxByName(APP_ID, boxKey).do();
+            const chunk = new TextDecoder().decode(boxResponse.value.slice(32));
+            fullContent += chunk;
+          }
+
+          // Decrypt if needed (only works for owner's own files)
+          if (file.encrypted && myAccount) {
+            fullContent = decryptForSelf(fullContent, myAccount);
+          } else if (file.encrypted) {
+            logFn(`  Skipped: ${file.name} (private file)`, 'warn');
+            continue;
+          }
+
+          files[file.name] = { content: fullContent, isBase64: file.isBase64, mimeType: file.mimeType };
+          logFn(`  Loaded: ${file.name}`, 'success');
+        }
+
+        // Find HTML file
+        const htmlFile = Object.keys(files).find(name => name.endsWith('.html'));
+        if (!htmlFile) {
+          logFn('No HTML file found to launch', 'error');
+          return;
+        }
+
+        let html = files[htmlFile].content;
+
+        // Inject CSS files
+        const cssFiles = Object.keys(files).filter(name => name.endsWith('.css'));
+        for (const cssName of cssFiles) {
+          const cssContent = files[cssName].content;
+          const styleTag = `<style>/* ${cssName} */\n${cssContent}</style>`;
+          html = html.replace('</head>', styleTag + '\n</head>');
+          logFn(`  Injected CSS: ${cssName}`, 'info');
+        }
+
+        // Inject JS files
+        const jsFiles = Object.keys(files).filter(name => name.endsWith('.js'));
+        for (const jsName of jsFiles) {
+          const jsContent = files[jsName].content;
+          const scriptTag = `<script>/* ${jsName} */\n${jsContent}<\/script>`;
+          html = html.replace('</body>', scriptTag + '\n</body>');
+          logFn(`  Injected JS: ${jsName}`, 'info');
+        }
+
+        // Inject images as data URLs
+        const imgFiles = Object.keys(files).filter(name => files[name].isBase64);
+        for (const imgName of imgFiles) {
+          const file = files[imgName];
+          const dataUrl = `data:${file.mimeType};base64,${file.content}`;
+          // Replace references to this image
+          const regex = new RegExp(`(['"])(${imgName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})(['"])`, 'g');
+          html = html.replace(regex, `$1${dataUrl}$3`);
+          logFn(`  Embedded image: ${imgName}`, 'info');
+        }
+
+        // Open in new window
+        const newWindow = window.open('', '_blank');
+        newWindow.document.write(html);
+        newWindow.document.close();
+
+        logFn('App launched in new window!', 'success');
+
+      } catch (error) {
+        logFn(`Launch failed: ${error.message}`, 'error');
+      }
+    }
+
+    // Enable launch button when manifest has HTML files
+    async function loadStoredFilesOriginal() {
+      // ... keep existing logic, just add launch button enable
+    }
+
+    // ============ INIT ============
+
+    // Check URL params on load
+    window.addEventListener('load', checkUrlParams);
   </script>
 </body>
 </html>
