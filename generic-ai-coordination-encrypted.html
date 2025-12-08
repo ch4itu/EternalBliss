@@ -1,0 +1,1467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>USM Multi-Agent AI Coordination</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/algosdk@2.7.0/dist/browser/algosdk.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl-fast.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tweetnacl-util@0.15.1/nacl-util.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ed2curve@0.3.0/ed2curve.min.js"></script>
+  <script src="ai.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 100%);
+      color: #e0e0e0;
+      padding: 20px;
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+    h1 {
+      font-size: 2.2em;
+      margin-bottom: 10px;
+      background: linear-gradient(90deg, #00ff88, #00d4ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-align: center;
+    }
+    .subtitle {
+      color: #888;
+      margin: 10px 0 30px 0;
+      font-size: 1em;
+      text-align: center;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    .card {
+      background: rgba(20, 20, 40, 0.9);
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 25px;
+      margin: 20px 0;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .card h2 {
+      color: #00ff88;
+      margin-top: 0;
+      font-size: 1.3em;
+      border-bottom: 1px solid #333;
+      padding-bottom: 10px;
+    }
+    .form-group {
+      margin: 15px 0;
+    }
+    label {
+      display: block;
+      color: #aaa;
+      margin-bottom: 5px;
+      font-size: 0.9em;
+    }
+    select, input, textarea {
+      width: 100%;
+      background: #1a1a2e;
+      color: #fff;
+      border: 1px solid #444;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    select:focus, input:focus, textarea:focus {
+      outline: none;
+      border-color: #00ff88;
+      box-shadow: 0 0 10px rgba(0,255,136,0.2);
+    }
+    textarea {
+      font-family: 'Consolas', monospace;
+      resize: vertical;
+    }
+    .checkbox-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin-top: 10px;
+    }
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      background: #1a1a2e;
+      padding: 10px 15px;
+      border-radius: 8px;
+      border: 1px solid #333;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .checkbox-item:hover {
+      border-color: #00ff88;
+    }
+    .checkbox-item.selected {
+      border-color: #00ff88;
+      background: rgba(0,255,136,0.1);
+    }
+    .checkbox-item input {
+      width: auto;
+      margin-right: 10px;
+    }
+    .checkbox-item .provider-icon {
+      font-size: 1.5em;
+      margin-right: 8px;
+    }
+    button {
+      background: linear-gradient(90deg, #00ff88, #00d4ff);
+      color: #000;
+      padding: 15px 30px;
+      font-size: 16px;
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+      border-radius: 8px;
+      margin: 10px 5px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(0,255,136,0.4);
+    }
+    button:disabled {
+      background: #444;
+      color: #888;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    button.danger {
+      background: linear-gradient(90deg, #ff4444, #ff6666);
+    }
+    button.secondary {
+      background: #333;
+      color: #fff;
+    }
+    #log {
+      background: #0a0a15;
+      padding: 20px;
+      border-radius: 8px;
+      min-height: 400px;
+      max-height: 600px;
+      overflow-y: auto;
+      font-family: 'Consolas', monospace;
+      font-size: 12px;
+      border: 1px solid #333;
+    }
+    .log-status { color: #ffcc00; }
+    .log-error { color: #ff4444; }
+    .log-success { color: #00ff88; }
+    .log-info { color: #00d4ff; }
+    .log-review { color: #ff88ff; }
+    .api-key-group {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+    }
+    .provider-card {
+      background: #1a1a2e;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 15px;
+    }
+    .provider-card.active {
+      border-color: #00ff88;
+    }
+    .provider-card h4 {
+      margin: 0 0 10px 0;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .use-case-info {
+      background: rgba(0,255,136,0.1);
+      border: 1px solid #00ff88;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    .use-case-info h4 {
+      color: #00ff88;
+      margin: 0 0 10px 0;
+    }
+    .progress-bar {
+      background: #1a1a2e;
+      border-radius: 10px;
+      height: 20px;
+      overflow: hidden;
+      margin: 15px 0;
+    }
+    .progress-fill {
+      background: linear-gradient(90deg, #00ff88, #00d4ff);
+      height: 100%;
+      transition: width 0.5s ease;
+    }
+    .reviewer-status {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 15px 0;
+    }
+    .reviewer-badge {
+      padding: 8px 15px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .reviewer-badge.pending { background: #333; color: #888; }
+    .reviewer-badge.reviewing { background: #ffcc00; color: #000; }
+    .reviewer-badge.approved { background: #00ff88; color: #000; }
+    .reviewer-badge.needs-fixes { background: #ff4444; color: #fff; }
+    pre {
+      background: #0a0a15;
+      padding: 15px;
+      border-radius: 8px;
+      overflow-x: auto;
+      border: 1px solid #333;
+    }
+    .hidden { display: none; }
+    .flex-center { display: flex; justify-content: center; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>USM Multi-Agent AI Coordination</h1>
+    <p class="subtitle">Blockchain-Powered Multi-AI Collaboration with Encrypted Communication</p>
+
+    <!-- Use Case Selection -->
+    <div class="card">
+      <h2>1. Select Use Case</h2>
+      <div class="form-group">
+        <label>Coordination Type</label>
+        <select id="useCase" onchange="updateUseCaseInfo()">
+          <option value="code_review">Code Review (Coder + Multiple Reviewers)</option>
+          <option value="document_writing">Document Writing (Writer + Multiple Editors)</option>
+          <option value="research_analysis">Research Analysis (Researcher + Multiple Analysts)</option>
+          <option value="translation">Translation (Translator + Multiple Verifiers)</option>
+          <option value="brainstorming">Brainstorming (Ideator + Multiple Critics)</option>
+          <option value="code_audit">Security Audit (Coder + Multiple Auditors)</option>
+        </select>
+      </div>
+      <div id="useCaseInfo" class="use-case-info">
+        <h4>Code Review</h4>
+        <p><strong>Initiator:</strong> Writes code based on task</p>
+        <p><strong>Reviewers:</strong> Review code for bugs, security, best practices</p>
+        <p><strong>End Condition:</strong> ALL reviewers say <code>STATUS: ERROR_FREE</code></p>
+      </div>
+    </div>
+
+    <!-- AI Provider Configuration -->
+    <div class="card">
+      <h2>2. Configure AI Providers</h2>
+
+      <div class="form-group">
+        <label>Initiator AI (creates content)</label>
+        <select id="initiatorProvider">
+          <option value="xai">xAI (Grok) - Fast coding</option>
+          <option value="openai">OpenAI (GPT-4) - General purpose</option>
+          <option value="claude">Claude (Anthropic) - Detailed analysis</option>
+          <option value="gemini">Google Gemini - Multimodal</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Reviewer AIs (select multiple for multi-agent review)</label>
+        <div class="checkbox-group" id="reviewerCheckboxes">
+          <label class="checkbox-item" data-provider="openai">
+            <input type="checkbox" value="openai" checked />
+            <span class="provider-icon">O</span>
+            <span>OpenAI (GPT-4)</span>
+          </label>
+          <label class="checkbox-item" data-provider="claude">
+            <input type="checkbox" value="claude" />
+            <span class="provider-icon">C</span>
+            <span>Claude</span>
+          </label>
+          <label class="checkbox-item" data-provider="gemini">
+            <input type="checkbox" value="gemini" />
+            <span class="provider-icon">G</span>
+            <span>Gemini</span>
+          </label>
+          <label class="checkbox-item" data-provider="xai">
+            <input type="checkbox" value="xai" />
+            <span class="provider-icon">X</span>
+            <span>xAI (Grok)</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="api-key-group" id="apiKeyInputs">
+        <div class="provider-card" id="xaiKeyCard">
+          <h4><span>X</span> xAI (Grok)</h4>
+          <input type="password" id="xaiKey" placeholder="xAI API key" />
+        </div>
+        <div class="provider-card" id="openaiKeyCard">
+          <h4><span>O</span> OpenAI</h4>
+          <input type="password" id="openaiKey" placeholder="OpenAI API key (sk-...)" />
+        </div>
+        <div class="provider-card" id="claudeKeyCard">
+          <h4><span>C</span> Claude</h4>
+          <input type="password" id="claudeKey" placeholder="Anthropic API key" />
+        </div>
+        <div class="provider-card" id="geminiKeyCard">
+          <h4><span>G</span> Gemini</h4>
+          <input type="password" id="geminiKey" placeholder="Google AI API key" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Wallet & Task -->
+    <div class="card">
+      <h2>3. Wallet & Task</h2>
+      <div class="form-group">
+        <label>Your 25-word Algorand Mnemonic</label>
+        <input type="password" id="mnemonic" placeholder="Enter your 25-word mnemonic..." />
+      </div>
+      <div class="form-group">
+        <label id="taskLabel">Task Description</label>
+        <textarea id="taskInput" rows="4" placeholder="Describe what you want the AI to create..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="deleteOnComplete" checked style="width:auto;margin-right:8px;" />
+          Auto-cleanup blockchain storage when complete (reclaims ALGO)
+        </label>
+      </div>
+      <div class="form-group">
+        <label>Max Iterations (how many review cycles before stopping)</label>
+        <input type="number" id="maxIterations" value="25" min="1" style="width:100px;" />
+      </div>
+    </div>
+
+    <!-- Resume Previous Session -->
+    <div class="card">
+      <h2>OR Resume Previous Session</h2>
+      <p style="color:#888;font-size:0.9em;">If browser closed mid-coordination, enter the process ID to continue.</p>
+      <div class="form-group">
+        <label>Process ID (from previous session, e.g., mac_1765192245202)</label>
+        <input type="text" id="resumeProcessId" placeholder="mac_XXXXXXXXXXXXX" />
+      </div>
+      <div class="flex-center">
+        <button class="secondary" onclick="resumeCoordination()">Resume Coordination</button>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="card">
+      <h2>4. Coordination Control</h2>
+      <div id="reviewerStatus" class="reviewer-status hidden">
+        <!-- Dynamically populated -->
+      </div>
+      <div class="progress-bar hidden" id="progressBar">
+        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+      </div>
+      <div class="flex-center">
+        <button id="startBtn" onclick="startCoordination()">Start Multi-Agent Coordination</button>
+        <button id="stopBtn" class="danger hidden" onclick="stopCoordination()">Stop</button>
+        <button id="cleanupBtn" class="secondary hidden" onclick="cleanupBoxes()">Cleanup & Reclaim ALGO</button>
+      </div>
+    </div>
+
+    <!-- Log Output -->
+    <div class="card">
+      <h2>Live Coordination Log</h2>
+      <div id="log">Ready to start multi-agent coordination...<br/></div>
+    </div>
+  </div>
+
+  <script>
+    // ============ USE CASE CONFIGURATIONS ============
+    const USE_CASES = {
+      code_review: {
+        name: "Code Review",
+        initiatorRole: "Coder",
+        reviewerRole: "Code Reviewer",
+        initiatorPrompt: "You are an expert programmer. Write clean, production-ready code. Output ONLY the code, no explanations. Keep under 20KB.",
+        reviewerPrompt: "You are a strict code reviewer. Review the code for: bugs, security issues, performance, best practices, edge cases. If the code is PERFECT with absolutely no issues, end with exactly 'STATUS: ERROR_FREE' on its own line. If ANY fixes are needed, end with 'STATUS: NEEDS_FIXES' and list the issues. Be thorough but fair.",
+        endCondition: "ERROR_FREE",
+        taskLabel: "Coding Task",
+        taskPlaceholder: "Describe the code you want written (e.g., 'Write a Python function to validate email addresses')"
+      },
+      document_writing: {
+        name: "Document Writing",
+        initiatorRole: "Writer",
+        reviewerRole: "Editor",
+        initiatorPrompt: "You are an expert writer. Write clear, well-structured content based on the requirements. Be concise but comprehensive.",
+        reviewerPrompt: "You are a professional editor. Review for: clarity, grammar, structure, accuracy, completeness. If the document is PUBLICATION-READY, end with exactly 'STATUS: APPROVED' on its own line. If edits are needed, end with 'STATUS: NEEDS_EDITS' and list suggestions.",
+        endCondition: "APPROVED",
+        taskLabel: "Writing Task",
+        taskPlaceholder: "Describe the document you need (e.g., 'Write a technical blog post about blockchain scalability')"
+      },
+      research_analysis: {
+        name: "Research Analysis",
+        initiatorRole: "Researcher",
+        reviewerRole: "Analyst",
+        initiatorPrompt: "You are a thorough researcher. Gather and synthesize information comprehensively. Cite sources where applicable.",
+        reviewerPrompt: "You are a critical analyst. Verify facts, identify gaps, check for bias, assess methodology. If the research is COMPREHENSIVE and accurate, end with exactly 'STATUS: COMPLETE' on its own line. If more work is needed, end with 'STATUS: NEEDS_MORE' and explain gaps.",
+        endCondition: "COMPLETE",
+        taskLabel: "Research Topic",
+        taskPlaceholder: "Describe what you want researched (e.g., 'Research the current state of AI agent frameworks')"
+      },
+      translation: {
+        name: "Translation",
+        initiatorRole: "Translator",
+        reviewerRole: "Verifier",
+        initiatorPrompt: "You are an expert translator. Translate accurately while preserving meaning, tone, and cultural context.",
+        reviewerPrompt: "You are a translation verifier. Check for: accuracy, naturalness, cultural appropriateness, terminology consistency. If the translation is ACCURATE, end with exactly 'STATUS: VERIFIED' on its own line. If corrections needed, end with 'STATUS: NEEDS_REVISION'.",
+        endCondition: "VERIFIED",
+        taskLabel: "Translation Task",
+        taskPlaceholder: "Provide text and target language (e.g., 'Translate to Spanish: [your text here]')"
+      },
+      brainstorming: {
+        name: "Brainstorming",
+        initiatorRole: "Ideator",
+        reviewerRole: "Critic",
+        initiatorPrompt: "You are a creative ideator. Generate innovative ideas and solutions. Think outside the box.",
+        reviewerPrompt: "You are a constructive critic. Evaluate ideas for: feasibility, originality, potential impact, risks. If ideas are SOLID and well-developed, end with exactly 'STATUS: CONSENSUS' on its own line. If refinement needed, end with 'STATUS: REFINE'.",
+        endCondition: "CONSENSUS",
+        taskLabel: "Brainstorming Topic",
+        taskPlaceholder: "Describe what you want ideas for (e.g., 'Brainstorm business use cases for blockchain-based AI coordination')"
+      },
+      code_audit: {
+        name: "Security Audit",
+        initiatorRole: "Developer",
+        reviewerRole: "Security Auditor",
+        initiatorPrompt: "You are a developer. Write secure, well-tested code following security best practices.",
+        reviewerPrompt: "You are a security auditor. Check for: vulnerabilities (OWASP Top 10), injection risks, authentication issues, data exposure, cryptographic weaknesses. If code passes security review, end with exactly 'STATUS: SECURE' on its own line. If vulnerabilities found, end with 'STATUS: VULNERABILITIES_FOUND'.",
+        endCondition: "SECURE",
+        taskLabel: "Security Audit Task",
+        taskPlaceholder: "Describe the secure code you need (e.g., 'Write a secure login system with password hashing')"
+      }
+    };
+
+    // ============ STATE ============
+    let isRunning = false;
+    let processId = null;
+    let myAccount = null;
+    let currentTurn = 0;
+    let selectedReviewers = [];
+    let reviewerResults = {};
+    let currentContent = "";
+    let coordinationHistory = [];
+
+    // Algorand ApplicationArgs limit: 2048 bytes TOTAL for all args
+    // Must account for: method selector (4) + entity_id ABI encoding (~50) + JSON wrapper (~15)
+    // Safe chunk size: ~1400 bytes to leave room for overhead
+    const CHUNK_SIZE = 1400;
+    const MAX_CHUNKS = 25; // Allows up to ~35KB total
+
+    // ============ UI FUNCTIONS ============
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function log(msg, type = '') {
+      const logDiv = document.getElementById("log");
+      const typeClass = type ? `log-${type}` : '';
+      logDiv.innerHTML += `<span class="${typeClass}">${msg}</span><br>`;
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    function updateUseCaseInfo() {
+      const useCase = document.getElementById("useCase").value;
+      const config = USE_CASES[useCase];
+      const infoDiv = document.getElementById("useCaseInfo");
+
+      infoDiv.innerHTML = `
+        <h4>${config.name}</h4>
+        <p><strong>Initiator (${config.initiatorRole}):</strong> Creates initial content</p>
+        <p><strong>Reviewers (${config.reviewerRole}s):</strong> Review and provide feedback</p>
+        <p><strong>End Condition:</strong> ALL reviewers say <code>STATUS: ${config.endCondition}</code></p>
+      `;
+
+      document.getElementById("taskLabel").textContent = config.taskLabel;
+      document.getElementById("taskInput").placeholder = config.taskPlaceholder;
+    }
+
+    function getSelectedReviewers() {
+      const checkboxes = document.querySelectorAll('#reviewerCheckboxes input[type="checkbox"]:checked');
+      return Array.from(checkboxes).map(cb => cb.value);
+    }
+
+    function updateReviewerStatus() {
+      const statusDiv = document.getElementById("reviewerStatus");
+      const reviewers = getSelectedReviewers();
+
+      if (reviewers.length === 0) {
+        statusDiv.classList.add("hidden");
+        return;
+      }
+
+      statusDiv.classList.remove("hidden");
+      statusDiv.innerHTML = reviewers.map(r => {
+        const status = reviewerResults[r] || 'pending';
+        const names = { xai: 'xAI', openai: 'OpenAI', claude: 'Claude', gemini: 'Gemini' };
+        return `<span class="reviewer-badge ${status}">${names[r]}: ${status.toUpperCase()}</span>`;
+      }).join('');
+    }
+
+    function updateProgress(current, total) {
+      const progressBar = document.getElementById("progressBar");
+      const progressFill = document.getElementById("progressFill");
+      progressBar.classList.remove("hidden");
+      progressFill.style.width = `${(current / total) * 100}%`;
+    }
+
+    // ============ API CALLS ============
+    async function callXAI(prompt, systemPrompt) {
+      const apiKey = document.getElementById("xaiKey").value || localStorage.getItem("xaiKey");
+      if (!apiKey) throw new Error("xAI API key not provided");
+
+      const res = await fetch("https://api.x.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + apiKey,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "grok-3-fast",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: prompt }
+          ],
+          max_tokens: 8000
+        })
+      });
+
+      if (!res.ok) {
+        const error = await res.text();
+        throw new Error(`xAI API error: ${error}`);
+      }
+      return (await res.json()).choices[0].message.content;
+    }
+
+    async function callOpenAI(prompt, systemPrompt) {
+      const apiKey = document.getElementById("openaiKey").value || localStorage.getItem("openaiKey");
+      if (!apiKey) throw new Error("OpenAI API key not provided");
+
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + apiKey,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: prompt }
+          ],
+          max_tokens: 4000
+        })
+      });
+
+      if (!res.ok) {
+        const error = await res.text();
+        throw new Error(`OpenAI API error: ${error}`);
+      }
+      return (await res.json()).choices[0].message.content;
+    }
+
+    async function callClaude(prompt, systemPrompt) {
+      const apiKey = document.getElementById("claudeKey").value || localStorage.getItem("claudeKey");
+      if (!apiKey) throw new Error("Claude API key not provided");
+
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 4000,
+          system: systemPrompt,
+          messages: [
+            { role: "user", content: prompt }
+          ]
+        })
+      });
+
+      if (!res.ok) {
+        const error = await res.text();
+        throw new Error(`Claude API error: ${error}`);
+      }
+      const data = await res.json();
+      return data.content[0].text;
+    }
+
+    async function callGemini(prompt, systemPrompt) {
+      const apiKey = document.getElementById("geminiKey").value || localStorage.getItem("geminiKey");
+      if (!apiKey) throw new Error("Gemini API key not provided");
+
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          systemInstruction: {
+            parts: [{ text: systemPrompt }]
+          },
+          contents: [{
+            parts: [{ text: prompt }]
+          }]
+        })
+      });
+
+      if (!res.ok) {
+        const error = await res.text();
+        throw new Error(`Gemini API error: ${error}`);
+      }
+      const data = await res.json();
+      return data.candidates[0].content.parts[0].text;
+    }
+
+    async function callAI(provider, prompt, systemPrompt) {
+      const callers = {
+        xai: callXAI,
+        openai: callOpenAI,
+        claude: callClaude,
+        gemini: callGemini
+      };
+
+      if (!callers[provider]) {
+        throw new Error(`Unknown provider: ${provider}`);
+      }
+
+      return await callers[provider](prompt, systemPrompt);
+    }
+
+    // ============ WALLET ============
+    async function connectWallet() {
+      const mnemonic = document.getElementById("mnemonic").value.trim();
+      if (!mnemonic || mnemonic.split(" ").length !== 25) {
+        throw new Error("Please enter a valid 25-word mnemonic");
+      }
+
+      myAccount = algosdk.mnemonicToSecretKey(mnemonic);
+      window.account = myAccount;
+      window.sender = myAccount.addr;
+
+      log(`Connected: ${myAccount.addr.substring(0, 12)}...${myAccount.addr.slice(-6)}`, 'success');
+      return myAccount;
+    }
+
+    // ============ SELF-ENCRYPTION (NaCl Box with own key) ============
+    // Encrypts data so only the wallet owner can read it on-chain
+
+    function selfEncrypt(data) {
+      try {
+        if (!myAccount) throw new Error("Wallet not connected");
+
+        // Get Ed25519 keys from Algorand account
+        const myEd25519SecretKey = myAccount.sk.slice(0, 32); // Ed25519 seed
+        const myEd25519PubKey = myAccount.sk.slice(32, 64);   // Ed25519 public key
+
+        // Convert Ed25519 to Curve25519 (X25519) for NaCl box
+        const myCurve25519SecretKey = ed2curve.convertSecretKey(myEd25519SecretKey);
+        const myCurve25519PubKey = ed2curve.convertPublicKey(myEd25519PubKey);
+
+        if (!myCurve25519SecretKey || !myCurve25519PubKey) {
+          throw new Error("Key conversion failed");
+        }
+
+        // Generate random nonce
+        const nonce = nacl.randomBytes(nacl.box.nonceLength);
+        const messageBytes = nacl.util.decodeUTF8(data);
+
+        // Encrypt to self (using own public key as recipient)
+        const encrypted = nacl.box(messageBytes, nonce, myCurve25519PubKey, myCurve25519SecretKey);
+
+        // Combine nonce + encrypted data
+        const combined = new Uint8Array(nonce.length + encrypted.length);
+        combined.set(nonce);
+        combined.set(encrypted, nonce.length);
+
+        return nacl.util.encodeBase64(combined);
+      } catch (error) {
+        log(`Encryption error: ${error.message}`, 'error');
+        throw error;
+      }
+    }
+
+    function selfDecrypt(encryptedBase64) {
+      try {
+        if (!myAccount) throw new Error("Wallet not connected");
+
+        const combined = nacl.util.decodeBase64(encryptedBase64);
+        const nonce = combined.slice(0, nacl.box.nonceLength);
+        const encrypted = combined.slice(nacl.box.nonceLength);
+
+        // Get Ed25519 keys
+        const myEd25519SecretKey = myAccount.sk.slice(0, 32);
+        const myEd25519PubKey = myAccount.sk.slice(32, 64);
+
+        // Convert to Curve25519
+        const myCurve25519SecretKey = ed2curve.convertSecretKey(myEd25519SecretKey);
+        const myCurve25519PubKey = ed2curve.convertPublicKey(myEd25519PubKey);
+
+        if (!myCurve25519SecretKey || !myCurve25519PubKey) {
+          throw new Error("Key conversion failed");
+        }
+
+        // Decrypt from self
+        const decrypted = nacl.box.open(encrypted, nonce, myCurve25519PubKey, myCurve25519SecretKey);
+
+        if (!decrypted) {
+          throw new Error("Decryption failed");
+        }
+
+        return nacl.util.encodeUTF8(decrypted);
+      } catch (error) {
+        log(`Decryption error: ${error.message}`, 'error');
+        return null;
+      }
+    }
+
+    // ============ BLOCKCHAIN STORAGE (with encryption) ============
+    async function saveToBlockchain(prefix, data) {
+      log(`Encrypting ${data.length} bytes...`, 'status');
+
+      // Encrypt the data first
+      const encrypted = selfEncrypt(data);
+      log(`Encrypted to ${encrypted.length} bytes`, 'info');
+
+      // Now chunk the encrypted data
+      const chunks = [];
+      for (let i = 0; i < encrypted.length; i += CHUNK_SIZE) {
+        chunks.push(encrypted.slice(i, i + CHUNK_SIZE));
+      }
+
+      if (chunks.length > MAX_CHUNKS) {
+        throw new Error(`Data too large: ${chunks.length} chunks (max ${MAX_CHUNKS})`);
+      }
+
+      log(`Saving ${chunks.length} encrypted chunk(s)...`, 'status');
+      for (let i = 0; i < chunks.length; i++) {
+        const chunkId = `${processId}_${prefix}_${i}`;
+        await window.createEntity(chunkId, JSON.stringify({ data: chunks[i] }));
+        log(`  Chunk ${i + 1}/${chunks.length} saved`, 'info');
+      }
+
+      const metaId = `${processId}_${prefix}_meta`;
+      await window.createEntity(metaId, JSON.stringify({ chunks: chunks.length }));
+      log(`Saved ${chunks.length} encrypted chunks to blockchain`, 'success');
+    }
+
+    async function loadFromBlockchain(prefix) {
+      try {
+        const metaId = `${processId}_${prefix}_meta`;
+        const meta = await window.readEntity(metaId);
+        if (!meta) return null;
+
+        const metaData = JSON.parse(meta);
+        const totalChunks = metaData.chunks || 0;
+
+        // Reassemble encrypted data from chunks
+        let encryptedCombined = "";
+        for (let i = 0; i < totalChunks; i++) {
+          const chunkId = `${processId}_${prefix}_${i}`;
+          const chunk = await window.readEntity(chunkId);
+          if (!chunk) throw new Error(`Missing chunk ${i}`);
+          const chunkData = JSON.parse(chunk);
+          encryptedCombined += chunkData.data;
+        }
+
+        // Decrypt the combined data
+        const decrypted = selfDecrypt(encryptedCombined);
+        return decrypted;
+      } catch (error) {
+        log(`Load error: ${error.message}`, 'error');
+        return null;
+      }
+    }
+
+    // ============ MAIN COORDINATION LOGIC ============
+    async function startCoordination() {
+      try {
+        // Validate inputs
+        const task = document.getElementById("taskInput").value.trim();
+        if (!task) throw new Error("Please enter a task description");
+
+        selectedReviewers = getSelectedReviewers();
+        if (selectedReviewers.length === 0) {
+          throw new Error("Please select at least one reviewer AI");
+        }
+
+        const initiatorProvider = document.getElementById("initiatorProvider").value;
+
+        // Validate required API keys
+        const requiredKeys = [initiatorProvider, ...selectedReviewers];
+        const keyInputs = {
+          xai: 'xaiKey',
+          openai: 'openaiKey',
+          claude: 'claudeKey',
+          gemini: 'geminiKey'
+        };
+
+        for (const provider of [...new Set(requiredKeys)]) {
+          const keyInput = document.getElementById(keyInputs[provider]);
+          if (!keyInput.value.trim() && !localStorage.getItem(keyInputs[provider])) {
+            throw new Error(`Please provide API key for ${provider}`);
+          }
+          // Save to localStorage
+          if (keyInput.value.trim()) {
+            localStorage.setItem(keyInputs[provider], keyInput.value.trim());
+          }
+        }
+
+        // Connect wallet
+        await connectWallet();
+
+        // Create blockchain process
+        processId = `mac_${Date.now()}`; // mac = multi-agent coordination
+
+        // Store minimal metadata (no large task - stored separately)
+        const minimalMeta = JSON.stringify({
+          useCase: document.getElementById("useCase").value,
+          initiator: initiatorProvider,
+          reviewers: selectedReviewers,
+          started: new Date().toISOString()
+        });
+
+        // Only save meta if it's small enough (< 1400 bytes)
+        if (minimalMeta.length < CHUNK_SIZE) {
+          await window.createEntity(`${processId}_meta`, minimalMeta);
+        } else {
+          // Fallback: save even smaller meta
+          await window.createEntity(`${processId}_meta`, JSON.stringify({
+            useCase: document.getElementById("useCase").value,
+            started: new Date().toISOString()
+          }));
+        }
+
+        // Store task separately with chunking (handles large tasks)
+        await saveToBlockchain('task', task);
+
+        log(`Process created: ${processId}`, 'success');
+        window.lastProcessId = processId;
+
+        // Update UI
+        isRunning = true;
+        document.getElementById("startBtn").disabled = true;
+        document.getElementById("stopBtn").classList.remove("hidden");
+        document.getElementById("cleanupBtn").classList.remove("hidden");
+
+        // Reset reviewer results
+        reviewerResults = {};
+        selectedReviewers.forEach(r => reviewerResults[r] = 'pending');
+        updateReviewerStatus();
+
+        // Start coordination loop
+        await runCoordinationLoop(task, initiatorProvider);
+
+      } catch (error) {
+        log(`Error: ${error.message}`, 'error');
+        console.error(error);
+      }
+    }
+
+    async function runCoordinationLoop(task, initiatorProvider) {
+      const useCase = document.getElementById("useCase").value;
+      const config = USE_CASES[useCase];
+      let iteration = 0;
+      const maxIterations = parseInt(document.getElementById("maxIterations").value) || 25;
+
+      while (isRunning && iteration < maxIterations) {
+        iteration++;
+        log(`\n${'='.repeat(50)}`, 'info');
+        log(`ITERATION ${iteration}`, 'info');
+        log(`${'='.repeat(50)}`, 'info');
+
+        // ---- PHASE 1: Initiator creates/updates content ----
+        log(`\n[${config.initiatorRole.toUpperCase()}] Generating content with ${initiatorProvider}...`, 'status');
+
+        let initiatorPrompt = task;
+        if (coordinationHistory.length > 0) {
+          // Include feedback from previous reviews
+          const feedbackSummary = coordinationHistory
+            .filter(h => h.type === 'review')
+            .slice(-selectedReviewers.length)
+            .map(h => `[${h.provider}]: ${h.feedback}`)
+            .join('\n\n');
+
+          initiatorPrompt = `ORIGINAL TASK: ${task}\n\nPREVIOUS FEEDBACK TO ADDRESS:\n${feedbackSummary}\n\nPlease improve the content based on the feedback above.`;
+        }
+
+        try {
+          currentContent = await callAI(initiatorProvider, initiatorPrompt, config.initiatorPrompt);
+          log(`Content generated (${currentContent.length} chars)`, 'success');
+          log(`<pre style="max-height:400px;overflow-y:auto;white-space:pre-wrap;word-wrap:break-word;">${escapeHtml(currentContent)}</pre>`);
+
+          // Save to blockchain
+          await saveToBlockchain(`content_${iteration}`, currentContent);
+
+          coordinationHistory.push({
+            type: 'content',
+            iteration,
+            provider: initiatorProvider,
+            content: currentContent
+          });
+
+        } catch (error) {
+          log(`${config.initiatorRole} error: ${error.message}`, 'error');
+          await sleep(5000);
+          continue;
+        }
+
+        // ---- PHASE 2: Each reviewer reviews sequentially ----
+        let allApproved = true;
+        const reviewFeedback = [];
+
+        for (let i = 0; i < selectedReviewers.length; i++) {
+          const reviewer = selectedReviewers[i];
+          const reviewerName = { xai: 'xAI', openai: 'OpenAI', claude: 'Claude', gemini: 'Gemini' }[reviewer];
+
+          if (!isRunning) break;
+
+          log(`\n[${config.reviewerRole.toUpperCase()} ${i + 1}/${selectedReviewers.length}] ${reviewerName} reviewing...`, 'status');
+          reviewerResults[reviewer] = 'reviewing';
+          updateReviewerStatus();
+          updateProgress(i + 1, selectedReviewers.length + 1);
+
+          try {
+            const reviewPrompt = `Please review the following ${config.name.toLowerCase()} content:\n\n---\n${currentContent}\n---`;
+            const review = await callAI(reviewer, reviewPrompt, config.reviewerPrompt);
+
+            log(`Review from ${reviewerName}:`, 'review');
+            log(`<pre style="max-height:400px;overflow-y:auto;white-space:pre-wrap;word-wrap:break-word;">${escapeHtml(review)}</pre>`);
+
+            // Save review to blockchain
+            await saveToBlockchain(`review_${iteration}_${reviewer}`, review);
+
+            // Check if approved
+            const isApproved = review.includes(`STATUS: ${config.endCondition}`);
+            reviewerResults[reviewer] = isApproved ? 'approved' : 'needs-fixes';
+            updateReviewerStatus();
+
+            if (!isApproved) {
+              allApproved = false;
+              reviewFeedback.push({ provider: reviewer, feedback: review });
+            }
+
+            coordinationHistory.push({
+              type: 'review',
+              iteration,
+              provider: reviewer,
+              approved: isApproved,
+              feedback: review
+            });
+
+            log(`${reviewerName}: ${isApproved ? 'APPROVED' : 'NEEDS FIXES'}`, isApproved ? 'success' : 'error');
+
+          } catch (error) {
+            log(`${reviewerName} review error: ${error.message}`, 'error');
+            reviewerResults[reviewer] = 'pending';
+            allApproved = false;
+          }
+
+          await sleep(1000); // Brief pause between reviewers
+        }
+
+        // ---- PHASE 3: Check consensus ----
+        if (allApproved) {
+          log(`\n${'*'.repeat(50)}`, 'success');
+          log(`ALL REVIEWERS APPROVED!`, 'success');
+          log(`${'*'.repeat(50)}`, 'success');
+          log(`\nFinal ${config.name} Content:`, 'success');
+          log(`<pre style="border: 2px solid #00ff88; padding: 15px; max-height:500px; overflow-y:auto; white-space:pre-wrap; word-wrap:break-word;">${escapeHtml(currentContent)}</pre>`);
+
+          // Save final result
+          await saveToBlockchain(`final_result`, currentContent);
+          window.finalContent = currentContent;
+
+          // Create download button
+          log(`<button onclick="downloadResult()">Download Final Result</button>`);
+
+          isRunning = false;
+
+          if (document.getElementById("deleteOnComplete").checked) {
+            await cleanupBoxes();
+          }
+          return;
+        }
+
+        // Add feedback to history for next iteration
+        coordinationHistory.push(...reviewFeedback.map(f => ({
+          type: 'review',
+          iteration,
+          ...f
+        })));
+
+        log(`\nIteration ${iteration} complete. ${selectedReviewers.length - Object.values(reviewerResults).filter(r => r === 'approved').length} reviewer(s) need fixes.`, 'status');
+
+        // Reset for next iteration
+        selectedReviewers.forEach(r => {
+          if (reviewerResults[r] !== 'approved') {
+            reviewerResults[r] = 'pending';
+          }
+        });
+        updateReviewerStatus();
+
+        await sleep(3000);
+      }
+
+      if (iteration >= maxIterations) {
+        log(`\nMax iterations (${maxIterations}) reached without consensus.`, 'error');
+        log(`Last content saved. You can download and review manually.`, 'status');
+        window.finalContent = currentContent;
+        log(`<button onclick="downloadResult()">Download Last Result</button>`);
+      }
+
+      isRunning = false;
+      document.getElementById("startBtn").disabled = false;
+    }
+
+    // ============ RESUME COORDINATION ============
+    async function resumeCoordination() {
+      try {
+        const resumeId = document.getElementById("resumeProcessId").value.trim();
+        if (!resumeId) {
+          throw new Error("Please enter a process ID to resume");
+        }
+
+        // Connect wallet first
+        await connectWallet();
+
+        processId = resumeId;
+        window.lastProcessId = processId;
+        log(`\nResuming process: ${processId}`, 'status');
+
+        // Load metadata to get configuration
+        const meta = await window.readEntity(`${processId}_meta`);
+        if (!meta) {
+          throw new Error("Process not found. Check the process ID.");
+        }
+
+        const metaData = JSON.parse(meta);
+        log(`Found process: ${metaData.useCase} started at ${metaData.started}`, 'success');
+
+        // Set use case from metadata
+        if (metaData.useCase) {
+          document.getElementById("useCase").value = metaData.useCase;
+          updateUseCaseInfo();
+        }
+
+        // Set reviewers if available
+        if (metaData.reviewers) {
+          selectedReviewers = metaData.reviewers;
+          // Update checkboxes
+          document.querySelectorAll('#reviewerCheckboxes input[type="checkbox"]').forEach(cb => {
+            cb.checked = selectedReviewers.includes(cb.value);
+            cb.closest('.checkbox-item').classList.toggle('selected', cb.checked);
+          });
+        } else {
+          selectedReviewers = getSelectedReviewers();
+        }
+
+        // Set initiator if available
+        if (metaData.initiator) {
+          document.getElementById("initiatorProvider").value = metaData.initiator;
+        }
+
+        // Find the last iteration by checking which content exists
+        let lastIteration = 0;
+        for (let i = 1; i <= 100; i++) {
+          try {
+            const contentMeta = await window.readEntity(`${processId}_content_${i}_meta`);
+            if (contentMeta) {
+              lastIteration = i;
+            } else {
+              break;
+            }
+          } catch (e) {
+            break;
+          }
+        }
+
+        log(`Last completed iteration: ${lastIteration}`, 'info');
+
+        // Load the task
+        const task = await loadFromBlockchain('task');
+        if (!task) {
+          throw new Error("Could not load task from blockchain");
+        }
+        document.getElementById("taskInput").value = task;
+        log(`Task loaded: ${task.substring(0, 100)}...`, 'success');
+
+        // Load last content if exists
+        if (lastIteration > 0) {
+          currentContent = await loadFromBlockchain(`content_${lastIteration}`);
+          if (currentContent) {
+            log(`Loaded content from iteration ${lastIteration}`, 'success');
+            coordinationHistory.push({
+              type: 'content',
+              iteration: lastIteration,
+              provider: metaData.initiator || 'unknown',
+              content: currentContent
+            });
+          }
+
+          // Load reviews for last iteration
+          for (const reviewer of selectedReviewers) {
+            const review = await loadFromBlockchain(`review_${lastIteration}_${reviewer}`);
+            if (review) {
+              log(`Loaded ${reviewer} review from iteration ${lastIteration}`, 'success');
+              coordinationHistory.push({
+                type: 'review',
+                iteration: lastIteration,
+                provider: reviewer,
+                feedback: review,
+                approved: review.includes(`STATUS: ${USE_CASES[metaData.useCase || 'code_review'].endCondition}`)
+              });
+            }
+          }
+        }
+
+        // Update UI
+        isRunning = true;
+        document.getElementById("startBtn").disabled = true;
+        document.getElementById("stopBtn").classList.remove("hidden");
+        document.getElementById("cleanupBtn").classList.remove("hidden");
+
+        reviewerResults = {};
+        selectedReviewers.forEach(r => reviewerResults[r] = 'pending');
+        updateReviewerStatus();
+
+        log(`\nResuming from iteration ${lastIteration + 1}...`, 'status');
+
+        // Continue the coordination loop
+        const initiatorProvider = metaData.initiator || document.getElementById("initiatorProvider").value;
+        await runCoordinationLoopFromIteration(task, initiatorProvider, lastIteration);
+
+      } catch (error) {
+        log(`Resume error: ${error.message}`, 'error');
+        console.error(error);
+      }
+    }
+
+    async function runCoordinationLoopFromIteration(task, initiatorProvider, startFromIteration) {
+      const useCase = document.getElementById("useCase").value;
+      const config = USE_CASES[useCase];
+      let iteration = startFromIteration;
+      const maxIterations = parseInt(document.getElementById("maxIterations").value) || 25;
+
+      while (isRunning && iteration < maxIterations) {
+        iteration++;
+        log(`\n${'='.repeat(50)}`, 'info');
+        log(`ITERATION ${iteration} (resumed)`, 'info');
+        log(`${'='.repeat(50)}`, 'info');
+
+        // ---- PHASE 1: Initiator creates/updates content ----
+        log(`\n[${config.initiatorRole.toUpperCase()}] Generating content with ${initiatorProvider}...`, 'status');
+
+        let initiatorPrompt = task;
+        if (coordinationHistory.length > 0) {
+          const feedbackSummary = coordinationHistory
+            .filter(h => h.type === 'review')
+            .slice(-selectedReviewers.length)
+            .map(h => `[${h.provider}]: ${h.feedback}`)
+            .join('\n\n');
+
+          if (feedbackSummary) {
+            initiatorPrompt = `ORIGINAL TASK: ${task}\n\nPREVIOUS FEEDBACK TO ADDRESS:\n${feedbackSummary}\n\nPlease improve the content based on the feedback above.`;
+          }
+        }
+
+        try {
+          currentContent = await callAI(initiatorProvider, initiatorPrompt, config.initiatorPrompt);
+          log(`Content generated (${currentContent.length} chars)`, 'success');
+          log(`<pre style="max-height:400px;overflow-y:auto;white-space:pre-wrap;word-wrap:break-word;">${escapeHtml(currentContent)}</pre>`);
+
+          await saveToBlockchain(`content_${iteration}`, currentContent);
+
+          coordinationHistory.push({
+            type: 'content',
+            iteration,
+            provider: initiatorProvider,
+            content: currentContent
+          });
+
+        } catch (error) {
+          log(`${config.initiatorRole} error: ${error.message}`, 'error');
+          await sleep(5000);
+          continue;
+        }
+
+        // ---- PHASE 2: Each reviewer reviews sequentially ----
+        let allApproved = true;
+        const reviewFeedback = [];
+
+        for (let i = 0; i < selectedReviewers.length; i++) {
+          const reviewer = selectedReviewers[i];
+          const reviewerName = { xai: 'xAI', openai: 'OpenAI', claude: 'Claude', gemini: 'Gemini' }[reviewer];
+
+          if (!isRunning) break;
+
+          log(`\n[${config.reviewerRole.toUpperCase()} ${i + 1}/${selectedReviewers.length}] ${reviewerName} reviewing...`, 'status');
+          reviewerResults[reviewer] = 'reviewing';
+          updateReviewerStatus();
+          updateProgress(i + 1, selectedReviewers.length + 1);
+
+          try {
+            const reviewPrompt = `Please review the following ${config.name.toLowerCase()} content:\n\n---\n${currentContent}\n---`;
+            const review = await callAI(reviewer, reviewPrompt, config.reviewerPrompt);
+
+            log(`Review from ${reviewerName}:`, 'review');
+            log(`<pre style="max-height:400px;overflow-y:auto;white-space:pre-wrap;word-wrap:break-word;">${escapeHtml(review)}</pre>`);
+
+            await saveToBlockchain(`review_${iteration}_${reviewer}`, review);
+
+            const isApproved = review.includes(`STATUS: ${config.endCondition}`);
+            reviewerResults[reviewer] = isApproved ? 'approved' : 'needs-fixes';
+            updateReviewerStatus();
+
+            if (!isApproved) {
+              allApproved = false;
+              reviewFeedback.push({ provider: reviewer, feedback: review });
+            }
+
+            coordinationHistory.push({
+              type: 'review',
+              iteration,
+              provider: reviewer,
+              approved: isApproved,
+              feedback: review
+            });
+
+            log(`${reviewerName}: ${isApproved ? 'APPROVED' : 'NEEDS FIXES'}`, isApproved ? 'success' : 'error');
+
+          } catch (error) {
+            log(`${reviewerName} review error: ${error.message}`, 'error');
+            reviewerResults[reviewer] = 'pending';
+            allApproved = false;
+          }
+
+          await sleep(1000);
+        }
+
+        // ---- PHASE 3: Check consensus ----
+        if (allApproved) {
+          log(`\n${'*'.repeat(50)}`, 'success');
+          log(`ALL REVIEWERS APPROVED!`, 'success');
+          log(`${'*'.repeat(50)}`, 'success');
+          log(`\nFinal ${config.name} Content:`, 'success');
+          log(`<pre style="border: 2px solid #00ff88; padding: 15px; max-height:500px; overflow-y:auto; white-space:pre-wrap; word-wrap:break-word;">${escapeHtml(currentContent)}</pre>`);
+
+          await saveToBlockchain(`final_result`, currentContent);
+          window.finalContent = currentContent;
+
+          log(`<button onclick="downloadResult()">Download Final Result</button>`);
+
+          isRunning = false;
+
+          if (document.getElementById("deleteOnComplete").checked) {
+            await cleanupBoxes();
+          }
+          return;
+        }
+
+        coordinationHistory.push(...reviewFeedback.map(f => ({
+          type: 'review',
+          iteration,
+          ...f
+        })));
+
+        log(`\nIteration ${iteration} complete. ${selectedReviewers.length - Object.values(reviewerResults).filter(r => r === 'approved').length} reviewer(s) need fixes.`, 'status');
+
+        selectedReviewers.forEach(r => {
+          if (reviewerResults[r] !== 'approved') {
+            reviewerResults[r] = 'pending';
+          }
+        });
+        updateReviewerStatus();
+
+        await sleep(3000);
+      }
+
+      if (iteration >= maxIterations) {
+        log(`\nMax iterations (${maxIterations}) reached without consensus.`, 'error');
+        log(`Last content saved. You can download and review manually.`, 'status');
+        window.finalContent = currentContent;
+        log(`<button onclick="downloadResult()">Download Last Result</button>`);
+      }
+
+      isRunning = false;
+      document.getElementById("startBtn").disabled = false;
+    }
+
+    function stopCoordination() {
+      isRunning = false;
+      log(`\nCoordination stopped by user.`, 'status');
+      document.getElementById("startBtn").disabled = false;
+    }
+
+    async function cleanupBoxes() {
+      if (!processId) {
+        log("No process to cleanup", 'error');
+        return;
+      }
+
+      // Get max iterations from input or use high default for cleanup
+      const maxIter = parseInt(document.getElementById("maxIterations").value) || 100;
+
+      log(`\nCleaning up blockchain storage (up to ${maxIter} iterations)...`, 'status');
+      let deleted = 0;
+
+      try {
+        // Delete meta
+        try {
+          await window.deleteEntity(`${processId}_meta`);
+          deleted++;
+          log(`  Deleted meta`, 'info');
+        } catch (e) {}
+
+        // Delete task chunks (stored separately)
+        for (let j = 0; j < 50; j++) {
+          try {
+            await window.deleteEntity(`${processId}_task_${j}`);
+            deleted++;
+          } catch (e) { break; }
+        }
+        try {
+          await window.deleteEntity(`${processId}_task_meta`);
+          deleted++;
+          log(`  Deleted task chunks`, 'info');
+        } catch (e) {}
+
+        // Delete content chunks for ALL iterations
+        log(`  Deleting content chunks...`, 'status');
+        for (let i = 1; i <= maxIter; i++) {
+          let foundAny = false;
+          for (let j = 0; j < 30; j++) {
+            try {
+              await window.deleteEntity(`${processId}_content_${i}_${j}`);
+              deleted++;
+              foundAny = true;
+            } catch (e) { break; }
+          }
+          try {
+            await window.deleteEntity(`${processId}_content_${i}_meta`);
+            deleted++;
+            foundAny = true;
+          } catch (e) {}
+
+          // Stop if no content found for this iteration (likely no more iterations exist)
+          if (!foundAny && i > 5) break;
+        }
+
+        // Delete reviews for ALL iterations
+        log(`  Deleting review chunks...`, 'status');
+        for (let i = 1; i <= maxIter; i++) {
+          let foundAny = false;
+          for (const reviewer of ['xai', 'openai', 'claude', 'gemini']) {
+            for (let j = 0; j < 30; j++) {
+              try {
+                await window.deleteEntity(`${processId}_review_${i}_${reviewer}_${j}`);
+                deleted++;
+                foundAny = true;
+              } catch (e) { break; }
+            }
+            try {
+              await window.deleteEntity(`${processId}_review_${i}_${reviewer}_meta`);
+              deleted++;
+              foundAny = true;
+            } catch (e) {}
+          }
+
+          // Stop if no reviews found for this iteration
+          if (!foundAny && i > 5) break;
+        }
+
+        // Delete final
+        for (let j = 0; j < 20; j++) {
+          try {
+            await window.deleteEntity(`${processId}_final_result_${j}`);
+            deleted++;
+          } catch (e) { break; }
+        }
+        try {
+          await window.deleteEntity(`${processId}_final_result_meta`);
+          deleted++;
+        } catch (e) {}
+
+        log(`Cleanup complete! Deleted ${deleted} boxes.`, 'success');
+        log(`ALGO refunded to your wallet.`, 'success');
+
+      } catch (error) {
+        log(`Cleanup error: ${error.message}`, 'error');
+      }
+    }
+
+    function downloadResult() {
+      if (!window.finalContent) {
+        log("No content to download", 'error');
+        return;
+      }
+
+      const useCase = document.getElementById("useCase").value;
+      const extensions = {
+        code_review: '.code',
+        code_audit: '.code',
+        document_writing: '.md',
+        research_analysis: '.md',
+        translation: '.txt',
+        brainstorming: '.md'
+      };
+
+      // Detect language for code
+      let ext = extensions[useCase];
+      if (useCase === 'code_review' || useCase === 'code_audit') {
+        const code = window.finalContent.toLowerCase();
+        if (code.includes('def ') || code.includes('import ')) ext = '.py';
+        else if (code.includes('function ') || code.includes('const ')) ext = '.js';
+        else if (code.includes('public class ')) ext = '.java';
+        else if (code.includes('#include')) ext = '.cpp';
+        else if (code.includes('fn ') && code.includes('let ')) ext = '.rs';
+        else if (code.includes('func ') && code.includes('package ')) ext = '.go';
+      }
+
+      const blob = new Blob([window.finalContent], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${processId}_final${ext}`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      log(`Downloaded: ${processId}_final${ext}`, 'success');
+    }
+
+    function sleep(ms) {
+      return new Promise(r => setTimeout(r, ms));
+    }
+
+    // Initialize checkbox styling
+    document.querySelectorAll('.checkbox-item input').forEach(cb => {
+      cb.addEventListener('change', function() {
+        this.closest('.checkbox-item').classList.toggle('selected', this.checked);
+        updateReviewerStatus();
+      });
+      // Set initial state
+      if (cb.checked) {
+        cb.closest('.checkbox-item').classList.add('selected');
+      }
+    });
+
+    // Initialize use case info
+    updateUseCaseInfo();
+  </script>
+</body>
+</html>
