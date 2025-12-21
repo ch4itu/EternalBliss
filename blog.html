@@ -129,6 +129,11 @@
             color: white;
         }
 
+        .btn-secondary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
         .connected-info {
             background: #f0f9ff;
             padding: 15px;
@@ -245,6 +250,13 @@
         .post-meta {
             font-size: 13px;
             color: #999;
+        }
+
+        .post-modified {
+            font-size: 12px;
+            color: #f39c12;
+            margin-top: 5px;
+            font-style: italic;
         }
 
         .post-author {
@@ -405,7 +417,7 @@
 
         <!-- Post Editor -->
         <div class="editor-section" id="editorSection">
-            <h2>✍️ Write New Post</h2>
+            <h2 id="editorTitle">✍️ Write New Post</h2>
             <div class="form-group">
                 <label>Post Title</label>
                 <input type="text" id="postTitle" placeholder="Enter an engaging title..." maxlength="200">
@@ -427,19 +439,18 @@
         </div>
     </div>
 
-    <!-- Buffer Polyfill (required for wallet libraries) -->
+    <!-- Main Application Script -->
     <script type="module">
+        // Buffer polyfill (must be loaded before wallet libraries)
         import { Buffer } from "https://esm.sh/buffer@6.0.3";
         window.Buffer = Buffer;
         window.global = window;
         window.process = { env: { NODE_ENV: 'production' } };
-    </script>
 
-    <!-- Main Application Script -->
-    <script type="module">
         // Import wallet libraries
-        import { PeraWalletConnect } from "https://esm.sh/@perawallet/connect@1.4.2?bundle-deps";
-        import { DeflyWalletConnect } from "https://esm.sh/@blockshake/defly-connect@1.2.1?bundle-deps";
+        // Use wallet SDK versions compatible with algosdk v2.x
+        import { PeraWalletConnect } from "https://esm.sh/@perawallet/connect@1.3.4?bundle-deps";
+        import { DeflyWalletConnect } from "https://esm.sh/@blockshake/defly-connect@1.1.6?bundle-deps";
 
         // Configuration
         const APP_ID = 750081112;
@@ -455,6 +466,10 @@
         let deflyWallet = null;
         let walletType = null; // 'pera', 'defly', or 'mnemonic'
         const CHAIN_ID = 416002; // Testnet
+
+        // Editing state
+        let editingPostId = null;
+        let editingPost = null;
 
         // Full ABI Contract Definition (from compiled ARC-56)
         const CONTRACT_ABI = {
@@ -496,19 +511,28 @@
 
         // Initialize Algorand client
         function initAlgod() {
+            if (typeof algosdk === 'undefined') {
+                console.error('algosdk not loaded!');
+                showStatus('Error: Algorand SDK not loaded. Please refresh the page.', 'error');
+                return false;
+            }
             algodClient = new algosdk.Algodv2(ALGOD_TOKEN, ALGOD_SERVER, ALGOD_PORT);
+            console.log('Algorand client initialized');
+            return true;
         }
 
         // Initialize wallet instances
         function initWallets() {
-            peraWallet = new PeraWalletConnect({ chainId: CHAIN_ID });
-            deflyWallet = new DeflyWalletConnect({ chainId: CHAIN_ID });
-
-            // Set up disconnect listeners
-            peraWallet.connector?.on("disconnect", handleDisconnect);
-            deflyWallet.connector?.on("disconnect", handleDisconnect);
-
-            console.log('Wallets initialized for TestNet');
+            try {
+                peraWallet = new PeraWalletConnect({ chainId: CHAIN_ID });
+                deflyWallet = new DeflyWalletConnect({ chainId: CHAIN_ID });
+                console.log('Wallets initialized for TestNet');
+                return true;
+            } catch (error) {
+                console.error('Failed to initialize wallets:', error);
+                showStatus('Error initializing wallets: ' + error.message, 'error');
+                return false;
+            }
         }
 
         // Check for existing sessions on load
@@ -519,7 +543,9 @@
                     handleConnectSuccess('pera', peraAccounts[0]);
                     return;
                 }
-            } catch(e) {}
+            } catch(e) {
+                console.log('No existing Pera session');
+            }
 
             try {
                 const deflyAccounts = await deflyWallet.reconnectSession();
@@ -527,7 +553,9 @@
                     handleConnectSuccess('defly', deflyAccounts[0]);
                     return;
                 }
-            } catch(e) {}
+            } catch(e) {
+                console.log('No existing Defly session');
+            }
         }
 
         // UI: Show mnemonic input
@@ -559,15 +587,21 @@
         // Connect with Pera Wallet
         async function connectPeraWallet() {
             try {
+                console.log('🟡 Connecting to Pera Wallet...');
+                showStatus('Connecting to Pera Wallet...', 'success');
                 const accounts = await peraWallet.connect();
-                peraWallet.connector.on("disconnect", handleDisconnect);
+                console.log('Pera accounts:', accounts);
                 if (accounts.length > 0) {
                     handleConnectSuccess('pera', accounts[0]);
+                } else {
+                    showStatus('No accounts returned from Pera Wallet', 'error');
                 }
             } catch (error) {
-                if (error?.data?.type !== "CONNECT_MODAL_CLOSED") {
+                if (error?.data?.type !== "CONNECT_MODAL_CLOSED" && error?.message !== "Connect modal is closed by user") {
                     console.error('Pera connection error:', error);
-                    showStatus('Failed to connect with Pera Wallet', 'error');
+                    showStatus('Failed to connect with Pera Wallet: ' + (error.message || 'Unknown error'), 'error');
+                } else {
+                    console.log('Pera connect cancelled by user');
                 }
             }
         }
@@ -575,15 +609,21 @@
         // Connect with Defly Wallet
         async function connectDeflyWallet() {
             try {
+                console.log('🦅 Connecting to Defly Wallet...');
+                showStatus('Connecting to Defly Wallet...', 'success');
                 const accounts = await deflyWallet.connect();
-                deflyWallet.connector.on("disconnect", handleDisconnect);
+                console.log('Defly accounts:', accounts);
                 if (accounts.length > 0) {
                     handleConnectSuccess('defly', accounts[0]);
+                } else {
+                    showStatus('No accounts returned from Defly Wallet', 'error');
                 }
             } catch (error) {
-                if (error?.data?.type !== "CONNECT_MODAL_CLOSED") {
+                if (error?.data?.type !== "CONNECT_MODAL_CLOSED" && error?.message !== "Connect modal is closed by user") {
                     console.error('Defly connection error:', error);
-                    showStatus('Failed to connect with Defly Wallet', 'error');
+                    showStatus('Failed to connect with Defly Wallet: ' + (error.message || 'Unknown error'), 'error');
+                } else {
+                    console.log('Defly connect cancelled by user');
                 }
             }
         }
@@ -659,17 +699,66 @@
             showStatus('Wallet disconnected', 'info');
         }
 
-        // Show editor
-        function showEditor() {
+        // Show editor (for new post or editing)
+        function showEditor(post = null) {
             document.getElementById('editorSection').classList.add('active');
             document.getElementById('postsSection').classList.remove('active');
-            document.getElementById('postTitle').value = '';
-            document.getElementById('postContent').value = '';
+
+            if (post) {
+                // Edit mode
+                editingPostId = post.entityId;
+                editingPost = post;
+                document.getElementById('editorTitle').textContent = '✏️ Edit Post';
+                document.getElementById('postTitle').value = post.title;
+                document.getElementById('postContent').value = post.content;
+                document.getElementById('contentLength').textContent = post.content.length;
+            } else {
+                // New post mode
+                editingPostId = null;
+                editingPost = null;
+                document.getElementById('editorTitle').textContent = '✍️ Write New Post';
+                document.getElementById('postTitle').value = '';
+                document.getElementById('postContent').value = '';
+                document.getElementById('contentLength').textContent = '0';
+            }
+        }
+
+        // Edit a post
+        function editPost(entityId) {
+            // Find the post in the loaded posts
+            const container = document.getElementById('postsContainer');
+            // We need to load the post data from blockchain
+            loadPostForEdit(entityId);
+        }
+
+        // Load a specific post for editing
+        async function loadPostForEdit(entityId) {
+            try {
+                showStatus('Loading post for editing...', 'success');
+
+                const boxKey = createBlogBoxKey(entityId);
+                const boxData = await algodClient.getApplicationBoxByName(APP_ID, boxKey).do();
+                const boxValue = boxData.value;
+
+                // Skip owner (first 32 bytes)
+                const dataBytes = boxValue.slice(32);
+                const decoder = new TextDecoder();
+                const jsonData = decoder.decode(dataBytes);
+                const post = JSON.parse(jsonData);
+                post.entityId = entityId;
+
+                showEditor(post);
+            } catch (error) {
+                console.error('Error loading post for edit:', error);
+                showStatus(`Failed to load post: ${error.message}`, 'error');
+            }
         }
 
         // Cancel editor
         function cancelEditor() {
             document.getElementById('editorSection').classList.remove('active');
+            editingPostId = null;
+            editingPost = null;
         }
 
         // Update character count
@@ -687,7 +776,7 @@
             }
         });
 
-        // Publish post to blockchain
+        // Publish post to blockchain (new or edit)
         async function publishPost() {
             if (!currentAccount) {
                 showStatus('Please connect your wallet first', 'error');
@@ -702,21 +791,34 @@
                 return;
             }
 
+            const isEditing = editingPostId !== null;
+
             try {
-                showStatus('📤 Publishing to blockchain...', 'success');
+                showStatus(isEditing ? '📤 Updating post on blockchain...' : '📤 Publishing to blockchain...', 'success');
 
                 // Create post data
                 const postData = {
                     title: title,
                     content: content,
                     author: currentAccount.addr,
-                    timestamp: Date.now()
+                    timestamp: isEditing ? editingPost.timestamp : Date.now()
                 };
 
-                // Generate unique post ID (must be <= 62 chars due to contract limit)
-                const addr = currentAccount.addr;
-                const shortAddr = addr.slice(0, 8) + addr.slice(-8);
-                const postId = `blog-${Date.now()}-${shortAddr}`;
+                // Add modification timestamp if editing
+                if (isEditing) {
+                    postData.modifiedAt = Date.now();
+                }
+
+                // Use existing ID for edit, generate new for new post
+                let postId;
+                if (isEditing) {
+                    postId = editingPostId;
+                } else {
+                    // Generate unique post ID (must be <= 62 chars due to contract limit)
+                    const addr = currentAccount.addr;
+                    const shortAddr = addr.slice(0, 8) + addr.slice(-8);
+                    postId = `blog-${Date.now()}-${shortAddr}`;
+                }
 
                 // Prepare transaction
                 const params = await algodClient.getTransactionParams().do();
@@ -811,23 +913,35 @@
                     const txnGroup = [mbrTxn, appCallTxn];
                     algosdk.assignGroupID(txnGroup);
 
-                    // Sign with wallet (pass txnGroup directly, not wrapped in array)
-                    const signedTxns = walletType === 'pera'
-                        ? await peraWallet.signTransaction(txnGroup)
-                        : await deflyWallet.signTransaction(txnGroup);
+                    // Convert transactions to SignerTransaction format for wallet
+                    // Pera/Defly expect array of {txn: Transaction} objects
+                    const txnsToSign = txnGroup.map(txn => ({ txn }));
 
-                    // Submit
-                    const { txId } = await algodClient.sendRawTransaction(signedTxns).do();
+                    // Sign with wallet - returns array of Uint8Array (signed txns)
+                    let signedTxns;
+                    if (walletType === 'pera') {
+                        signedTxns = await peraWallet.signTransaction([txnsToSign]);
+                    } else {
+                        signedTxns = await deflyWallet.signTransaction([txnsToSign]);
+                    }
+
+                    // Flatten if nested and filter out null entries
+                    const flatSignedTxns = signedTxns.flat().filter(txn => txn != null);
+
+                    // Submit all signed transactions
+                    const { txId } = await algodClient.sendRawTransaction(flatSignedTxns).do();
                     await algosdk.waitForConfirmation(algodClient, txId, 3);
                     console.log('Transaction confirmed:', txId);
                 }
 
-                showStatus('✅ Post published successfully to blockchain!', 'success');
+                showStatus(isEditing ? '✅ Post updated successfully!' : '✅ Post published successfully to blockchain!', 'success');
 
-                // Clear editor
+                // Clear editor and reset editing state
                 document.getElementById('postTitle').value = '';
                 document.getElementById('postContent').value = '';
                 document.getElementById('editorSection').classList.remove('active');
+                editingPostId = null;
+                editingPost = null;
 
                 // Reload posts
                 setTimeout(() => loadAllPosts(), 2000);
@@ -929,6 +1043,17 @@
             const date = new Date(post.timestamp);
             const isOwner = currentAccount && post.author === currentAccount.addr;
 
+            // Check if post was modified
+            let modifiedHtml = '';
+            if (post.modifiedAt) {
+                const modifiedDate = new Date(post.modifiedAt);
+                modifiedHtml = `
+                    <div class="post-modified">
+                        ✏️ Last modified: ${modifiedDate.toLocaleDateString()} ${modifiedDate.toLocaleTimeString()}
+                    </div>
+                `;
+            }
+
             return `
                 <div class="post-card">
                     <div class="post-header">
@@ -938,10 +1063,12 @@
                             <span style="margin: 0 10px;">•</span>
                             <span>${date.toLocaleDateString()} ${date.toLocaleTimeString()}</span>
                         </div>
+                        ${modifiedHtml}
                     </div>
                     <div class="post-content">${escapeHtml(post.content)}</div>
                     ${isOwner ? `
                         <div class="post-actions">
+                            <button class="btn btn-secondary edit-post-btn" data-entity-id="${post.entityId}">✏️ Edit Post</button>
                             <button class="btn btn-danger delete-post-btn" data-entity-id="${post.entityId}">🗑️ Delete Post</button>
                         </div>
                     ` : ''}
@@ -1015,13 +1142,22 @@
                         suggestedParams: deleteParams
                     });
 
-                    // Sign with wallet (single transaction, still pass as array)
-                    const signedTxns = walletType === 'pera'
-                        ? await peraWallet.signTransaction([txn])
-                        : await deflyWallet.signTransaction([txn]);
+                    // Convert transaction to SignerTransaction format for wallet
+                    const txnToSign = [{ txn }];
+
+                    // Sign with wallet - returns array of Uint8Array (signed txns)
+                    let signedTxns;
+                    if (walletType === 'pera') {
+                        signedTxns = await peraWallet.signTransaction([txnToSign]);
+                    } else {
+                        signedTxns = await deflyWallet.signTransaction([txnToSign]);
+                    }
+
+                    // Flatten if nested and filter out null entries
+                    const flatSignedTxns = signedTxns.flat().filter(txn => txn != null);
 
                     // Submit
-                    const { txId } = await algodClient.sendRawTransaction(signedTxns).do();
+                    const { txId } = await algodClient.sendRawTransaction(flatSignedTxns).do();
                     await algosdk.waitForConfirmation(algodClient, txId, 3);
                 }
 
@@ -1058,12 +1194,20 @@
 
         // ===== INITIALIZATION AND EVENT LISTENERS =====
 
-        // Initialize
-        initAlgod();
-        initWallets();
+        // Initialize with error handling
+        console.log('🚀 Initializing OnChain Blog...');
+        console.log('algosdk version:', typeof algosdk !== 'undefined' ? 'loaded' : 'NOT LOADED');
 
-        // Check for existing wallet sessions
-        checkSessions();
+        const algodOk = initAlgod();
+        const walletsOk = initWallets();
+
+        if (algodOk && walletsOk) {
+            console.log('✅ Initialization complete');
+            // Check for existing wallet sessions
+            checkSessions();
+        } else {
+            console.error('❌ Initialization failed');
+        }
 
         // Wallet connection buttons
         document.getElementById('btn-pera').addEventListener('click', connectPeraWallet);
@@ -1084,8 +1228,12 @@
         document.getElementById('btn-publish').addEventListener('click', publishPost);
         document.getElementById('btn-cancel-editor').addEventListener('click', cancelEditor);
 
-        // Event delegation for dynamically created delete buttons
+        // Event delegation for dynamically created edit and delete buttons
         document.getElementById('postsContainer').addEventListener('click', (e) => {
+            if (e.target.classList.contains('edit-post-btn')) {
+                const entityId = e.target.getAttribute('data-entity-id');
+                editPost(entityId);
+            }
             if (e.target.classList.contains('delete-post-btn')) {
                 const entityId = e.target.getAttribute('data-entity-id');
                 deletePost(entityId);
