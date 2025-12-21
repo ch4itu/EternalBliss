@@ -508,6 +508,8 @@
               <option value="password">🔑 Password Protected - Anyone with password can view</option>
               <option value="recipient">👤 Recipient Only - Only specific wallet can view</option>
               <option value="private">🔒 Private - Only you can view</option>
+              <option value="password_self">🔐 Password + Your Wallet - Dual-layer: password AND your wallet keys</option>
+              <option value="password_recipient">🔏 Password + Recipient - Dual-layer: password AND recipient's wallet</option>
             </select>
           </div>
 
@@ -827,6 +829,52 @@
       }
     }
 
+    // 4. PASSWORD + SELF ENCRYPTION (Dual-layer: password first, then wallet keys - inspired by Tomb)
+    function encryptWithPasswordAndSelf(data, password, myAccount) {
+      try {
+        // Layer 1: Encrypt with password (symmetric)
+        const passwordEncrypted = encryptWithPassword(data, password);
+        // Layer 2: Encrypt the result with wallet keys (asymmetric)
+        return encryptForSelf(passwordEncrypted, myAccount);
+      } catch (error) {
+        throw new Error('Password+Self encryption failed: ' + error.message);
+      }
+    }
+
+    function decryptWithPasswordAndSelf(encryptedBase64, password, myAccount) {
+      try {
+        // Layer 1: Decrypt with wallet keys first
+        const passwordEncrypted = decryptForSelf(encryptedBase64, myAccount);
+        // Layer 2: Decrypt with password
+        return decryptWithPassword(passwordEncrypted, password);
+      } catch (e) {
+        throw new Error('Decryption failed: ' + e.message);
+      }
+    }
+
+    // 5. PASSWORD + RECIPIENT ENCRYPTION (Dual-layer: password first, then recipient's public key)
+    function encryptWithPasswordAndRecipient(data, password, myAccount, recipientAddress) {
+      try {
+        // Layer 1: Encrypt with password (symmetric)
+        const passwordEncrypted = encryptWithPassword(data, password);
+        // Layer 2: Encrypt the result for recipient (asymmetric)
+        return encryptForRecipient(passwordEncrypted, myAccount, recipientAddress);
+      } catch (error) {
+        throw new Error('Password+Recipient encryption failed: ' + error.message);
+      }
+    }
+
+    function decryptWithPasswordAndRecipient(encryptedBase64, password, myAccount, senderAddress) {
+      try {
+        // Layer 1: Decrypt with recipient's wallet keys first
+        const passwordEncrypted = decryptFromSender(encryptedBase64, myAccount, senderAddress);
+        // Layer 2: Decrypt with password
+        return decryptWithPassword(passwordEncrypted, password);
+      } catch (e) {
+        throw new Error('Decryption failed: ' + e.message);
+      }
+    }
+
     // ============ ENCRYPTION UI FUNCTIONS ============
 
     function toggleEncryption() {
@@ -857,6 +905,13 @@
         modeInfo.innerHTML = '<strong>Recipient Mode:</strong> Files encrypted for a specific wallet. Only that wallet owner can decrypt using their mnemonic.';
       } else if (mode === 'private') {
         modeInfo.innerHTML = '<strong>Private Mode:</strong> Files encrypted with your wallet keys. Only YOU can decrypt them. Cannot be shared.';
+      } else if (mode === 'password_self') {
+        passwordInput.style.display = 'block';
+        modeInfo.innerHTML = '<strong>Password + Self Mode (Tomb-style):</strong> Dual-layer encryption using BOTH password AND your wallet keys. Requires password AND your mnemonic to decrypt. Maximum security for personal files.';
+      } else if (mode === 'password_recipient') {
+        passwordInput.style.display = 'block';
+        recipientInput.style.display = 'block';
+        modeInfo.innerHTML = '<strong>Password + Recipient Mode (Tomb-style):</strong> Dual-layer encryption. Recipient needs BOTH the password AND their mnemonic to decrypt. Share password separately for extra security.';
       }
     }
 
@@ -1106,6 +1161,52 @@
             Decrypt with Mnemonic
           </button>
         `;
+      } else if (encryptMode === 'password_self') {
+        // Password + Self mode - needs both password and mnemonic
+        promptHtml = `
+          <h2 style="color: #2ecc71;">🔐 Password + Wallet Protected (Tomb-style)</h2>
+          <p style="margin-bottom: 10px;">This file uses dual-layer encryption.</p>
+          <p style="color: #888; font-size: 13px; margin-bottom: 20px;">
+            You need BOTH the password AND your wallet mnemonic to decrypt.
+          </p>
+          <input type="password" id="decryptPassword" placeholder="Enter password"
+                 style="width: 400px; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2);
+                        border-radius: 6px; color: #fff; font-size: 14px; margin-bottom: 15px;" />
+          <br>
+          <textarea id="decryptMnemonic" placeholder="Enter your 25-word mnemonic phrase"
+                    style="width: 400px; height: 80px; padding: 12px; background: rgba(0,0,0,0.3);
+                           border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: #fff;
+                           font-size: 14px; margin-bottom: 15px; resize: none;"></textarea>
+          <br>
+          <button onclick="decryptAndDisplay('password_self')"
+                  style="padding: 12px 30px; background: linear-gradient(135deg, #2ecc71, #27ae60); border: none;
+                         border-radius: 6px; color: #fff; font-weight: 600; cursor: pointer;">
+            Decrypt with Password + Mnemonic
+          </button>
+        `;
+      } else if (encryptMode === 'password_recipient') {
+        // Password + Recipient mode - recipient needs both password and mnemonic
+        promptHtml = `
+          <h2 style="color: #3498db;">🔏 Password + Recipient Protected (Tomb-style)</h2>
+          <p style="margin-bottom: 10px;">This file uses dual-layer encryption for a specific recipient.</p>
+          <p style="color: #888; font-size: 13px; margin-bottom: 20px;">
+            Recipient needs BOTH the password AND their wallet mnemonic to decrypt.
+          </p>
+          <input type="password" id="decryptPassword" placeholder="Enter password"
+                 style="width: 400px; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2);
+                        border-radius: 6px; color: #fff; font-size: 14px; margin-bottom: 15px;" />
+          <br>
+          <textarea id="decryptMnemonic" placeholder="Enter your 25-word mnemonic phrase"
+                    style="width: 400px; height: 80px; padding: 12px; background: rgba(0,0,0,0.3);
+                           border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: #fff;
+                           font-size: 14px; margin-bottom: 15px; resize: none;"></textarea>
+          <br>
+          <button onclick="decryptAndDisplay('password_recipient')"
+                  style="padding: 12px 30px; background: linear-gradient(135deg, #3498db, #2980b9); border: none;
+                         border-radius: 6px; color: #fff; font-weight: 600; cursor: pointer;">
+            Decrypt with Password + Mnemonic
+          </button>
+        `;
       } else {
         // Private mode - only owner can view
         promptHtml = `
@@ -1169,6 +1270,38 @@
           }
           const recipientAccount = algosdk.mnemonicToSecretKey(mnemonic);
           decryptedContent = decryptFromSender(encryptedContent, recipientAccount, file.senderAddress);
+        } else if (mode === 'password_self') {
+          // Password + Self mode - needs both password and mnemonic
+          const password = document.getElementById('decryptPassword').value;
+          const mnemonic = document.getElementById('decryptMnemonic').value.trim();
+          if (!password) {
+            errorEl.textContent = 'Please enter the password';
+            errorEl.style.display = 'block';
+            return;
+          }
+          if (!mnemonic || mnemonic.split(' ').length !== 25) {
+            errorEl.textContent = 'Please enter a valid 25-word mnemonic';
+            errorEl.style.display = 'block';
+            return;
+          }
+          const ownerAccount = algosdk.mnemonicToSecretKey(mnemonic);
+          decryptedContent = decryptWithPasswordAndSelf(encryptedContent, password, ownerAccount);
+        } else if (mode === 'password_recipient') {
+          // Password + Recipient mode - needs both password and mnemonic
+          const password = document.getElementById('decryptPassword').value;
+          const mnemonic = document.getElementById('decryptMnemonic').value.trim();
+          if (!password) {
+            errorEl.textContent = 'Please enter the password';
+            errorEl.style.display = 'block';
+            return;
+          }
+          if (!mnemonic || mnemonic.split(' ').length !== 25) {
+            errorEl.textContent = 'Please enter a valid 25-word mnemonic';
+            errorEl.style.display = 'block';
+            return;
+          }
+          const recipientAccount = algosdk.mnemonicToSecretKey(mnemonic);
+          decryptedContent = decryptWithPasswordAndRecipient(encryptedContent, password, recipientAccount, file.senderAddress);
         } else {
           // Private mode
           const mnemonic = document.getElementById('decryptMnemonic').value.trim();
@@ -1494,6 +1627,10 @@
               encBadge = '<span class="encrypted-badge" style="background: rgba(243,156,18,0.2); color: #f39c12;">🔑 Password</span>';
             } else if (file.encryptMode === 'recipient') {
               encBadge = '<span class="encrypted-badge" style="background: rgba(155,89,182,0.2); color: #9b59b6;">👤 Recipient</span>';
+            } else if (file.encryptMode === 'password_self') {
+              encBadge = '<span class="encrypted-badge" style="background: rgba(46,204,113,0.2); color: #2ecc71;">🔐 Pwd+Self</span>';
+            } else if (file.encryptMode === 'password_recipient') {
+              encBadge = '<span class="encrypted-badge" style="background: rgba(52,152,219,0.2); color: #3498db;">🔏 Pwd+Rcpt</span>';
             } else {
               encBadge = '<span class="encrypted-badge">🔒 Private</span>';
             }
@@ -1574,11 +1711,38 @@
           fullContent += chunk;
         }
 
-        // Decrypt if private file (owner viewing their own encrypted files)
+        // Decrypt if private/password_self file (owner viewing their own encrypted files)
         if (file.encrypted && account) {
           try {
-            fullContent = decryptForSelf(fullContent, account);
-            logBrowse(`Decrypted ${filename} with your wallet key`, 'success');
+            if (file.encryptMode === 'private') {
+              fullContent = decryptForSelf(fullContent, account);
+              logBrowse(`Decrypted ${filename} with your wallet key`, 'success');
+            } else if (file.encryptMode === 'password_self') {
+              // Need password for password_self mode - show prompt
+              const password = prompt('This file requires both your wallet key and a password. Enter the password:');
+              if (!password) {
+                previewContent.innerHTML = `<div class="preview-placeholder" style="color: #f39c12;">Password required for this file</div>`;
+                previewActions.innerHTML = '';
+                return;
+              }
+              fullContent = decryptWithPasswordAndSelf(fullContent, password, account);
+              logBrowse(`Decrypted ${filename} with password + wallet key (Tomb-style)`, 'success');
+            } else if (file.encryptMode === 'password') {
+              // Password-only mode - show prompt
+              const password = prompt('This file is password protected. Enter the password:');
+              if (!password) {
+                previewContent.innerHTML = `<div class="preview-placeholder" style="color: #f39c12;">Password required for this file</div>`;
+                previewActions.innerHTML = '';
+                return;
+              }
+              fullContent = decryptWithPassword(fullContent, password);
+              logBrowse(`Decrypted ${filename} with password`, 'success');
+            } else if (file.encryptMode === 'recipient' || file.encryptMode === 'password_recipient') {
+              // Recipient-only modes - cannot decrypt as sender
+              previewContent.innerHTML = `<div class="preview-placeholder" style="color: #9b59b6;">This file is encrypted for the recipient only.<br>Only the recipient can decrypt it with their wallet.</div>`;
+              previewActions.innerHTML = '';
+              return;
+            }
           } catch (e) {
             previewContent.innerHTML = `<div class="preview-placeholder" style="color: #e74c3c;">Decryption failed: ${e.message}</div>`;
             previewActions.innerHTML = '';
@@ -1892,11 +2056,11 @@
 
       // Validate encryption settings
       if (isEncrypted) {
-        if (encryptMode === 'password' && !password) {
+        if ((encryptMode === 'password' || encryptMode === 'password_self' || encryptMode === 'password_recipient') && !password) {
           log('Please enter a password for encryption', 'error');
           return;
         }
-        if (encryptMode === 'recipient') {
+        if (encryptMode === 'recipient' || encryptMode === 'password_recipient') {
           if (!recipientAddress || recipientAddress.length !== 58) {
             log('Please enter a valid 58-character Algorand address', 'error');
             return;
@@ -1914,8 +2078,12 @@
           log('Password mode: Files encrypted with password (shareable with password)', 'info');
         } else if (encryptMode === 'recipient') {
           log(`Recipient mode: Files encrypted for ${recipientAddress.slice(0,8)}...`, 'info');
-        } else {
+        } else if (encryptMode === 'private') {
           log('Private mode: Files encrypted with your wallet key (only you can view)', 'info');
+        } else if (encryptMode === 'password_self') {
+          log('Password+Self mode: Dual-layer encryption (password + your wallet keys)', 'info');
+        } else if (encryptMode === 'password_recipient') {
+          log(`Password+Recipient mode: Dual-layer for ${recipientAddress.slice(0,8)}... (needs password + mnemonic)`, 'info');
         }
       } else {
         log('Public mode: Files will be shareable via link', 'info');
@@ -1947,8 +2115,12 @@
               contentToUpload = encryptWithPassword(file.content, password);
             } else if (encryptMode === 'recipient') {
               contentToUpload = encryptForRecipient(file.content, account, recipientAddress);
-            } else {
+            } else if (encryptMode === 'private') {
               contentToUpload = encryptForSelf(file.content, account);
+            } else if (encryptMode === 'password_self') {
+              contentToUpload = encryptWithPasswordAndSelf(file.content, password, account);
+            } else if (encryptMode === 'password_recipient') {
+              contentToUpload = encryptWithPasswordAndRecipient(file.content, password, account, recipientAddress);
             }
             log(`  Encrypted: ${file.content.length} → ${contentToUpload.length} chars`, 'info');
           }
@@ -2088,6 +2260,10 @@
               encBadge = '<span class="encrypted-badge" style="background: rgba(243,156,18,0.2); color: #f39c12;">🔑 Password</span>';
             } else if (file.encryptMode === 'recipient') {
               encBadge = '<span class="encrypted-badge" style="background: rgba(155,89,182,0.2); color: #9b59b6;">👤 Recipient</span>';
+            } else if (file.encryptMode === 'password_self') {
+              encBadge = '<span class="encrypted-badge" style="background: rgba(46,204,113,0.2); color: #2ecc71;">🔐 Pwd+Self</span>';
+            } else if (file.encryptMode === 'password_recipient') {
+              encBadge = '<span class="encrypted-badge" style="background: rgba(52,152,219,0.2); color: #3498db;">🔏 Pwd+Rcpt</span>';
             } else {
               encBadge = '<span class="encrypted-badge">🔒 Private</span>';
             }
