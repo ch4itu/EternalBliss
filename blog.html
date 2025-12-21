@@ -589,6 +589,18 @@
             try {
                 peraWallet = new PeraWalletConnect({ chainId: CHAIN_ID });
                 deflyWallet = new DeflyWalletConnect({ chainId: CHAIN_ID });
+
+                // Set up disconnect event listeners
+                peraWallet.connector?.on('disconnect', () => {
+                    console.log('Pera wallet disconnected');
+                    if (walletType === 'pera') handleDisconnect();
+                });
+
+                deflyWallet.connector?.on('disconnect', () => {
+                    console.log('Defly wallet disconnected');
+                    if (walletType === 'defly') handleDisconnect();
+                });
+
                 console.log('Wallets initialized for TestNet');
                 return true;
             } catch (error) {
@@ -1314,7 +1326,7 @@
         document.getElementById('btn-back').addEventListener('click', backToWalletSelection);
 
         // Connected state buttons
-        document.getElementById('btn-show-editor').addEventListener('click', showEditor);
+        document.getElementById('btn-show-editor').addEventListener('click', () => showEditor());
         document.getElementById('btn-load-posts').addEventListener('click', loadAllPosts);
         document.getElementById('btn-disconnect').addEventListener('click', handleDisconnect);
 
