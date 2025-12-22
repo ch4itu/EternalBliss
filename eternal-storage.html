@@ -8,6 +8,20 @@
   <script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl-fast.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tweetnacl-util@0.15.1/nacl-util.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/ed2curve@0.3.0/ed2curve.min.js"></script>
+  <script type="module">
+    // Wallet SDK imports
+    window.global = window;
+    window.process = { env: { NODE_ENV: 'production' } };
+
+    import { PeraWalletConnect } from "https://esm.sh/@perawallet/connect@1.3.4?bundle-deps";
+    import { DeflyWalletConnect } from "https://esm.sh/@blockshake/defly-connect@1.1.6?bundle-deps";
+
+    // Make wallet classes available globally
+    window.PeraWalletConnect = PeraWalletConnect;
+    window.DeflyWalletConnect = DeflyWalletConnect;
+    window.walletsLoaded = true;
+    console.log('Wallet SDKs loaded');
+  </script>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -467,15 +481,48 @@
     <div id="tab-upload" class="tab-content active">
       <div class="card">
         <h3><span class="step">1</span> Connect Wallet</h3>
-        <div class="grid-2">
-          <div>
-            <input type="password" id="mnemonic" placeholder="Enter your 25-word mnemonic phrase" />
+
+        <!-- Wallet Selection -->
+        <div id="walletSelection">
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+            <button class="btn btn-primary" onclick="connectPeraWallet()" style="flex: 1; min-width: 120px;">
+              <span style="font-size: 1.2em;">🟡</span> Pera Wallet
+            </button>
+            <button class="btn btn-primary" onclick="connectDeflyWallet()" style="flex: 1; min-width: 120px; background: linear-gradient(135deg, #1a5fb4 0%, #3584e4 100%);">
+              <span style="font-size: 1.2em;">🦅</span> Defly Wallet
+            </button>
+            <button class="btn btn-secondary" onclick="showMnemonicInput()" style="flex: 1; min-width: 120px;">
+              <span style="font-size: 1.2em;">🔑</span> Mnemonic
+            </button>
           </div>
-          <div>
-            <button class="btn btn-primary" onclick="connectWallet()">Connect Wallet</button>
-            <span id="walletStatus" class="status disconnected">Not connected</span>
+          <p style="color: #888; font-size: 12px; text-align: center; margin: 0;">
+            Make sure your wallet app is set to <strong style="color: #f39c12;">TestNet</strong>
+          </p>
+        </div>
+
+        <!-- Mnemonic Input (hidden by default) -->
+        <div id="mnemonicSection" style="display: none;">
+          <div class="grid-2" style="margin-bottom: 10px;">
+            <div style="position: relative;">
+              <input type="password" id="mnemonic" placeholder="Enter your 25-word mnemonic phrase" style="-webkit-text-security: disc;" />
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button class="btn btn-primary" onclick="connectWithMnemonic()">Connect</button>
+              <button class="btn btn-secondary" onclick="backToWalletSelection()">Back</button>
+            </div>
+          </div>
+          <p style="color: #888; font-size: 11px; margin: 0;">Your mnemonic stays in your browser and is never sent anywhere.</p>
+        </div>
+
+        <!-- Connected State -->
+        <div id="connectedState" style="display: none;">
+          <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+            <span id="walletStatus" class="status connected"></span>
+            <span id="walletTypeIndicator" style="color: #888; font-size: 12px;"></span>
+            <button class="btn btn-danger btn-sm" onclick="disconnectWallet()">Disconnect</button>
           </div>
         </div>
+
         <div id="namespaceInfo" style="margin-top: 15px; display: none;">
           <div class="info-box">
             <strong>Your Storage ID:</strong> <code id="namespacePreview" style="color: #00d4ff; font-size: 1.1em;"></code><br>
@@ -508,8 +555,6 @@
               <option value="password">🔑 Password Protected - Anyone with password can view</option>
               <option value="recipient">👤 Recipient Only - Only specific wallet can view</option>
               <option value="private">🔒 Private - Only you can view</option>
-              <option value="password_self">🔐 Password + Your Wallet - Dual-layer: password AND your wallet keys</option>
-              <option value="password_recipient">🔏 Password + Recipient - Dual-layer: password AND recipient's wallet</option>
             </select>
           </div>
 
@@ -666,8 +711,15 @@
   <script>
     const APP_ID = 750081112;
     const CHUNK_SIZE = 1900; // Max ~2048 for app args, minus ABI overhead (~50-60 bytes)
+    const CHAIN_ID = 416002; // TestNet
 
     const algodClient = new algosdk.Algodv2('', 'https://testnet-api.algonode.cloud', 443);
+
+    // Wallet state
+    let peraWallet = null;
+    let deflyWallet = null;
+    let walletType = null; // 'pera', 'defly', or 'mnemonic'
+    let connectedAddress = null;
 
     // Namespace is auto-generated from wallet address
     let currentNamespace = null;
@@ -829,52 +881,6 @@
       }
     }
 
-    // 4. PASSWORD + SELF ENCRYPTION (Dual-layer: password first, then wallet keys - inspired by Tomb)
-    function encryptWithPasswordAndSelf(data, password, myAccount) {
-      try {
-        // Layer 1: Encrypt with password (symmetric)
-        const passwordEncrypted = encryptWithPassword(data, password);
-        // Layer 2: Encrypt the result with wallet keys (asymmetric)
-        return encryptForSelf(passwordEncrypted, myAccount);
-      } catch (error) {
-        throw new Error('Password+Self encryption failed: ' + error.message);
-      }
-    }
-
-    function decryptWithPasswordAndSelf(encryptedBase64, password, myAccount) {
-      try {
-        // Layer 1: Decrypt with wallet keys first
-        const passwordEncrypted = decryptForSelf(encryptedBase64, myAccount);
-        // Layer 2: Decrypt with password
-        return decryptWithPassword(passwordEncrypted, password);
-      } catch (e) {
-        throw new Error('Decryption failed: ' + e.message);
-      }
-    }
-
-    // 5. PASSWORD + RECIPIENT ENCRYPTION (Dual-layer: password first, then recipient's public key)
-    function encryptWithPasswordAndRecipient(data, password, myAccount, recipientAddress) {
-      try {
-        // Layer 1: Encrypt with password (symmetric)
-        const passwordEncrypted = encryptWithPassword(data, password);
-        // Layer 2: Encrypt the result for recipient (asymmetric)
-        return encryptForRecipient(passwordEncrypted, myAccount, recipientAddress);
-      } catch (error) {
-        throw new Error('Password+Recipient encryption failed: ' + error.message);
-      }
-    }
-
-    function decryptWithPasswordAndRecipient(encryptedBase64, password, myAccount, senderAddress) {
-      try {
-        // Layer 1: Decrypt with recipient's wallet keys first
-        const passwordEncrypted = decryptFromSender(encryptedBase64, myAccount, senderAddress);
-        // Layer 2: Decrypt with password
-        return decryptWithPassword(passwordEncrypted, password);
-      } catch (e) {
-        throw new Error('Decryption failed: ' + e.message);
-      }
-    }
-
     // ============ ENCRYPTION UI FUNCTIONS ============
 
     function toggleEncryption() {
@@ -905,13 +911,6 @@
         modeInfo.innerHTML = '<strong>Recipient Mode:</strong> Files encrypted for a specific wallet. Only that wallet owner can decrypt using their mnemonic.';
       } else if (mode === 'private') {
         modeInfo.innerHTML = '<strong>Private Mode:</strong> Files encrypted with your wallet keys. Only YOU can decrypt them. Cannot be shared.';
-      } else if (mode === 'password_self') {
-        passwordInput.style.display = 'block';
-        modeInfo.innerHTML = '<strong>Password + Self Mode (Tomb-style):</strong> Dual-layer encryption using BOTH password AND your wallet keys. Requires password AND your mnemonic to decrypt. Maximum security for personal files.';
-      } else if (mode === 'password_recipient') {
-        passwordInput.style.display = 'block';
-        recipientInput.style.display = 'block';
-        modeInfo.innerHTML = '<strong>Password + Recipient Mode (Tomb-style):</strong> Dual-layer encryption. Recipient needs BOTH the password AND their mnemonic to decrypt. Share password separately for extra security.';
       }
     }
 
@@ -1161,52 +1160,6 @@
             Decrypt with Mnemonic
           </button>
         `;
-      } else if (encryptMode === 'password_self') {
-        // Password + Self mode - needs both password and mnemonic
-        promptHtml = `
-          <h2 style="color: #2ecc71;">🔐 Password + Wallet Protected (Tomb-style)</h2>
-          <p style="margin-bottom: 10px;">This file uses dual-layer encryption.</p>
-          <p style="color: #888; font-size: 13px; margin-bottom: 20px;">
-            You need BOTH the password AND your wallet mnemonic to decrypt.
-          </p>
-          <input type="password" id="decryptPassword" placeholder="Enter password"
-                 style="width: 400px; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2);
-                        border-radius: 6px; color: #fff; font-size: 14px; margin-bottom: 15px;" />
-          <br>
-          <textarea id="decryptMnemonic" placeholder="Enter your 25-word mnemonic phrase"
-                    style="width: 400px; height: 80px; padding: 12px; background: rgba(0,0,0,0.3);
-                           border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: #fff;
-                           font-size: 14px; margin-bottom: 15px; resize: none;"></textarea>
-          <br>
-          <button onclick="decryptAndDisplay('password_self')"
-                  style="padding: 12px 30px; background: linear-gradient(135deg, #2ecc71, #27ae60); border: none;
-                         border-radius: 6px; color: #fff; font-weight: 600; cursor: pointer;">
-            Decrypt with Password + Mnemonic
-          </button>
-        `;
-      } else if (encryptMode === 'password_recipient') {
-        // Password + Recipient mode - recipient needs both password and mnemonic
-        promptHtml = `
-          <h2 style="color: #3498db;">🔏 Password + Recipient Protected (Tomb-style)</h2>
-          <p style="margin-bottom: 10px;">This file uses dual-layer encryption for a specific recipient.</p>
-          <p style="color: #888; font-size: 13px; margin-bottom: 20px;">
-            Recipient needs BOTH the password AND their wallet mnemonic to decrypt.
-          </p>
-          <input type="password" id="decryptPassword" placeholder="Enter password"
-                 style="width: 400px; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2);
-                        border-radius: 6px; color: #fff; font-size: 14px; margin-bottom: 15px;" />
-          <br>
-          <textarea id="decryptMnemonic" placeholder="Enter your 25-word mnemonic phrase"
-                    style="width: 400px; height: 80px; padding: 12px; background: rgba(0,0,0,0.3);
-                           border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: #fff;
-                           font-size: 14px; margin-bottom: 15px; resize: none;"></textarea>
-          <br>
-          <button onclick="decryptAndDisplay('password_recipient')"
-                  style="padding: 12px 30px; background: linear-gradient(135deg, #3498db, #2980b9); border: none;
-                         border-radius: 6px; color: #fff; font-weight: 600; cursor: pointer;">
-            Decrypt with Password + Mnemonic
-          </button>
-        `;
       } else {
         // Private mode - only owner can view
         promptHtml = `
@@ -1270,38 +1223,6 @@
           }
           const recipientAccount = algosdk.mnemonicToSecretKey(mnemonic);
           decryptedContent = decryptFromSender(encryptedContent, recipientAccount, file.senderAddress);
-        } else if (mode === 'password_self') {
-          // Password + Self mode - needs both password and mnemonic
-          const password = document.getElementById('decryptPassword').value;
-          const mnemonic = document.getElementById('decryptMnemonic').value.trim();
-          if (!password) {
-            errorEl.textContent = 'Please enter the password';
-            errorEl.style.display = 'block';
-            return;
-          }
-          if (!mnemonic || mnemonic.split(' ').length !== 25) {
-            errorEl.textContent = 'Please enter a valid 25-word mnemonic';
-            errorEl.style.display = 'block';
-            return;
-          }
-          const ownerAccount = algosdk.mnemonicToSecretKey(mnemonic);
-          decryptedContent = decryptWithPasswordAndSelf(encryptedContent, password, ownerAccount);
-        } else if (mode === 'password_recipient') {
-          // Password + Recipient mode - needs both password and mnemonic
-          const password = document.getElementById('decryptPassword').value;
-          const mnemonic = document.getElementById('decryptMnemonic').value.trim();
-          if (!password) {
-            errorEl.textContent = 'Please enter the password';
-            errorEl.style.display = 'block';
-            return;
-          }
-          if (!mnemonic || mnemonic.split(' ').length !== 25) {
-            errorEl.textContent = 'Please enter a valid 25-word mnemonic';
-            errorEl.style.display = 'block';
-            return;
-          }
-          const recipientAccount = algosdk.mnemonicToSecretKey(mnemonic);
-          decryptedContent = decryptWithPasswordAndRecipient(encryptedContent, password, recipientAccount, file.senderAddress);
         } else {
           // Private mode
           const mnemonic = document.getElementById('decryptMnemonic').value.trim();
@@ -1409,7 +1330,88 @@
       return `<a href="${EXPLORER_URL}${txId}" target="_blank" title="${txId}">${shortId}</a>`;
     }
 
-    async function connectWallet() {
+    // Initialize wallet instances
+    function initWallets() {
+      try {
+        if (window.PeraWalletConnect) {
+          peraWallet = new window.PeraWalletConnect({ chainId: CHAIN_ID });
+          peraWallet.connector?.on('disconnect', () => {
+            if (walletType === 'pera') disconnectWallet();
+          });
+        }
+        if (window.DeflyWalletConnect) {
+          deflyWallet = new window.DeflyWalletConnect({ chainId: CHAIN_ID });
+          deflyWallet.connector?.on('disconnect', () => {
+            if (walletType === 'defly') disconnectWallet();
+          });
+        }
+        console.log('Wallets initialized');
+        return true;
+      } catch (error) {
+        console.error('Failed to initialize wallets:', error);
+        return false;
+      }
+    }
+
+    // UI: Show mnemonic input
+    function showMnemonicInput() {
+      document.getElementById('walletSelection').style.display = 'none';
+      document.getElementById('mnemonicSection').style.display = 'block';
+    }
+
+    // UI: Back to wallet selection
+    function backToWalletSelection() {
+      document.getElementById('walletSelection').style.display = 'block';
+      document.getElementById('mnemonicSection').style.display = 'none';
+      document.getElementById('mnemonic').value = '';
+    }
+
+    // Connect with Pera Wallet
+    async function connectPeraWallet() {
+      try {
+        if (!peraWallet) {
+          log('Pera Wallet not initialized. Please refresh the page.', 'error');
+          return;
+        }
+        log('Connecting to Pera Wallet...', 'info');
+        const accounts = await peraWallet.connect();
+        if (accounts.length > 0) {
+          await handleConnectSuccess('pera', accounts[0]);
+        } else {
+          log('No accounts returned from Pera Wallet', 'error');
+        }
+      } catch (error) {
+        if (error?.data?.type !== "CONNECT_MODAL_CLOSED" && error?.message !== "Connect modal is closed by user") {
+          console.error('Pera connection error:', error);
+          log('Failed to connect with Pera Wallet: ' + (error.message || 'Unknown error'), 'error');
+        }
+      }
+    }
+
+    // Connect with Defly Wallet
+    async function connectDeflyWallet() {
+      try {
+        if (!deflyWallet) {
+          log('Defly Wallet not initialized. Please refresh the page.', 'error');
+          return;
+        }
+        log('Connecting to Defly Wallet...', 'info');
+        const accounts = await deflyWallet.connect();
+        if (accounts.length > 0) {
+          await handleConnectSuccess('defly', accounts[0]);
+        } else {
+          log('No accounts returned from Defly Wallet', 'error');
+        }
+      } catch (error) {
+        if (error?.data?.type !== "CONNECT_MODAL_CLOSED" && error?.message !== "Connect modal is closed by user") {
+          console.error('Defly connection error:', error);
+          log('Failed to connect with Defly Wallet: ' + (error.message || 'Unknown error'), 'error');
+        }
+      }
+    }
+
+    // Connect with Mnemonic
+    async function connectWithMnemonic() {
       try {
         const mnemonic = document.getElementById('mnemonic').value.trim();
         if (!mnemonic || mnemonic.split(' ').length !== 25) {
@@ -1417,15 +1419,34 @@
         }
 
         account = algosdk.mnemonicToSecretKey(mnemonic);
-        const info = await algodClient.accountInformation(account.addr).do();
+        await handleConnectSuccess('mnemonic', account.addr);
+      } catch (error) {
+        log(`Error: ${error.message}`, 'error');
+      }
+    }
+
+    // Handle successful connection
+    async function handleConnectSuccess(type, address) {
+      try {
+        walletType = type;
+        connectedAddress = address;
+
+        const info = await algodClient.accountInformation(address).do();
         const balance = info.amount / 1000000;
 
         // Auto-generate namespace from wallet address
-        currentNamespace = generateNamespace(account.addr);
+        currentNamespace = generateNamespace(address);
         storedManifest = null; // Reset manifest for new namespace
 
-        document.getElementById('walletStatus').className = 'status connected';
-        document.getElementById('walletStatus').innerHTML = `${account.addr.slice(0,6)}...${account.addr.slice(-4)} | ${balance.toFixed(2)} ALGO`;
+        // Update UI
+        document.getElementById('walletSelection').style.display = 'none';
+        document.getElementById('mnemonicSection').style.display = 'none';
+        document.getElementById('connectedState').style.display = 'block';
+
+        document.getElementById('walletStatus').innerHTML = `${address.slice(0,6)}...${address.slice(-4)} | ${balance.toFixed(2)} ALGO`;
+
+        const walletNames = { pera: '🟡 Pera', defly: '🦅 Defly', mnemonic: '🔑 Mnemonic' };
+        document.getElementById('walletTypeIndicator').textContent = `Connected via ${walletNames[type]}`;
 
         // Show namespace info
         document.getElementById('namespaceInfo').style.display = 'block';
@@ -1434,7 +1455,7 @@
         document.getElementById('uploadBtn').disabled = false;
         document.getElementById('deleteAllBtn').disabled = false;
 
-        log(`Wallet connected: ${account.addr}`, 'success');
+        log(`Wallet connected: ${address}`, 'success');
         log(`Balance: ${balance.toFixed(2)} ALGO`, 'info');
         log(`Namespace: ${currentNamespace}`, 'info');
 
@@ -1444,6 +1465,41 @@
       } catch (error) {
         log(`Error: ${error.message}`, 'error');
       }
+    }
+
+    // Disconnect wallet
+    function disconnectWallet() {
+      try {
+        if (walletType === 'pera' && peraWallet) {
+          peraWallet.disconnect();
+        } else if (walletType === 'defly' && deflyWallet) {
+          deflyWallet.disconnect();
+        }
+      } catch (e) {
+        console.log('Disconnect error:', e);
+      }
+
+      // Reset state
+      walletType = null;
+      connectedAddress = null;
+      account = null;
+      currentNamespace = null;
+      storedManifest = null;
+
+      // Reset UI
+      document.getElementById('walletSelection').style.display = 'block';
+      document.getElementById('mnemonicSection').style.display = 'none';
+      document.getElementById('connectedState').style.display = 'none';
+      document.getElementById('namespaceInfo').style.display = 'none';
+      document.getElementById('mnemonic').value = '';
+
+      document.getElementById('uploadBtn').disabled = true;
+      document.getElementById('deleteAllBtn').disabled = true;
+
+      // Reset share section
+      document.getElementById('shareSection').innerHTML = '<p>Connect wallet and upload files to generate a shareable link</p>';
+
+      log('Wallet disconnected', 'info');
     }
 
     function updateShareSection() {
@@ -1627,10 +1683,6 @@
               encBadge = '<span class="encrypted-badge" style="background: rgba(243,156,18,0.2); color: #f39c12;">🔑 Password</span>';
             } else if (file.encryptMode === 'recipient') {
               encBadge = '<span class="encrypted-badge" style="background: rgba(155,89,182,0.2); color: #9b59b6;">👤 Recipient</span>';
-            } else if (file.encryptMode === 'password_self') {
-              encBadge = '<span class="encrypted-badge" style="background: rgba(46,204,113,0.2); color: #2ecc71;">🔐 Pwd+Self</span>';
-            } else if (file.encryptMode === 'password_recipient') {
-              encBadge = '<span class="encrypted-badge" style="background: rgba(52,152,219,0.2); color: #3498db;">🔏 Pwd+Rcpt</span>';
             } else {
               encBadge = '<span class="encrypted-badge">🔒 Private</span>';
             }
@@ -1649,7 +1701,7 @@
               <div class="file-actions">
                 ${shareBtn}
                 <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); viewFile('${file.name}')">View</button>
-                <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteSingleFile('${file.name}')" ${!account ? 'disabled' : ''}>Delete</button>
+                <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteSingleFile('${file.name}')" ${!isWalletConnected() ? 'disabled' : ''}>Delete</button>
               </div>
             </div>
           `;
@@ -1711,38 +1763,11 @@
           fullContent += chunk;
         }
 
-        // Decrypt if private/password_self file (owner viewing their own encrypted files)
+        // Decrypt if private file (owner viewing their own encrypted files)
         if (file.encrypted && account) {
           try {
-            if (file.encryptMode === 'private') {
-              fullContent = decryptForSelf(fullContent, account);
-              logBrowse(`Decrypted ${filename} with your wallet key`, 'success');
-            } else if (file.encryptMode === 'password_self') {
-              // Need password for password_self mode - show prompt
-              const password = prompt('This file requires both your wallet key and a password. Enter the password:');
-              if (!password) {
-                previewContent.innerHTML = `<div class="preview-placeholder" style="color: #f39c12;">Password required for this file</div>`;
-                previewActions.innerHTML = '';
-                return;
-              }
-              fullContent = decryptWithPasswordAndSelf(fullContent, password, account);
-              logBrowse(`Decrypted ${filename} with password + wallet key (Tomb-style)`, 'success');
-            } else if (file.encryptMode === 'password') {
-              // Password-only mode - show prompt
-              const password = prompt('This file is password protected. Enter the password:');
-              if (!password) {
-                previewContent.innerHTML = `<div class="preview-placeholder" style="color: #f39c12;">Password required for this file</div>`;
-                previewActions.innerHTML = '';
-                return;
-              }
-              fullContent = decryptWithPassword(fullContent, password);
-              logBrowse(`Decrypted ${filename} with password`, 'success');
-            } else if (file.encryptMode === 'recipient' || file.encryptMode === 'password_recipient') {
-              // Recipient-only modes - cannot decrypt as sender
-              previewContent.innerHTML = `<div class="preview-placeholder" style="color: #9b59b6;">This file is encrypted for the recipient only.<br>Only the recipient can decrypt it with their wallet.</div>`;
-              previewActions.innerHTML = '';
-              return;
-            }
+            fullContent = decryptForSelf(fullContent, account);
+            logBrowse(`Decrypted ${filename} with your wallet key`, 'success');
           } catch (e) {
             previewContent.innerHTML = `<div class="preview-placeholder" style="color: #e74c3c;">Decryption failed: ${e.message}</div>`;
             previewActions.innerHTML = '';
@@ -1771,7 +1796,7 @@
     }
 
     async function deleteSingleFile(filename) {
-      if (!account) {
+      if (!isWalletConnected()) {
         alert('Please connect wallet first');
         return;
       }
@@ -1818,7 +1843,7 @@
     }
 
     async function deleteAllFiles() {
-      if (!account) {
+      if (!isWalletConnected()) {
         alert('Please connect wallet first');
         return;
       }
@@ -1964,9 +1989,70 @@
       return new TextDecoder().decode(boxResponse.value.slice(32));
     }
 
+    // Create a signer based on wallet type
+    function getTransactionSigner() {
+      if (walletType === 'mnemonic' && account) {
+        return algosdk.makeBasicAccountTransactionSigner(account);
+      } else if (walletType === 'pera' && peraWallet) {
+        return async (txnGroup, indexesToSign) => {
+          const txnsToSign = txnGroup.map((txn, idx) => {
+            if (indexesToSign.includes(idx)) {
+              return { txn };
+            }
+            return null;
+          }).filter(t => t !== null);
+
+          const signedTxns = await peraWallet.signTransaction([txnsToSign]);
+          const flatSigned = signedTxns.flat().filter(t => t != null);
+
+          // Map back to original positions
+          let signedIdx = 0;
+          return txnGroup.map((txn, idx) => {
+            if (indexesToSign.includes(idx)) {
+              return flatSigned[signedIdx++];
+            }
+            return null;
+          });
+        };
+      } else if (walletType === 'defly' && deflyWallet) {
+        return async (txnGroup, indexesToSign) => {
+          const txnsToSign = txnGroup.map((txn, idx) => {
+            if (indexesToSign.includes(idx)) {
+              return { txn };
+            }
+            return null;
+          }).filter(t => t !== null);
+
+          const signedTxns = await deflyWallet.signTransaction([txnsToSign]);
+          const flatSigned = signedTxns.flat().filter(t => t != null);
+
+          // Map back to original positions
+          let signedIdx = 0;
+          return txnGroup.map((txn, idx) => {
+            if (indexesToSign.includes(idx)) {
+              return flatSigned[signedIdx++];
+            }
+            return null;
+          });
+        };
+      }
+      throw new Error('No wallet connected');
+    }
+
+    // Check if wallet is connected
+    function isWalletConnected() {
+      return connectedAddress && walletType;
+    }
+
+    // Get current address
+    function getCurrentAddress() {
+      return connectedAddress;
+    }
+
     async function createEntity(entityId, data) {
       const boxKey = new TextEncoder().encode("e:" + entityId);
       const fullKey = new Uint8Array([...boxKey]);
+      const senderAddress = getCurrentAddress();
 
       let existingSize = 0;
       try {
@@ -1982,10 +2068,10 @@
 
       const suggestedParams = await algodClient.getTransactionParams().do();
       const atc = new algosdk.AtomicTransactionComposer();
-      const signer = algosdk.makeBasicAccountTransactionSigner(account);
+      const signer = getTransactionSigner();
 
       const paymentTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-        from: account.addr,
+        from: senderAddress,
         to: algosdk.getApplicationAddress(APP_ID),
         amount: mbrNeeded,
         suggestedParams
@@ -2003,7 +2089,7 @@
         appID: APP_ID,
         method: abiMethod,
         methodArgs: [entityId, data],
-        sender: account.addr,
+        sender: senderAddress,
         signer,
         suggestedParams,
         boxes: [{ appIndex: APP_ID, name: fullKey }]
@@ -2016,6 +2102,7 @@
     async function deleteEntity(entityId) {
       const boxKey = new TextEncoder().encode("e:" + entityId);
       const suggestedParams = await algodClient.getTransactionParams().do();
+      const senderAddress = getCurrentAddress();
 
       // Delete creates an inner txn to refund MBR, so we need to cover both fees
       // App call fee (1000) + Inner payment fee (1000) = 2000 microAlgos
@@ -2023,7 +2110,7 @@
       suggestedParams.flatFee = true;
 
       const atc = new algosdk.AtomicTransactionComposer();
-      const signer = algosdk.makeBasicAccountTransactionSigner(account);
+      const signer = getTransactionSigner();
 
       const abiMethod = new algosdk.ABIMethod({
         name: "delete_entity",
@@ -2035,7 +2122,7 @@
         appID: APP_ID,
         method: abiMethod,
         methodArgs: [entityId],
-        sender: account.addr,
+        sender: senderAddress,
         signer,
         suggestedParams,
         boxes: [{ appIndex: APP_ID, name: boxKey }]
@@ -2046,7 +2133,7 @@
     }
 
     async function uploadAll() {
-      if (!account) { log('Please connect wallet first', 'error'); return; }
+      if (!isWalletConnected()) { log('Please connect wallet first', 'error'); return; }
       if (!filesToUpload.length) { log('Please select and analyze files first', 'error'); return; }
 
       const isEncrypted = document.getElementById('encryptToggle').checked;
@@ -2056,13 +2143,25 @@
 
       // Validate encryption settings
       if (isEncrypted) {
-        if ((encryptMode === 'password' || encryptMode === 'password_self' || encryptMode === 'password_recipient') && !password) {
+        if (encryptMode === 'password' && !password) {
           log('Please enter a password for encryption', 'error');
           return;
         }
-        if (encryptMode === 'recipient' || encryptMode === 'password_recipient') {
+        if (encryptMode === 'recipient') {
           if (!recipientAddress || recipientAddress.length !== 58) {
             log('Please enter a valid 58-character Algorand address', 'error');
+            return;
+          }
+          // Recipient mode requires mnemonic (needs private key)
+          if (walletType !== 'mnemonic') {
+            log('Recipient encryption requires mnemonic connection (needs private key). Please use Password mode or connect via Mnemonic.', 'error');
+            return;
+          }
+        }
+        if (encryptMode === 'private') {
+          // Private mode requires mnemonic (needs private key)
+          if (walletType !== 'mnemonic') {
+            log('Private encryption requires mnemonic connection (needs private key). Please use Password mode or connect via Mnemonic.', 'error');
             return;
           }
         }
@@ -2078,12 +2177,8 @@
           log('Password mode: Files encrypted with password (shareable with password)', 'info');
         } else if (encryptMode === 'recipient') {
           log(`Recipient mode: Files encrypted for ${recipientAddress.slice(0,8)}...`, 'info');
-        } else if (encryptMode === 'private') {
+        } else {
           log('Private mode: Files encrypted with your wallet key (only you can view)', 'info');
-        } else if (encryptMode === 'password_self') {
-          log('Password+Self mode: Dual-layer encryption (password + your wallet keys)', 'info');
-        } else if (encryptMode === 'password_recipient') {
-          log(`Password+Recipient mode: Dual-layer for ${recipientAddress.slice(0,8)}... (needs password + mnemonic)`, 'info');
         }
       } else {
         log('Public mode: Files will be shareable via link', 'info');
@@ -2115,12 +2210,8 @@
               contentToUpload = encryptWithPassword(file.content, password);
             } else if (encryptMode === 'recipient') {
               contentToUpload = encryptForRecipient(file.content, account, recipientAddress);
-            } else if (encryptMode === 'private') {
+            } else {
               contentToUpload = encryptForSelf(file.content, account);
-            } else if (encryptMode === 'password_self') {
-              contentToUpload = encryptWithPasswordAndSelf(file.content, password, account);
-            } else if (encryptMode === 'password_recipient') {
-              contentToUpload = encryptWithPasswordAndRecipient(file.content, password, account, recipientAddress);
             }
             log(`  Encrypted: ${file.content.length} → ${contentToUpload.length} chars`, 'info');
           }
@@ -2159,7 +2250,7 @@
           encrypted: isEncrypted,
           encryptMode: isEncrypted ? encryptMode : null,
           recipientAddress: encryptMode === 'recipient' ? recipientAddress : null,
-          senderAddress: encryptMode === 'recipient' ? account.addr : null
+          senderAddress: encryptMode === 'recipient' ? getCurrentAddress() : null
         }));
 
         const newFileNames = updatedManifestFiles.map(f => f.name);
@@ -2260,10 +2351,6 @@
               encBadge = '<span class="encrypted-badge" style="background: rgba(243,156,18,0.2); color: #f39c12;">🔑 Password</span>';
             } else if (file.encryptMode === 'recipient') {
               encBadge = '<span class="encrypted-badge" style="background: rgba(155,89,182,0.2); color: #9b59b6;">👤 Recipient</span>';
-            } else if (file.encryptMode === 'password_self') {
-              encBadge = '<span class="encrypted-badge" style="background: rgba(46,204,113,0.2); color: #2ecc71;">🔐 Pwd+Self</span>';
-            } else if (file.encryptMode === 'password_recipient') {
-              encBadge = '<span class="encrypted-badge" style="background: rgba(52,152,219,0.2); color: #3498db;">🔏 Pwd+Rcpt</span>';
             } else {
               encBadge = '<span class="encrypted-badge">🔒 Private</span>';
             }
@@ -2458,8 +2545,21 @@
 
     // ============ INIT ============
 
+    // Initialize wallets when SDKs are loaded
+    function waitForWalletsAndInit() {
+      if (window.walletsLoaded) {
+        initWallets();
+      } else {
+        // Wait for wallet SDKs to load (they load asynchronously via module script)
+        setTimeout(waitForWalletsAndInit, 100);
+      }
+    }
+
     // Check URL params on load
-    window.addEventListener('load', checkUrlParams);
+    window.addEventListener('load', () => {
+      checkUrlParams();
+      waitForWalletsAndInit();
+    });
   </script>
 </body>
 </html>
