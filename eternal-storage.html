@@ -464,9 +464,67 @@
       font-size: 10px;
       margin-left: 5px;
     }
+
+    /* Loading overlay for launch links */
+    #launchLoadingOverlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      z-index: 9999;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+    #launchLoadingOverlay.active {
+      display: flex;
+    }
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(0, 212, 255, 0.2);
+      border-top-color: #00d4ff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .loading-text {
+      color: #00d4ff;
+      margin-top: 20px;
+      font-size: 18px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    .loading-subtext {
+      color: #888;
+      margin-top: 10px;
+      font-size: 14px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
   </style>
 </head>
 <body>
+  <!-- Loading overlay for launch links -->
+  <div id="launchLoadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Loading from Blockchain...</div>
+    <div class="loading-subtext">Fetching your eternal content</div>
+  </div>
+
+  <!-- Show loading overlay immediately if launch parameter is present -->
+  <script>
+    (function() {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('launch') && params.get('ns')) {
+        document.getElementById('launchLoadingOverlay').classList.add('active');
+      }
+    })();
+  </script>
+
   <div class="container">
     <h1>Eternal Storage</h1>
     <p class="subtitle">Store files permanently on Algorand blockchain using Universal State Machine</p>
@@ -1276,9 +1334,10 @@
       return getNamespace() + ':';
     }
 
-    // Generate namespace from wallet address (first 8 chars, lowercase)
+    // Generate namespace from wallet address (first 16 chars, lowercase)
+    // 16 chars = ~80 bits of entropy, virtually no collision risk
     function generateNamespace(address) {
-      return address.slice(0, 8).toLowerCase();
+      return address.slice(0, 16).toLowerCase();
     }
 
     let account = null;
@@ -2277,7 +2336,7 @@
         log('UPLOAD COMPLETE!', 'success');
         log(`New files: ${manifest.files.length}`, 'success');
         log(`Total files in storage: ${mergedFiles.length}`, 'success');
-        log('Switch to "Browse Files" tab to view', 'info');
+        log('Switch to "My Files" tab to view', 'info');
         log('========================================', 'success');
 
         // Refresh browse tab data
@@ -2438,7 +2497,9 @@
         logBrowse('Please load files first', 'error');
         return;
       }
-      await launchAppFromManifest(storedManifest, getAppPrefix(), null, logBrowse, account);
+      // Use selected file if it's an HTML file, otherwise null (will pick first HTML)
+      const targetHtml = (selectedFile && selectedFile.name.endsWith('.html')) ? selectedFile.name : null;
+      await launchAppFromManifest(storedManifest, getAppPrefix(), targetHtml, logBrowse, account);
     }
 
     async function launchOthersApp() {
@@ -2457,7 +2518,7 @@
       await launchAppFromManifest(viewingManifest, viewingNamespace + ':', null, logView, null);
     }
 
-    async function launchAppFromManifest(manifest, prefix, unused, logFn, myAccount = null) {
+    async function launchAppFromManifest(manifest, prefix, targetHtmlFile, logFn, myAccount = null) {
       logFn('Assembling app files...', 'info');
 
       try {
@@ -2488,13 +2549,18 @@
           logFn(`  Loaded: ${file.name}`, 'success');
         }
 
-        // Find HTML file
-        const htmlFile = Object.keys(files).find(name => name.endsWith('.html'));
+        // Find HTML file - use target if specified, otherwise first HTML file
+        const htmlFiles = Object.keys(files).filter(name => name.endsWith('.html'));
+        const htmlFile = targetHtmlFile && htmlFiles.includes(targetHtmlFile)
+          ? targetHtmlFile
+          : htmlFiles[0];
+
         if (!htmlFile) {
           logFn('No HTML file found to launch', 'error');
           return;
         }
 
+        logFn(`Launching: ${htmlFile}`, 'info');
         let html = files[htmlFile].content;
 
         // Inject CSS files
