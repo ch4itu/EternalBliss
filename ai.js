@@ -1,14 +1,57 @@
 // ai.js – EternalBliss AI Coordination Contract Interface
 // App ID 750081112 (TestNet)
 // Uses proper ABI contract with AtomicTransactionComposer
+// ENHANCED: Includes resilience, retry logic, failover, and circuit breakers
 
-const ALGOD_SERVER = "https://testnet-api.algonode.cloud";
-const INDEXER_SERVER = "https://testnet-idx.algonode.cloud";
-
-const algodClient = new algosdk.Algodv2("", ALGOD_SERVER, "");
-const indexerClient = new algosdk.Indexer("", INDEXER_SERVER, "");
+// IMPORTANT: Include resilience.js before this file in HTML:
+// <script src="resilience.js"></script>
 
 const APP_ID = 750081112;
+
+// Initialize resilient RPC clients with automatic failover
+let algodClient = null;
+let indexerClient = null;
+let healthMonitor = null;
+
+// Initialize resilient clients (called automatically or manually)
+function initResilientClients() {
+  if (typeof window.EternalBlissResilience === 'undefined') {
+    console.warn('⚠️ Resilience module not loaded. Using standard clients without retry/failover.');
+    // Fallback to standard clients
+    algodClient = new algosdk.Algodv2("", "https://testnet-api.algonode.cloud", "");
+    indexerClient = new algosdk.Indexer("", "https://testnet-idx.algonode.cloud", "");
+    return;
+  }
+
+  const { ResilientAlgodClient, ResilientIndexerClient, HealthMonitor } = window.EternalBlissResilience;
+
+  algodClient = new ResilientAlgodClient("");
+  indexerClient = new ResilientIndexerClient("");
+  healthMonitor = new HealthMonitor(algodClient, indexerClient);
+
+  console.log('✅ Resilient RPC clients initialized with automatic retry and failover');
+
+  // Start periodic health monitoring
+  setInterval(() => {
+    healthMonitor.checkHealth().then(health => {
+      const status = healthMonitor.getStatus();
+      if (status.algod === 'unhealthy' || status.indexer === 'unhealthy') {
+        console.warn('⚠️ RPC Health Issue:', status);
+      }
+    }).catch(err => {
+      console.error('Health check failed:', err);
+    });
+  }, 60000); // Every 60 seconds
+}
+
+// Auto-initialize on load
+if (typeof window !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initResilientClients);
+  } else {
+    initResilientClients();
+  }
+}
 
 // Embedded ABI contract definition (matches UniversalStateMachine)
 const CONTRACT_ABI = {
@@ -274,19 +317,33 @@ async function getSigner() {
     document.getElementById("mnemonic")?.value.trim() ||
     localStorage.getItem("mnemonic");
 
-  if (!mnemonicInput || mnemonicInput.split(" ").length !== 25) {
+  if (!mnemonicInput) {
     throw new Error("Please enter a valid 25-word TestNet mnemonic");
   }
 
   const mnemonic = mnemonicInput.trim();
-  localStorage.setItem("mnemonic", mnemonic);
 
+  // Validate mnemonic using resilience module if available
+  let account;
   try {
-    const account = algosdk.mnemonicToSecretKey(mnemonic);
+    if (typeof window.EternalBlissResilience !== 'undefined' && window.EternalBlissResilience.validateMnemonic) {
+      console.log('✅ Using enhanced mnemonic validation');
+      account = window.EternalBlissResilience.validateMnemonic(mnemonic);
+    } else {
+      // Fallback validation
+      const words = mnemonic.split(/\s+/);
+      if (words.length !== 25) {
+        throw new Error(`Invalid mnemonic: expected 25 words, got ${words.length}`);
+      }
+      account = algosdk.mnemonicToSecretKey(mnemonic);
+    }
 
     if (!account || !account.sk) {
       throw new Error("Failed to derive account from mnemonic");
     }
+
+    // Store mnemonic only after successful validation
+    localStorage.setItem("mnemonic", mnemonic);
 
     // Handle address format
     let addressString = account.addr;

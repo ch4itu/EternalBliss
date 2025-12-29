@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EternalBliss - Workflow & Agent Demo</title>
+  <script src="https://cdn.jsdelivr.net/npm/algosdk@2.7.0/dist/browser/algosdk.min.js"></script>
+  <script src="resilience.js"></script>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --card: #12121a;
+      --input: #1a1a24;
+      --border: #2a2a3a;
+      --text: #e0e0e0;
+      --dim: #888;
+      --accent: #6366f1;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --error: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'SF Mono', monospace;
+      background: var(--bg);
+      color: var(--text);
+      padding: 20px;
+      line-height: 1.5;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 {
+      text-align: center;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #6366f1, #a855f7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .subtitle { text-align: center; color: var(--dim); margin-bottom: 24px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .card h3 { margin-bottom: 16px; color: var(--accent); }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+    input, textarea, select {
+      width: 100%;
+      padding: 10px;
+      background: var(--input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: inherit;
+      margin-bottom: 12px;
+    }
+    textarea { min-height: 80px; resize: vertical; }
+    label { display: block; color: var(--dim); font-size: 0.85rem; margin-bottom: 4px; }
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      margin-right: 8px;
+      margin-bottom: 8px;
+    }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-success { background: var(--success); color: white; }
+    .btn-secondary { background: var(--input); color: var(--text); border: 1px solid var(--border); }
+    .log {
+      background: var(--input);
+      border-radius: 6px;
+      padding: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+      font-size: 0.85rem;
+    }
+    .log-entry { padding: 4px 0; border-bottom: 1px solid var(--border); }
+    .log-entry:last-child { border: none; }
+    .log-success { color: var(--success); }
+    .log-error { color: var(--error); }
+    .log-info { color: var(--accent); }
+    .status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      margin-left: 8px;
+    }
+    .status-running { background: rgba(99,102,241,0.2); color: var(--accent); }
+    .status-completed { background: rgba(34,197,94,0.2); color: var(--success); }
+    .status-failed { background: rgba(239,68,68,0.2); color: var(--error); }
+    pre {
+      background: var(--input);
+      padding: 12px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 0.8rem;
+    }
+    .tabs { display: flex; gap: 4px; margin-bottom: 20px; }
+    .tab {
+      padding: 10px 20px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px 6px 0 0;
+      color: var(--dim);
+      cursor: pointer;
+    }
+    .tab.active { background: var(--card); color: var(--accent); border-bottom-color: var(--card); }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .process-view {
+      background: var(--input);
+      border-radius: 6px;
+      padding: 16px;
+      margin-top: 12px;
+    }
+    .turn {
+      padding: 8px 12px;
+      margin: 4px 0;
+      background: var(--card);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 6px 6px 0;
+    }
+    .turn.completed { border-left-color: var(--success); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>EternalBliss Workflow Engine</h1>
+    <p class="subtitle">n8n + CrewAI on Algorand USM (Process-based execution)</p>
+
+    <!-- Wallet -->
+    <div class="card">
+      <input type="password" id="mnemonic" placeholder="25-word TestNet mnemonic..." />
+      <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <button class="btn btn-primary" onclick="connect()">Connect Wallet</button>
+        <span id="status" style="color: var(--dim);">Not connected</span>
+        <input type="password" id="apiKey" placeholder="OpenAI API Key (optional)" style="width: 200px; margin: 0;" />
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('workflows')">Workflows</button>
+      <button class="tab" onclick="showTab('agents')">Agents</button>
+      <button class="tab" onclick="showTab('crews')">Crews</button>
+      <button class="tab" onclick="showTab('execute')">Execute</button>
+    </div>
+
+    <!-- Workflows Panel -->
+    <div id="workflows" class="panel active">
+      <div class="grid">
+        <div class="card">
+          <h3>Create Workflow</h3>
+          <label>Name</label>
+          <input id="wfName" placeholder="Data Pipeline" />
+          <label>Description</label>
+          <textarea id="wfDesc" placeholder="What does this workflow do?"></textarea>
+
+          <h4 style="margin: 16px 0 8px; color: var(--dim);">Nodes (JSON array)</h4>
+          <textarea id="wfNodes" style="min-height: 120px;">[
+  {"id": "start", "type": "trigger", "config": {"triggerType": "manual"}},
+  {"id": "process", "type": "code", "config": {"code": "return {result: input.value * 2}"}},
+  {"id": "save", "type": "action", "config": {"action": "log"}}
+]</textarea>
+
+          <h4 style="margin: 16px 0 8px; color: var(--dim);">Edges (JSON array)</h4>
+          <textarea id="wfEdges">[
+  {"from": "start", "to": "process"},
+  {"from": "process", "to": "save"}
+]</textarea>
+
+          <button class="btn btn-success" onclick="saveWorkflow()">Save to Blockchain</button>
+        </div>
+
+        <div class="card">
+          <h3>Quick Examples</h3>
+          <button class="btn btn-secondary" onclick="loadWfExample('simple')">Simple Pipeline</button>
+          <button class="btn btn-secondary" onclick="loadWfExample('condition')">With Condition</button>
+          <button class="btn btn-secondary" onclick="loadWfExample('ai')">AI Node</button>
+
+          <h4 style="margin: 20px 0 8px;">Saved Workflows</h4>
+          <div id="savedWorkflows" class="log">
+            <p style="color: var(--dim);">Save a workflow to see it here</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Agents Panel -->
+    <div id="agents" class="panel">
+      <div class="grid">
+        <div class="card">
+          <h3>Create Agent</h3>
+          <label>Role</label>
+          <input id="agRole" placeholder="Senior Researcher" />
+          <label>Goal</label>
+          <textarea id="agGoal" placeholder="What is this agent's objective?"></textarea>
+          <label>Backstory</label>
+          <textarea id="agBackstory" placeholder="Give context and personality..."></textarea>
+          <label>Model</label>
+          <select id="agModel">
+            <option value="gpt-4">GPT-4</option>
+            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+          </select>
+          <button class="btn btn-success" onclick="saveAgent()">Save to Blockchain</button>
+        </div>
+
+        <div class="card">
+          <h3>Quick Templates</h3>
+          <button class="btn btn-secondary" onclick="loadAgTemplate('researcher')">Researcher</button>
+          <button class="btn btn-secondary" onclick="loadAgTemplate('writer')">Writer</button>
+          <button class="btn btn-secondary" onclick="loadAgTemplate('coder')">Coder</button>
+
+          <h4 style="margin: 20px 0 8px;">Saved Agents</h4>
+          <div id="savedAgents" class="log">
+            <p style="color: var(--dim);">Save an agent to see it here</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Crews Panel -->
+    <div id="crews" class="panel">
+      <div class="grid">
+        <div class="card">
+          <h3>Create Crew</h3>
+          <label>Name</label>
+          <input id="crName" placeholder="Research Team" />
+          <label>Process Type</label>
+          <select id="crProcess">
+            <option value="sequential">Sequential</option>
+            <option value="parallel">Parallel</option>
+            <option value="hierarchical">Hierarchical</option>
+          </select>
+          <label>Agent IDs (comma-separated)</label>
+          <input id="crAgents" placeholder="ag:researcher, ag:writer" />
+
+          <h4 style="margin: 16px 0 8px; color: var(--dim);">Tasks (JSON array)</h4>
+          <textarea id="crTasks" style="min-height: 100px;">[
+  {"id": "research", "description": "Research {topic}", "agent": "ag:researcher"},
+  {"id": "write", "description": "Write article", "agent": "ag:writer", "context": ["research"]}
+]</textarea>
+
+          <button class="btn btn-success" onclick="saveCrew()">Save to Blockchain</button>
+        </div>
+
+        <div class="card">
+          <h3>Saved Crews</h3>
+          <div id="savedCrews" class="log">
+            <p style="color: var(--dim);">Save a crew to see it here</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Execute Panel -->
+    <div id="execute" class="panel">
+      <div class="grid">
+        <div class="card">
+          <h3>Execute Workflow</h3>
+          <label>Workflow ID</label>
+          <input id="execWfId" placeholder="wf:..." />
+          <label>Input (JSON)</label>
+          <textarea id="execWfInput">{"value": 21}</textarea>
+          <button class="btn btn-success" onclick="executeWorkflow()">Execute</button>
+        </div>
+
+        <div class="card">
+          <h3>Execute Crew</h3>
+          <label>Crew ID</label>
+          <input id="execCrId" placeholder="cr:..." />
+          <label>Input (JSON)</label>
+          <textarea id="execCrInput">{"topic": "AI Agents in 2024"}</textarea>
+          <button class="btn btn-success" onclick="executeCrew()">Execute</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Execution Process <span id="execStatus"></span></h3>
+        <p style="color: var(--dim); margin-bottom: 12px;">
+          Each step is an on-chain Process turn (verifiable, resumable)
+        </p>
+        <div id="execProcess" class="process-view">
+          <p style="color: var(--dim);">Execute a workflow or crew to see Process turns</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div class="card">
+      <h3>Activity Log</h3>
+      <div id="log" class="log"></div>
+    </div>
+  </div>
+
+  <script src="ai.js"></script>
+  <script src="workflow-sdk.js"></script>
+  <script>
+    // State
+    let savedWorkflows = [];
+    let savedAgents = [];
+    let savedCrews = [];
+    let executor = null;
+    let crewExecutor = null;
+
+    // Tab switching
+    function showTab(name) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.querySelector(`[onclick="showTab('${name}')"]`).classList.add('active');
+      document.getElementById(name).classList.add('active');
+    }
+
+    // Logging
+    function log(msg, type = 'info') {
+      const el = document.getElementById('log');
+      const time = new Date().toLocaleTimeString();
+      el.innerHTML = `<div class="log-entry log-${type}">[${time}] ${msg}</div>` + el.innerHTML;
+    }
+
+    // Connect wallet
+    async function connect() {
+      try {
+        await getSigner();
+        document.getElementById('status').textContent = `Connected: ${window.sender.slice(0,8)}...`;
+        document.getElementById('status').style.color = 'var(--success)';
+        log('Wallet connected', 'success');
+
+        // Initialize executors
+        const apiKey = document.getElementById('apiKey').value;
+        executor = new EternalBliss.WorkflowExecutor({
+          onNodeStart: ({node}) => log(`Node starting: ${node.id}`, 'info'),
+          onNodeComplete: ({node, output}) => log(`Node completed: ${node.id}`, 'success')
+        });
+        crewExecutor = new EternalBliss.CrewExecutor({
+          onTaskStart: ({task}) => log(`Task starting: ${task.id}`, 'info'),
+          onTaskComplete: ({task}) => log(`Task completed: ${task.id}`, 'success')
+        });
+
+        if (apiKey) {
+          const provider = new EternalBliss.OpenAIProvider(apiKey);
+          executor.setLLMProvider(provider);
+          crewExecutor.setLLMProvider(provider);
+          log('OpenAI provider configured', 'info');
+        }
+      } catch (e) {
+        log(`Connection failed: ${e.message}`, 'error');
+      }
+    }
+
+    // Save Workflow
+    async function saveWorkflow() {
+      try {
+        const name = document.getElementById('wfName').value || 'My Workflow';
+        const desc = document.getElementById('wfDesc').value;
+        const nodes = JSON.parse(document.getElementById('wfNodes').value);
+        const edges = JSON.parse(document.getElementById('wfEdges').value);
+
+        const builder = new EternalBliss.WorkflowBuilder(name).setDescription(desc);
+        nodes.forEach(n => builder.addNode(n.id, n.type, n.config || {}));
+        edges.forEach(e => builder.connect(e.from, e.to, e.condition));
+
+        const id = await builder.save();
+        savedWorkflows.push({ id, name });
+        updateSavedWorkflows();
+        document.getElementById('execWfId').value = id;
+        log(`Workflow saved: ${id}`, 'success');
+      } catch (e) {
+        log(`Save failed: ${e.message}`, 'error');
+      }
+    }
+
+    function updateSavedWorkflows() {
+      const el = document.getElementById('savedWorkflows');
+      el.innerHTML = savedWorkflows.map(w =>
+        `<div class="log-entry">${w.name} <span style="color:var(--dim)">${w.id}</span></div>`
+      ).join('') || '<p style="color:var(--dim)">No workflows saved</p>';
+    }
+
+    // Save Agent
+    async function saveAgent() {
+      try {
+        const role = document.getElementById('agRole').value || 'Assistant';
+        const goal = document.getElementById('agGoal').value;
+        const backstory = document.getElementById('agBackstory').value;
+        const model = document.getElementById('agModel').value;
+
+        const builder = new EternalBliss.AgentBuilder(role)
+          .setGoal(goal)
+          .setBackstory(backstory)
+          .setLLM('openai', model);
+
+        const id = await builder.save();
+        savedAgents.push({ id, role });
+        updateSavedAgents();
+        log(`Agent saved: ${id}`, 'success');
+      } catch (e) {
+        log(`Save failed: ${e.message}`, 'error');
+      }
+    }
+
+    function updateSavedAgents() {
+      const el = document.getElementById('savedAgents');
+      el.innerHTML = savedAgents.map(a =>
+        `<div class="log-entry">${a.role} <span style="color:var(--dim)">${a.id}</span></div>`
+      ).join('') || '<p style="color:var(--dim)">No agents saved</p>';
+    }
+
+    // Save Crew
+    async function saveCrew() {
+      try {
+        const name = document.getElementById('crName').value || 'My Crew';
+        const process = document.getElementById('crProcess').value;
+        const agents = document.getElementById('crAgents').value.split(',').map(s => s.trim());
+        const tasks = JSON.parse(document.getElementById('crTasks').value);
+
+        const builder = new EternalBliss.CrewBuilder(name)
+          .setProcess(process)
+          .addAgents(agents);
+
+        tasks.forEach(t => builder.addTask(t.id, t.description, t.agent, { context: t.context }));
+
+        const id = await builder.save();
+        savedCrews.push({ id, name });
+        updateSavedCrews();
+        document.getElementById('execCrId').value = id;
+        log(`Crew saved: ${id}`, 'success');
+      } catch (e) {
+        log(`Save failed: ${e.message}`, 'error');
+      }
+    }
+
+    function updateSavedCrews() {
+      const el = document.getElementById('savedCrews');
+      el.innerHTML = savedCrews.map(c =>
+        `<div class="log-entry">${c.name} <span style="color:var(--dim)">${c.id}</span></div>`
+      ).join('') || '<p style="color:var(--dim)">No crews saved</p>';
+    }
+
+    // Execute Workflow
+    async function executeWorkflow() {
+      const wfId = document.getElementById('execWfId').value;
+      if (!wfId) return log('Enter a workflow ID', 'error');
+      if (!executor) return log('Connect wallet first', 'error');
+
+      try {
+        const input = JSON.parse(document.getElementById('execWfInput').value);
+        document.getElementById('execStatus').innerHTML = '<span class="status status-running">Running</span>';
+        document.getElementById('execProcess').innerHTML = '<div class="turn">Starting execution...</div>';
+
+        log(`Executing workflow: ${wfId}`, 'info');
+        const { execId, state } = await executor.execute(wfId, input);
+
+        document.getElementById('execStatus').innerHTML =
+          `<span class="status status-${state.status}">${state.status}</span>`;
+
+        // Show all turns
+        let turnsHtml = `<div class="turn completed">Process ID: ${execId}</div>`;
+        turnsHtml += `<div class="turn completed">Total turns: ${state.turn}</div>`;
+        for (const [nodeId, output] of Object.entries(state.outputs)) {
+          turnsHtml += `<div class="turn completed">
+            <strong>${nodeId}</strong>: ${JSON.stringify(output).slice(0, 100)}...
+          </div>`;
+        }
+        document.getElementById('execProcess').innerHTML = turnsHtml;
+
+        log(`Workflow completed in ${state.turn} turns`, 'success');
+      } catch (e) {
+        document.getElementById('execStatus').innerHTML = '<span class="status status-failed">Failed</span>';
+        log(`Execution failed: ${e.message}`, 'error');
+      }
+    }
+
+    // Execute Crew
+    async function executeCrew() {
+      const crId = document.getElementById('execCrId').value;
+      if (!crId) return log('Enter a crew ID', 'error');
+      if (!crewExecutor) return log('Connect wallet first', 'error');
+
+      try {
+        const input = JSON.parse(document.getElementById('execCrInput').value);
+        document.getElementById('execStatus').innerHTML = '<span class="status status-running">Running</span>';
+        document.getElementById('execProcess').innerHTML = '<div class="turn">Starting crew execution...</div>';
+
+        log(`Executing crew: ${crId}`, 'info');
+        const { execId, state } = await crewExecutor.execute(crId, input);
+
+        document.getElementById('execStatus').innerHTML =
+          `<span class="status status-${state.status}">${state.status}</span>`;
+
+        let turnsHtml = `<div class="turn completed">Process ID: ${execId}</div>`;
+        turnsHtml += `<div class="turn completed">Total turns: ${state.turn}</div>`;
+        for (const [taskId, result] of Object.entries(state.task_outputs)) {
+          const preview = result.output?.response?.slice(0, 150) || JSON.stringify(result).slice(0, 100);
+          turnsHtml += `<div class="turn completed">
+            <strong>${taskId}</strong> (${result.agent}): ${preview}...
+          </div>`;
+        }
+        document.getElementById('execProcess').innerHTML = turnsHtml;
+
+        log(`Crew completed in ${state.turn} turns`, 'success');
+      } catch (e) {
+        document.getElementById('execStatus').innerHTML = '<span class="status status-failed">Failed</span>';
+        log(`Execution failed: ${e.message}`, 'error');
+      }
+    }
+
+    // Example loaders
+    function loadWfExample(type) {
+      const examples = {
+        simple: {
+          name: 'Simple Pipeline',
+          nodes: [
+            {id: 'start', type: 'trigger', config: {triggerType: 'manual'}},
+            {id: 'double', type: 'code', config: {code: 'return {result: input.value * 2}'}},
+            {id: 'log', type: 'action', config: {action: 'log'}}
+          ],
+          edges: [{from: 'start', to: 'double'}, {from: 'double', to: 'log'}]
+        },
+        condition: {
+          name: 'With Condition',
+          nodes: [
+            {id: 'start', type: 'trigger', config: {triggerType: 'manual'}},
+            {id: 'check', type: 'condition', config: {condition: 'input.value > 10'}},
+            {id: 'high', type: 'action', config: {action: 'log', message: 'High value!'}},
+            {id: 'low', type: 'action', config: {action: 'log', message: 'Low value'}}
+          ],
+          edges: [
+            {from: 'start', to: 'check'},
+            {from: 'check', to: 'high', condition: 'true'},
+            {from: 'check', to: 'low', condition: 'false'}
+          ]
+        },
+        ai: {
+          name: 'AI Node',
+          nodes: [
+            {id: 'start', type: 'trigger', config: {triggerType: 'manual'}},
+            {id: 'analyze', type: 'ai', config: {prompt: 'Summarize: {{input.text}}', model: 'gpt-3.5-turbo'}},
+            {id: 'save', type: 'action', config: {action: 'create_entity'}}
+          ],
+          edges: [{from: 'start', to: 'analyze'}, {from: 'analyze', to: 'save'}]
+        }
+      };
+      const ex = examples[type];
+      document.getElementById('wfName').value = ex.name;
+      document.getElementById('wfNodes').value = JSON.stringify(ex.nodes, null, 2);
+      document.getElementById('wfEdges').value = JSON.stringify(ex.edges, null, 2);
+      log(`Loaded example: ${ex.name}`, 'info');
+    }
+
+    function loadAgTemplate(type) {
+      const templates = {
+        researcher: {
+          role: 'Senior Research Analyst',
+          goal: 'Find comprehensive, accurate information on any topic',
+          backstory: 'You are a veteran researcher with 20 years of experience. Known for thorough analysis and citing sources.'
+        },
+        writer: {
+          role: 'Content Writer',
+          goal: 'Create engaging, well-structured content',
+          backstory: 'Award-winning writer who makes complex topics accessible. Clear, engaging style.'
+        },
+        coder: {
+          role: 'Senior Developer',
+          goal: 'Write clean, efficient, well-documented code',
+          backstory: 'Experienced developer following best practices. Expert in multiple languages.'
+        }
+      };
+      const t = templates[type];
+      document.getElementById('agRole').value = t.role;
+      document.getElementById('agGoal').value = t.goal;
+      document.getElementById('agBackstory').value = t.backstory;
+      log(`Loaded template: ${type}`, 'info');
+    }
+
+    // Init
+    log('EternalBliss Workflow Engine ready', 'info');
+    log('Connect wallet to start', 'info');
+  </script>
+</body>
+</html>

@@ -1,4 +1,8 @@
 // ALGORAND BLOCKCHAIN VARIABLES
+// ENHANCED: Includes resilience, retry logic, failover, and circuit breakers
+
+// IMPORTANT: Include resilience.js before this file in HTML:
+// <script src="resilience.js"></script>
 
 const POSITION_UPDATE_COOLDOWN = 60000; // 60 seconds minimum between updates (reduced RPC calls)
 const PLAYER_STATE_CACHE_MAX_AGE = 15000; // 15 seconds before forcing a fresh read
@@ -11,14 +15,50 @@ let algodClient = null;
 let indexerClient = null;
 let contract = null;
 let account = null;
-
-const ALGOD_SERVER = 'https://testnet-api.algonode.cloud';
-const INDEXER_SERVER = 'https://testnet-idx.algonode.cloud';
-const ALGOD_PORT = '';
-const ALGOD_TOKEN = '';
+let healthMonitor = null;
 
 // UPDATED: Universal State Machine contract (generic entity/process storage)
 let APP_ID = 750081112;
+
+// Initialize resilient clients (called from world.js or automatically)
+function initBlockchainResilientClients() {
+  if (typeof window.EternalBlissResilience === 'undefined') {
+    console.warn('⚠️ Resilience module not loaded. Using standard clients without retry/failover.');
+    // Fallback to standard clients
+    algodClient = new algosdk.Algodv2('', 'https://testnet-api.algonode.cloud', '');
+    indexerClient = new algosdk.Indexer('', 'https://testnet-idx.algonode.cloud', '');
+    return;
+  }
+
+  const { ResilientAlgodClient, ResilientIndexerClient, HealthMonitor } = window.EternalBlissResilience;
+
+  algodClient = new ResilientAlgodClient('');
+  indexerClient = new ResilientIndexerClient('');
+  healthMonitor = new HealthMonitor(algodClient, indexerClient);
+
+  console.log('✅ Blockchain resilient RPC clients initialized');
+
+  // Periodic health monitoring
+  setInterval(() => {
+    healthMonitor.checkHealth().then(health => {
+      const status = healthMonitor.getStatus();
+      if (status.algod === 'unhealthy' || status.indexer === 'unhealthy') {
+        console.warn('⚠️ Blockchain RPC Health Issue:', status);
+      }
+    }).catch(err => {
+      console.error('Blockchain health check failed:', err);
+    });
+  }, 60000);
+}
+
+// Auto-initialize on load
+if (typeof window !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initBlockchainResilientClients);
+  } else {
+    initBlockchainResilientClients();
+  }
+}
 
 function calculateMBR(stateDataSize, isProcess = false, keyLength = null) {
     // CRITICAL: Match contract's EXACT MBR formula!
@@ -2424,12 +2464,13 @@ function startPeriodicUpdates() {
     // Load PvP broadcasts - faster for better matchmaking UX
     setInterval(loadPvPBroadcasts, 5000); // 5 seconds for quick challenge discovery
 
-    // Check for PvP battle updates (only when needed) - REDUCED RPC CALLS
+    // Check for PvP battle updates (only when needed) - OPTIMIZED FOR MOBILE
+    // Increased from 1s to 2s for better mobile performance (reduces network load)
     if (typeof checkPvPBattleUpdates === 'function') {
         if (pvpBattleCheckInterval) {
             clearInterval(pvpBattleCheckInterval);
         }
-        pvpBattleCheckInterval = setInterval(checkPvPBattleUpdates, 1000); // 1 second for faster battle updates
+        pvpBattleCheckInterval = setInterval(checkPvPBattleUpdates, 2000); // 2 seconds - balanced for mobile
     }
 
     // Auto-save game state every 10 minutes - REDUCED RPC CALLS
