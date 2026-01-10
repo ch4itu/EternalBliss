@@ -3,504 +3,364 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OnChain Blog - Universal State Machine</title>
+    <title>OnChain Blog | Retro World</title>
+    
+    <!-- Preconnect to critical origins FIRST -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://esm.sh" crossorigin>
+    
+    <!-- Preload critical resources -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&display=swap" as="style">
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/algosdk@2.7.0/dist/browser/algosdk.min.js" as="script">
+    
+    <!-- Load fonts with display=swap (non-blocking) -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+    
     <script src="https://cdn.jsdelivr.net/npm/algosdk@2.7.0/dist/browser/algosdk.min.js"></script>
+    
+    <!-- Critical CSS inlined -->
     <style>
         :root {
-            --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --card-bg: white;
-            --card-shadow: rgba(0,0,0,0.2);
-            --text-primary: #333;
-            --text-secondary: #666;
-            --text-muted: #999;
-            --accent-color: #667eea;
-            --accent-secondary: #764ba2;
-            --border-color: #ddd;
-            --input-bg: white;
-            --info-bg: #f0f9ff;
-            --success-bg: #d1fae5;
-            --error-bg: #fee2e2;
-            --hover-bg: rgba(102, 126, 234, 0.1);
-            --code-bg: #f5f5f5;
+            --sky: #5c94fc;
+            --brick-bg: #b53121;
+            --brick-border: #000000;
+            --brick-highlight: #e54b38;
+            --pipe-green: #00a800;
+            --pipe-dark: #006800;
+            --pipe-light: #32d832;
+            --coin-gold: #fca044;
+            --coin-glow: #ffe1a8;
+            --ground: #e75910;
+            --ground-pattern: rgba(0,0,0,0.1);
+            --text-main: #ffffff;
+            --font-pixel: 'Press Start 2P', monospace;
+            --font-body: 'Silkscreen', sans-serif;
         }
 
         [data-theme="dark"] {
-            --bg-gradient: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            --card-bg: #1e3a5f;
-            --card-shadow: rgba(0,0,0,0.4);
-            --text-primary: #e0e0e0;
-            --text-secondary: #b0b0b0;
-            --text-muted: #888;
-            --accent-color: #00d4ff;
-            --accent-secondary: #9b59b6;
-            --border-color: #3a5a7c;
-            --input-bg: #0f2744;
-            --info-bg: rgba(0, 212, 255, 0.1);
-            --success-bg: rgba(16, 185, 129, 0.2);
-            --error-bg: rgba(239, 68, 68, 0.2);
-            --hover-bg: rgba(0, 212, 255, 0.1);
-            --code-bg: #0f2744;
+            --sky: #050510;
+            --brick-bg: #2a1a1a;
+            --brick-highlight: #4a2a2a;
+            --ground: #1a1005;
+            --ground-pattern: rgba(0,0,0,0.3);
         }
 
-        * {
+        * { 
+            box-sizing: border-box; 
+            image-rendering: pixelated;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
+        }
+        
+        /* Only apply transitions to elements that need them */
+        body, .card, .ground-base {
+            transition: background-color 0.4s steps(4), border-color 0.4s steps(4);
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: var(--bg-gradient);
+            background-color: var(--sky);
+            color: var(--text-main);
+            font-family: var(--font-body);
+            line-height: 1.5;
             min-height: 100vh;
-            padding: 20px;
-            color: var(--text-primary);
-            transition: background 0.3s ease;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
         }
 
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
+        /* Scanlines - use will-change for GPU acceleration */
+        body::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.05) 50%);
+            z-index: 1000;
+            background-size: 100% 4px;
+            pointer-events: none;
+            will-change: transform;
         }
 
-        .header {
-            background: var(--card-bg);
-            padding: 30px;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px var(--card-shadow);
-            margin-bottom: 30px;
-            position: relative;
-        }
-
-        .header h1 {
-            color: var(--accent-color);
-            font-size: 36px;
-            margin-bottom: 10px;
-        }
-
-        .header p {
-            color: var(--text-secondary);
-            font-size: 14px;
-        }
-
-        .theme-toggle {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: var(--hover-bg);
-            border: none;
-            padding: 10px 15px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 18px;
-            transition: all 0.3s;
-        }
-
-        .theme-toggle:hover {
-            transform: scale(1.1);
-        }
-
-        .wallet-section {
-            background: var(--card-bg);
-            padding: 25px;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px var(--card-shadow);
-            margin-bottom: 30px;
-        }
-
-        .wallet-section h2 {
-            color: var(--accent-color);
-            margin-bottom: 15px;
-            font-size: 20px;
-        }
-
-        .wallet-input-container {
-            position: relative;
-            margin-bottom: 15px;
-        }
-
-        textarea {
+        .container { 
             width: 100%;
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 2rem 1rem 100px 1rem; 
+            position: relative;
+        }
+
+        .stats-hud {
+            display: flex;
+            justify-content: space-between;
+            font-family: var(--font-pixel);
+            font-size: clamp(8px, 2vw, 12px);
+            margin-bottom: 3rem;
+            text-transform: uppercase;
+            text-shadow: 2px 2px 0px #000;
+        }
+
+        .header { margin-bottom: 3rem; text-align: center; }
+        .header h1 {
+            font-family: var(--font-pixel);
+            font-size: clamp(1rem, 7vw, 2.5rem);
+            margin: 0 0 1rem 0;
+            text-shadow: 6px 6px 0px #000;
+            animation: bounce 0.6s infinite alternate;
+        }
+        
+        @keyframes bounce { 
+            from { transform: translateY(0); } 
+            to { transform: translateY(-5px); } 
+        }
+
+        .card {
+            background-color: var(--brick-bg);
+            border: 4px solid var(--brick-border);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 
+                inset -4px -4px 0px rgba(0,0,0,0.4),
+                inset 4px 4px 0px var(--brick-highlight),
+                8px 8px 0px rgba(0,0,0,0.5);
+            position: relative;
+        }
+
+        .card-special {
+            background-color: var(--coin-gold);
+            border: 4px solid #000;
+            box-shadow: 
+                inset -4px -4px 0px #a46000,
+                inset 4px 4px 0px var(--coin-glow),
+                8px 8px 0px rgba(0,0,0,0.5);
+        }
+        .card-special h2 { color: #000; text-shadow: none; }
+
+        h2 { 
+            font-family: var(--font-pixel);
+            font-size: clamp(12px, 3.5vw, 16px);
+            margin-bottom: 1.5rem;
+            text-shadow: 3px 3px 0px #000;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 14px 18px;
+            background: var(--pipe-green);
+            border: 4px solid #000;
+            color: #fff;
+            font-family: var(--font-pixel);
+            font-size: 10px;
+            cursor: pointer;
+            text-decoration: none;
+            box-shadow: 
+                inset -4px -4px 0px var(--pipe-dark),
+                inset 4px 4px 0px var(--pipe-light);
+            margin: 0 8px 12px 0;
+            width: 100%;
+        }
+
+        @media (min-width: 600px) {
+            .btn { width: auto; }
+        }
+
+        .btn:active { transform: translateY(4px); box-shadow: none; }
+        .btn-coin { 
+            background: #fff; 
+            color: #000; 
+            box-shadow: inset -4px -4px 0px #ccc, inset 4px 4px 0px #fff; 
+        }
+        
+        .btn-danger {
+            background: #c00;
+            box-shadow: inset -4px -4px 0px #800, inset 4px 4px 0px #f44;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            background: #fff;
+            border: 4px solid #000;
             padding: 12px;
-            border: 2px solid var(--border-color);
-            border-radius: 8px;
-            font-family: monospace;
-            font-size: 13px;
-            resize: vertical;
-            transition: border 0.3s, background 0.3s;
-            background: var(--input-bg);
-            color: var(--text-primary);
-        }
-
-        textarea:focus {
+            color: #000;
+            font-family: var(--font-body);
+            font-size: 1rem;
+            margin-bottom: 1rem;
             outline: none;
-            border-color: var(--accent-color);
         }
 
+        .post-card { background: #fff; color: #000; border-left: 12px solid var(--pipe-green); }
+        .post-card h2 { color: #000; text-shadow: none; }
+        .post-meta { font-family: var(--font-pixel); font-size: 8px; color: #666; margin-bottom: 1.2rem; }
+        .post-content { border-top: 2px solid #ddd; padding-top: 1rem; font-size: 1.1rem; white-space: pre-wrap; }
+        .post-actions { margin-top: 1rem; padding-top: 1rem; border-top: 2px solid #ddd; }
+        .post-modified { font-size: 10px; color: #c60; margin-top: 0.5rem; }
+
+        .ground-base {
+            position: fixed;
+            bottom: 0; left: 0; width: 100%; height: 60px;
+            background: var(--ground);
+            border-top: 4px solid #000;
+            z-index: 10;
+            background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, var(--ground-pattern) 10px, var(--ground-pattern) 20px);
+        }
+
+        @media (max-width: 480px) {
+            .stats-hud { flex-direction: column; gap: 8px; text-align: center; }
+            .container { padding-bottom: 120px; }
+        }
+
+        .status-toast {
+            position: fixed;
+            top: 2rem; left: 50%; transform: translateX(-50%);
+            background: #fff; color: #000;
+            border: 4px solid #000;
+            padding: 1rem;
+            font-family: var(--font-pixel);
+            font-size: 10px;
+            z-index: 2000;
+            display: none;
+        }
+        
+        /* Loading skeleton for posts */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        .loading { text-align: center; padding: 2rem; }
+        .spinner {
+            border: 4px solid rgba(0,0,0,0.1);
+            border-top: 4px solid var(--pipe-green);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .empty-state {
+            background: #fff;
+            color: #000;
+            padding: 3rem;
+            text-align: center;
+            border: 4px solid #000;
+        }
+        .empty-state h3 { font-family: var(--font-pixel); font-size: 14px; margin-bottom: 1rem; }
+        
+        .char-count { text-align: right; font-size: 12px; color: #999; margin-top: -0.5rem; margin-bottom: 1rem; }
+        
+        .wallet-input-container { position: relative; }
         .toggle-visibility {
             position: absolute;
             top: 10px;
             right: 10px;
-            background: var(--hover-bg);
-            border: none;
-            padding: 6px 12px;
-            border-radius: 6px;
+            background: var(--coin-gold);
+            border: 2px solid #000;
+            padding: 4px 8px;
+            font-size: 10px;
             cursor: pointer;
-            font-size: 12px;
-            color: var(--accent-color);
-            transition: background 0.3s;
         }
-
-        .toggle-visibility:hover {
-            background: var(--hover-bg);
-            opacity: 0.8;
-        }
-
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            margin-right: 10px;
-            margin-bottom: 10px;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-danger {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-        }
-
-        .btn-success {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            color: white;
-        }
-
-        .btn-secondary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .connected-info {
-            background: var(--info-bg);
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 4px solid var(--accent-color);
-        }
-
-        .connected-info strong {
-            color: var(--accent-color);
-        }
-
-        .address {
-            font-family: monospace;
-            font-size: 12px;
-            word-break: break-all;
-            color: var(--text-secondary);
-            margin-top: 5px;
-        }
-
-        .editor-section {
-            background: var(--card-bg);
-            padding: 25px;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px var(--card-shadow);
-            margin-bottom: 30px;
-            display: none;
-        }
-
-        .editor-section.active {
-            display: block;
-        }
-
-        .editor-section h2 {
-            color: var(--accent-color);
-            margin-bottom: 20px;
-            font-size: 24px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: var(--text-primary);
-            font-weight: 600;
-        }
-
-        input[type="text"] {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid var(--border-color);
-            border-radius: 8px;
-            font-size: 14px;
-            transition: border 0.3s, background 0.3s;
-            background: var(--input-bg);
-            color: var(--text-primary);
-        }
-
-        input[type="text"]:focus {
-            outline: none;
-            border-color: var(--accent-color);
-        }
-
-        .editor {
-            width: 100%;
-            min-height: 300px;
-            padding: 15px;
-            border: 2px solid var(--border-color);
-            border-radius: 8px;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            font-size: 14px;
-            line-height: 1.6;
-            resize: vertical;
-            background: var(--input-bg);
-            color: var(--text-primary);
-        }
-
-        .editor:focus {
-            outline: none;
-            border-color: var(--accent-color);
-        }
-
-        .posts-section {
-            display: none;
-        }
-
-        .posts-section.active {
-            display: block;
-        }
-
-        .post-card {
-            background: var(--card-bg);
-            padding: 25px;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px var(--card-shadow);
-            margin-bottom: 20px;
-            transition: transform 0.3s;
-        }
-
-        .post-card:hover {
-            transform: translateY(-5px);
-        }
-
-        .post-header {
-            margin-bottom: 15px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid var(--border-color);
-        }
-
-        .post-title {
-            color: var(--accent-color);
-            font-size: 28px;
-            margin-bottom: 10px;
-        }
-
-        .post-meta {
-            font-size: 13px;
-            color: var(--text-muted);
-        }
-
-        .post-modified {
-            font-size: 12px;
-            color: #f39c12;
-            margin-top: 5px;
-            font-style: italic;
-        }
-
-        .post-author {
-            color: var(--accent-color);
-            font-weight: 600;
-        }
-
-        .post-content {
-            color: var(--text-primary);
-            line-height: 1.8;
-            font-size: 16px;
-            margin-bottom: 15px;
-            white-space: pre-wrap;
-        }
-
-        .post-actions {
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 2px solid var(--border-color);
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: white;
-            font-size: 18px;
-        }
-
-        .spinner {
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top: 4px solid white;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .empty-state {
-            background: var(--card-bg);
-            padding: 60px 30px;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px var(--card-shadow);
-            text-align: center;
-        }
-
-        .empty-state h3 {
-            color: var(--accent-color);
-            font-size: 24px;
-            margin-bottom: 10px;
-        }
-
-        .empty-state p {
-            color: var(--text-muted);
-        }
-
-        .status-message {
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: none;
-        }
-
-        .status-message.success {
-            background: var(--success-bg);
-            border-left: 4px solid #10b981;
-            color: #10b981;
-            display: block;
-        }
-
-        .status-message.error {
-            background: var(--error-bg);
-            border-left: 4px solid #ef4444;
-            color: #ef4444;
-            display: block;
-        }
-
-        .char-count {
-            text-align: right;
-            font-size: 12px;
-            color: var(--text-muted);
-            margin-top: 5px;
-        }
+        
+        .editor-section, .posts-section { display: none; }
+        .editor-section.active, .posts-section.active { display: block; }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">🌙</button>
-            <h1>⛓️ OnChain Blog</h1>
-            <p>Fully decentralized blog powered by Universal State Machine on Algorand TestNet</p>
-            <p style="margin-top: 10px; font-size: 12px;">
-                <strong>Smart Contract:</strong>
-                <a href="https://lora.algokit.io/testnet/application/750081112" target="_blank" style="color: var(--accent-color);">750081112</a>
-            </p>
-        </div>
-
-        <!-- Wallet Connection -->
-        <div class="wallet-section">
-            <h2>🔗 Connect Wallet</h2>
-
-            <!-- Wallet Selection -->
-            <div id="walletSelection">
-                <button id="btn-pera" class="btn btn-primary" style="width: 100%; margin-bottom: 10px;">
-                    <span style="font-size: 20px;">🟡</span> Connect with Pera Wallet
-                </button>
-                <button id="btn-defly" class="btn btn-primary" style="width: 100%; margin-bottom: 10px; background: #333;">
-                    <span style="font-size: 20px;">🦅</span> Connect with Defly Wallet
-                </button>
-                <button id="btn-mnemonic" class="btn" style="width: 100%; background: #e5e7eb; color: #333;">
-                    🔑 Connect with Mnemonic
+        <!-- HUD -->
+        <div class="stats-hud">
+            <div>ETERNAL BLISS<br>000000</div>
+            <div>COINS: <span id="coinCount">00</span></div>
+            <div>
+                <button id="themeToggle" style="background:none; border:none; color:inherit; font:inherit; cursor:pointer;">
+                    MODE: <span id="modeLabel">DAY</span>
                 </button>
             </div>
+            <div>WORLD: <span id="worldLabel">1-1</span></div>
+        </div>
 
-            <!-- Mnemonic Input (hidden by default) -->
+        <header class="header">
+            <h1>ONCHAIN WORLD</h1>
+            <p style="text-transform:uppercase; font-size:11px; color:rgba(255,255,255,0.7); letter-spacing: 2px;">Decentralized Blog on Algorand TestNet</p>
+            <p style="margin-top: 10px; font-size: 10px;">
+                <a href="https://lora.algokit.io/testnet/application/750081112" target="_blank" style="color: var(--coin-gold);">CONTRACT: 750081112</a>
+            </p>
+        </header>
+
+        <!-- Wallet Terminal -->
+        <section class="card card-special" id="walletSection">
+            <h2>🔗 CONNECT WALLET</h2>
+            <div id="walletSelection">
+                <button id="btn-pera" class="btn">🟡 PERA WALLET</button>
+                <button id="btn-defly" class="btn">🦅 DEFLY WALLET</button>
+                <button id="btn-mnemonic" class="btn btn-coin">🔑 MNEMONIC</button>
+            </div>
+
             <div id="walletInputSection" style="display: none;">
                 <div class="wallet-input-container">
-                    <textarea
-                        id="mnemonicInput"
-                        rows="3"
-                        placeholder="Enter your 25-word Algorand mnemonic phrase..."
-                        style="-webkit-text-security: disc;"
-                    ></textarea>
+                    <textarea id="mnemonicInput" rows="3" placeholder="Enter your 25-word mnemonic phrase..." style="-webkit-text-security: disc;"></textarea>
                     <button id="btn-toggle-mnemonic" class="toggle-visibility">👁️ Show</button>
                 </div>
-                <button id="btn-connect-mnemonic" class="btn btn-primary" style="width: 100%; margin-top: 8px;">
-                    Connect Wallet
-                </button>
-                <button id="btn-back" class="btn" style="width: 100%; margin-top: 8px; background: #e5e7eb; color: #333;">
-                    ← Back
-                </button>
+                <div style="display: flex; gap: 10px;">
+                    <button id="btn-connect-mnemonic" class="btn">CONNECT</button>
+                    <button id="btn-back" class="btn btn-coin">← BACK</button>
+                </div>
             </div>
 
-            <!-- Connected State -->
             <div id="walletConnected" style="display: none;">
-                <div class="connected-info">
-                    <strong>✅ Connected</strong> <span id="walletType" style="font-size: 11px; opacity: 0.7;"></span>
-                    <div class="address" id="connectedAddress"></div>
-                    <div style="margin-top: 10px; font-size: 13px;">
-                        Balance: <strong id="algoBalance">0</strong> ALGO
-                    </div>
+                <div style="font-family: var(--font-pixel); font-size: 11px; margin-bottom: 0.5rem; color:#000;">
+                    ✅ CONNECTED <span id="walletType" style="font-size:9px; opacity:0.7;"></span>
                 </div>
-                <div style="margin-top: 15px;">
-                    <button id="btn-show-editor" class="btn btn-primary">✍️ Write New Post</button>
-                    <button id="btn-load-posts" class="btn btn-success">📚 View All Posts</button>
-                    <button id="btn-disconnect" class="btn btn-danger">Disconnect</button>
+                <div style="font-family: monospace; font-size: 10px; color: #333; margin-bottom: 1rem; word-break: break-all;" id="connectedAddress"></div>
+                <div style="font-family: var(--font-pixel); font-size: 11px; margin-bottom: 1.5rem; color:#000;">
+                    BALANCE: <span id="algoBalance">0.00</span> ALGO
                 </div>
-            </div>
-        </div>
-
-        <!-- Status Messages -->
-        <div id="statusMessage" class="status-message"></div>
-
-        <!-- Post Editor -->
-        <div class="editor-section" id="editorSection">
-            <h2 id="editorTitle">✍️ Write New Post</h2>
-            <div class="form-group">
-                <label>Post Title</label>
-                <input type="text" id="postTitle" placeholder="Enter an engaging title..." maxlength="200">
-            </div>
-            <div class="form-group">
-                <label>Post Content</label>
-                <textarea class="editor" id="postContent" placeholder="Write your thoughts here..."></textarea>
-                <div class="char-count">
-                    <span id="contentLength">0</span> / 3500 characters
+                
+                <div style="display: flex; flex-wrap: wrap;">
+                    <button id="btn-show-editor" class="btn">✍️ NEW POST</button>
+                    <button id="btn-load-posts" class="btn">📚 VIEW POSTS</button>
+                    <button id="btn-disconnect" class="btn btn-coin">🚪 EXIT</button>
                 </div>
             </div>
-            <button id="btn-publish" class="btn btn-primary">📤 Publish to Blockchain</button>
-            <button id="btn-cancel-editor" class="btn" style="background: #e5e7eb; color: #333;">Cancel</button>
-        </div>
+        </section>
 
-        <!-- Posts Display -->
-        <div class="posts-section" id="postsSection">
+        <div id="statusToast" class="status-toast"></div>
+
+        <!-- Editor -->
+        <section class="card editor-section" id="editorSection">
+            <h2 id="editorTitle">✍️ NEW POST</h2>
+            <div>
+                <label style="font-family: var(--font-pixel); font-size: 10px;">TITLE</label>
+                <input type="text" id="postTitle" placeholder="Enter title..." maxlength="200">
+            </div>
+            <div>
+                <label style="font-family: var(--font-pixel); font-size: 10px;">CONTENT</label>
+                <textarea id="postContent" rows="8" placeholder="Write your content..."></textarea>
+                <div class="char-count"><span id="contentLength">0</span> / 3500</div>
+            </div>
+            <div style="display:flex; gap: 1rem;">
+                <button id="btn-publish" class="btn">📤 PUBLISH</button>
+                <button id="btn-cancel-editor" class="btn btn-coin">✖ CANCEL</button>
+            </div>
+        </section>
+
+        <!-- Feed -->
+        <section class="posts-section" id="postsSection">
             <div id="postsContainer"></div>
-        </div>
+        </section>
     </div>
+
+    <!-- Retro Floor -->
+    <div class="ground-base"></div>
 
     <!-- Main Application Script -->
     <script type="module">
@@ -511,7 +371,6 @@
         window.process = { env: { NODE_ENV: 'production' } };
 
         // Import wallet libraries
-        // Use wallet SDK versions compatible with algosdk v2.x
         import { PeraWalletConnect } from "https://esm.sh/@perawallet/connect@1.3.4?bundle-deps";
         import { DeflyWalletConnect } from "https://esm.sh/@blockshake/defly-connect@1.1.6?bundle-deps";
 
@@ -527,14 +386,14 @@
         let currentAddress = null;
         let peraWallet = null;
         let deflyWallet = null;
-        let walletType = null; // 'pera', 'defly', or 'mnemonic'
-        const CHAIN_ID = 416002; // Testnet
+        let walletType = null;
+        const CHAIN_ID = 416002;
 
         // Editing state
         let editingPostId = null;
         let editingPost = null;
 
-        // Full ABI Contract Definition (from compiled ARC-56)
+        // Full ABI Contract Definition
         const CONTRACT_ABI = {
             "name": "UniversalStateMachine",
             "methods": [
@@ -557,18 +416,14 @@
             ]
         };
 
-        // Helper: Create box key for contract v3.2 (raw UTF-8, no ARC-4 encoding)
+        // Helper: Create box key for contract v3.2
         function createBlogBoxKey(postId) {
             const encoder = new TextEncoder();
             const prefix = encoder.encode('e:');
             const idBytes = encoder.encode(postId);
-
-            // Contract v3.2 uses .native.bytes - no ARC-4 encoding
-            // Box key: "e:" + raw_post_id
             const boxKey = new Uint8Array(prefix.length + idBytes.length);
             boxKey.set(prefix, 0);
             boxKey.set(idBytes, prefix.length);
-
             return boxKey;
         }
 
@@ -576,7 +431,7 @@
         function initAlgod() {
             if (typeof algosdk === 'undefined') {
                 console.error('algosdk not loaded!');
-                showStatus('Error: Algorand SDK not loaded. Please refresh the page.', 'error');
+                showToast('ERROR: SDK NOT LOADED');
                 return false;
             }
             algodClient = new algosdk.Algodv2(ALGOD_TOKEN, ALGOD_SERVER, ALGOD_PORT);
@@ -590,27 +445,24 @@
                 peraWallet = new PeraWalletConnect({ chainId: CHAIN_ID });
                 deflyWallet = new DeflyWalletConnect({ chainId: CHAIN_ID });
 
-                // Set up disconnect event listeners
                 peraWallet.connector?.on('disconnect', () => {
-                    console.log('Pera wallet disconnected');
                     if (walletType === 'pera') handleDisconnect();
                 });
 
                 deflyWallet.connector?.on('disconnect', () => {
-                    console.log('Defly wallet disconnected');
                     if (walletType === 'defly') handleDisconnect();
                 });
 
-                console.log('Wallets initialized for TestNet');
+                console.log('Wallets initialized');
                 return true;
             } catch (error) {
                 console.error('Failed to initialize wallets:', error);
-                showStatus('Error initializing wallets: ' + error.message, 'error');
+                showToast('WALLET INIT ERROR');
                 return false;
             }
         }
 
-        // Check for existing sessions on load
+        // Check for existing sessions
         async function checkSessions() {
             try {
                 const peraAccounts = await peraWallet.reconnectSession();
@@ -618,9 +470,7 @@
                     handleConnectSuccess('pera', peraAccounts[0]);
                     return;
                 }
-            } catch(e) {
-                console.log('No existing Pera session');
-            }
+            } catch(e) {}
 
             try {
                 const deflyAccounts = await deflyWallet.reconnectSession();
@@ -628,28 +478,24 @@
                     handleConnectSuccess('defly', deflyAccounts[0]);
                     return;
                 }
-            } catch(e) {
-                console.log('No existing Defly session');
-            }
+            } catch(e) {}
         }
 
-        // UI: Show mnemonic input
+        // UI Functions
         function showMnemonicInput() {
             document.getElementById('walletSelection').style.display = 'none';
             document.getElementById('walletInputSection').style.display = 'block';
         }
 
-        // UI: Back to wallet selection
         function backToWalletSelection() {
             document.getElementById('walletSelection').style.display = 'block';
             document.getElementById('walletInputSection').style.display = 'none';
             document.getElementById('mnemonicInput').value = '';
         }
 
-        // Toggle mnemonic visibility
         function toggleMnemonicVisibility() {
             const input = document.getElementById('mnemonicInput');
-            const btn = event.target;
+            const btn = document.getElementById('btn-toggle-mnemonic');
             if (input.style.webkitTextSecurity === 'disc') {
                 input.style.webkitTextSecurity = 'none';
                 btn.textContent = '🙈 Hide';
@@ -662,21 +508,16 @@
         // Connect with Pera Wallet
         async function connectPeraWallet() {
             try {
-                console.log('🟡 Connecting to Pera Wallet...');
-                showStatus('Connecting to Pera Wallet...', 'success');
+                showToast('CONNECTING PERA...');
                 const accounts = await peraWallet.connect();
-                console.log('Pera accounts:', accounts);
                 if (accounts.length > 0) {
                     handleConnectSuccess('pera', accounts[0]);
                 } else {
-                    showStatus('No accounts returned from Pera Wallet', 'error');
+                    showToast('NO ACCOUNTS');
                 }
             } catch (error) {
                 if (error?.data?.type !== "CONNECT_MODAL_CLOSED" && error?.message !== "Connect modal is closed by user") {
-                    console.error('Pera connection error:', error);
-                    showStatus('Failed to connect with Pera Wallet: ' + (error.message || 'Unknown error'), 'error');
-                } else {
-                    console.log('Pera connect cancelled by user');
+                    showToast('PERA ERROR: ' + (error.message || 'Unknown'));
                 }
             }
         }
@@ -684,21 +525,16 @@
         // Connect with Defly Wallet
         async function connectDeflyWallet() {
             try {
-                console.log('🦅 Connecting to Defly Wallet...');
-                showStatus('Connecting to Defly Wallet...', 'success');
+                showToast('CONNECTING DEFLY...');
                 const accounts = await deflyWallet.connect();
-                console.log('Defly accounts:', accounts);
                 if (accounts.length > 0) {
                     handleConnectSuccess('defly', accounts[0]);
                 } else {
-                    showStatus('No accounts returned from Defly Wallet', 'error');
+                    showToast('NO ACCOUNTS');
                 }
             } catch (error) {
                 if (error?.data?.type !== "CONNECT_MODAL_CLOSED" && error?.message !== "Connect modal is closed by user") {
-                    console.error('Defly connection error:', error);
-                    showStatus('Failed to connect with Defly Wallet: ' + (error.message || 'Unknown error'), 'error');
-                } else {
-                    console.log('Defly connect cancelled by user');
+                    showToast('DEFLY ERROR: ' + (error.message || 'Unknown'));
                 }
             }
         }
@@ -708,90 +544,79 @@
             try {
                 const mnemonic = document.getElementById('mnemonicInput').value.trim();
                 if (!mnemonic) {
-                    showStatus('Please enter your mnemonic phrase', 'error');
+                    showToast('ENTER MNEMONIC');
                     return;
                 }
-
                 currentAccount = algosdk.mnemonicToSecretKey(mnemonic);
                 handleConnectSuccess('mnemonic', currentAccount.addr);
             } catch (error) {
-                console.error('Mnemonic connection error:', error);
-                showStatus('Invalid mnemonic phrase', 'error');
+                showToast('INVALID MNEMONIC');
             }
         }
 
-        // Handle successful connection (unified for all wallet types)
+        // Handle successful connection
         async function handleConnectSuccess(type, address) {
             walletType = type;
             currentAddress = address;
 
-            // For mnemonic, currentAccount is already set
             if (type !== 'mnemonic') {
                 currentAccount = { addr: address };
             }
 
-            // Get balance
             try {
                 const accountInfo = await algodClient.accountInformation(address).do();
                 const balance = (accountInfo.amount / 1000000).toFixed(2);
                 document.getElementById('algoBalance').textContent = balance;
+                document.getElementById('coinCount').textContent = Math.floor(balance).toString().padStart(2, '0');
             } catch (e) {
                 document.getElementById('algoBalance').textContent = '0.00';
             }
 
-            // Update UI
             document.getElementById('walletSelection').style.display = 'none';
             document.getElementById('walletInputSection').style.display = 'none';
             document.getElementById('walletConnected').style.display = 'block';
             document.getElementById('connectedAddress').textContent = address;
 
-            const walletNames = { pera: 'Pera Wallet', defly: 'Defly Wallet', mnemonic: 'Mnemonic' };
+            const walletNames = { pera: 'Pera', defly: 'Defly', mnemonic: 'Mnemonic' };
             document.getElementById('walletType').textContent = `(${walletNames[type]})`;
 
-            showStatus(`✅ Connected with ${walletNames[type]}!`, 'success');
+            showToast('CONNECTED: ' + walletNames[type]);
         }
 
         // Disconnect wallet
         function handleDisconnect() {
-            if (walletType === 'pera' && peraWallet) {
-                peraWallet.disconnect();
-            }
-            if (walletType === 'defly' && deflyWallet) {
-                deflyWallet.disconnect();
-            }
+            if (walletType === 'pera' && peraWallet) peraWallet.disconnect();
+            if (walletType === 'defly' && deflyWallet) deflyWallet.disconnect();
 
             walletType = null;
             currentAccount = null;
             currentAddress = null;
 
-            // Update UI
             document.getElementById('walletConnected').style.display = 'none';
             document.getElementById('walletSelection').style.display = 'block';
             document.getElementById('editorSection').classList.remove('active');
             document.getElementById('postsSection').classList.remove('active');
             document.getElementById('mnemonicInput').value = '';
 
-            showStatus('Wallet disconnected', 'info');
+            showToast('DISCONNECTED');
         }
 
-        // Show editor (for new post or editing)
+        // Show editor
         function showEditor(post = null) {
             document.getElementById('editorSection').classList.add('active');
             document.getElementById('postsSection').classList.remove('active');
 
             if (post) {
-                // Edit mode
                 editingPostId = post.entityId;
                 editingPost = post;
-                document.getElementById('editorTitle').textContent = '✏️ Edit Post';
+                document.getElementById('editorTitle').textContent = '✏️ EDIT POST';
                 document.getElementById('postTitle').value = post.title;
                 document.getElementById('postContent').value = post.content;
                 document.getElementById('contentLength').textContent = post.content.length;
             } else {
-                // New post mode
                 editingPostId = null;
                 editingPost = null;
-                document.getElementById('editorTitle').textContent = '✍️ Write New Post';
+                document.getElementById('editorTitle').textContent = '✍️ NEW POST';
                 document.getElementById('postTitle').value = '';
                 document.getElementById('postContent').value = '';
                 document.getElementById('contentLength').textContent = '0';
@@ -800,22 +625,18 @@
 
         // Edit a post
         function editPost(entityId) {
-            // Find the post in the loaded posts
-            const container = document.getElementById('postsContainer');
-            // We need to load the post data from blockchain
             loadPostForEdit(entityId);
         }
 
         // Load a specific post for editing
         async function loadPostForEdit(entityId) {
             try {
-                showStatus('Loading post for editing...', 'success');
+                showToast('LOADING POST...');
 
                 const boxKey = createBlogBoxKey(entityId);
                 const boxData = await algodClient.getApplicationBoxByName(APP_ID, boxKey).do();
                 const boxValue = boxData.value;
 
-                // Skip owner (first 32 bytes)
                 const dataBytes = boxValue.slice(32);
                 const decoder = new TextDecoder();
                 const jsonData = decoder.decode(dataBytes);
@@ -825,7 +646,7 @@
                 showEditor(post);
             } catch (error) {
                 console.error('Error loading post for edit:', error);
-                showStatus(`Failed to load post: ${error.message}`, 'error');
+                showToast('LOAD FAILED');
             }
         }
 
@@ -836,25 +657,10 @@
             editingPost = null;
         }
 
-        // Update character count
-        document.addEventListener('DOMContentLoaded', () => {
-            const contentArea = document.getElementById('postContent');
-            if (contentArea) {
-                contentArea.addEventListener('input', () => {
-                    const length = contentArea.value.length;
-                    document.getElementById('contentLength').textContent = length;
-                    if (length > 3500) {
-                        contentArea.value = contentArea.value.substring(0, 3500);
-                        document.getElementById('contentLength').textContent = '3500';
-                    }
-                });
-            }
-        });
-
-        // Publish post to blockchain (new or edit)
+        // Publish post to blockchain
         async function publishPost() {
             if (!currentAccount) {
-                showStatus('Please connect your wallet first', 'error');
+                showToast('CONNECT WALLET FIRST');
                 return;
             }
 
@@ -862,16 +668,15 @@
             const content = document.getElementById('postContent').value.trim();
 
             if (!title || !content) {
-                showStatus('Please fill in both title and content', 'error');
+                showToast('FILL ALL FIELDS');
                 return;
             }
 
             const isEditing = editingPostId !== null;
 
             try {
-                showStatus(isEditing ? '📤 Updating post on blockchain...' : '📤 Publishing to blockchain...', 'success');
+                showToast(isEditing ? 'UPDATING...' : 'PUBLISHING...');
 
-                // Create post data
                 const postData = {
                     title: title,
                     content: content,
@@ -879,43 +684,34 @@
                     timestamp: isEditing ? editingPost.timestamp : Date.now()
                 };
 
-                // Add modification timestamp if editing
                 if (isEditing) {
                     postData.modifiedAt = Date.now();
                 }
 
-                // Use existing ID for edit, generate new for new post
                 let postId;
                 if (isEditing) {
                     postId = editingPostId;
                 } else {
-                    // Generate unique post ID (must be <= 62 chars due to contract limit)
                     const addr = currentAccount.addr;
                     const shortAddr = addr.slice(0, 8) + addr.slice(-8);
                     postId = `blog-${Date.now()}-${shortAddr}`;
                 }
 
-                // Prepare transaction
                 const params = await algodClient.getTransactionParams().do();
                 const encoder = new TextEncoder();
                 const entityIdBytes = encoder.encode(postId);
                 const entityDataBytes = encoder.encode(JSON.stringify(postData));
 
-                // Calculate MBR (including ARC-4 encoding overhead)
-                // Both entity_id and entity_data are ARC-4 encoded (each adds 2-byte length prefix)
-                const keyLen = entityIdBytes.length + 2; // +2 for ARC-4 length prefix
-                const dataLen = entityDataBytes.length + 2; // +2 for ARC-4 length prefix
+                const keyLen = entityIdBytes.length + 2;
+                const dataLen = entityDataBytes.length + 2;
                 const totalBytes = 2 + keyLen + 32 + dataLen;
                 const mbrAmount = 2500 + (400 * totalBytes);
 
-                // Box reference with ARC-4 encoding
                 const boxKey = createBlogBoxKey(postId);
 
                 if (walletType === 'mnemonic') {
-                    // For mnemonic: use ATC
                     const atc = new algosdk.AtomicTransactionComposer();
 
-                    // Add MBR payment
                     const mbrTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
                         from: currentAccount.addr,
                         to: algosdk.getApplicationAddress(APP_ID),
@@ -927,9 +723,7 @@
                     const method = contract.getMethodByName('save_entity');
                     const signer = algosdk.makeBasicAccountTransactionSigner(currentAccount);
 
-                    // Add payment transaction FIRST
                     atc.addTransaction({ txn: mbrTxn, signer: signer });
-                    // Then add method call WITHOUT payment parameter
                     atc.addMethodCall({
                         appID: APP_ID,
                         method: method,
@@ -940,18 +734,13 @@
                         boxes: [{appIndex: APP_ID, name: boxKey}]
                     });
 
-                    const result = await atc.execute(algodClient, 3);
-                    console.log('Transaction result:', result);
+                    await atc.execute(algodClient, 3);
                 } else {
-                    // For Pera/Defly: build transactions manually with proper ABI encoding
                     const contract = new algosdk.ABIContract(CONTRACT_ABI);
                     const method = contract.getMethodByName('save_entity');
-
-                    // Encode method arguments with ARC-4
                     const methodSelector = method.getSelector();
                     const enc = new TextEncoder();
 
-                    // ARC-4 encode strings (2-byte length prefix + data)
                     const encodeARC4String = (str) => {
                         const bytes = enc.encode(str);
                         const len = bytes.length;
@@ -972,7 +761,6 @@
                         suggestedParams: params
                     });
 
-                    // Build app call transaction
                     const appCallTxn = algosdk.makeApplicationNoOpTxnFromObject({
                         from: currentAddress,
                         appIndex: APP_ID,
@@ -984,15 +772,11 @@
                         suggestedParams: params
                     });
 
-                    // Group transactions
                     const txnGroup = [mbrTxn, appCallTxn];
                     algosdk.assignGroupID(txnGroup);
 
-                    // Convert transactions to SignerTransaction format for wallet
-                    // Pera/Defly expect array of {txn: Transaction} objects
                     const txnsToSign = txnGroup.map(txn => ({ txn }));
 
-                    // Sign with wallet - returns array of Uint8Array (signed txns)
                     let signedTxns;
                     if (walletType === 'pera') {
                         signedTxns = await peraWallet.signTransaction([txnsToSign]);
@@ -1000,78 +784,59 @@
                         signedTxns = await deflyWallet.signTransaction([txnsToSign]);
                     }
 
-                    // Flatten if nested and filter out null entries
                     const flatSignedTxns = signedTxns.flat().filter(txn => txn != null);
-
-                    // Submit all signed transactions
                     const { txId } = await algodClient.sendRawTransaction(flatSignedTxns).do();
                     await algosdk.waitForConfirmation(algodClient, txId, 3);
-                    console.log('Transaction confirmed:', txId);
                 }
 
-                showStatus(isEditing ? '✅ Post updated successfully!' : '✅ Post published successfully to blockchain!', 'success');
+                showToast(isEditing ? 'POST UPDATED!' : 'POST PUBLISHED!');
 
-                // Clear editor and reset editing state
                 document.getElementById('postTitle').value = '';
                 document.getElementById('postContent').value = '';
                 document.getElementById('editorSection').classList.remove('active');
                 editingPostId = null;
                 editingPost = null;
 
-                // Reload posts
                 setTimeout(() => loadAllPosts(), 2000);
 
             } catch (error) {
                 console.error('Publish error:', error);
-                showStatus(`Failed to publish: ${error.message}`, 'error');
+                showToast('PUBLISH FAILED: ' + error.message);
             }
         }
 
         // Load all posts from blockchain
         async function loadAllPosts() {
             if (!currentAccount) {
-                showStatus('Please connect your wallet first', 'error');
+                showToast('CONNECT WALLET FIRST');
                 return;
             }
 
             try {
-                showStatus('📚 Loading posts from blockchain...', 'success');
+                showToast('LOADING POSTS...');
 
                 document.getElementById('editorSection').classList.remove('active');
                 document.getElementById('postsSection').classList.add('active');
 
                 const container = document.getElementById('postsContainer');
-                container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading posts from blockchain...</p></div>';
+                container.innerHTML = '<div class="loading"><div class="spinner"></div><p style="font-family: var(--font-pixel); font-size: 10px;">LOADING FROM CHAIN...</p></div>';
 
-                // Get all boxes
                 const boxes = await algodClient.getApplicationBoxes(APP_ID).do();
-                console.log('All boxes:', boxes);
-
                 const blogPosts = [];
                 const decoder = new TextDecoder();
 
                 for (const box of boxes.boxes) {
-                    // Decode box name (v3.2 uses raw UTF-8, no ARC-4)
                     const rawName = box.name;
 
-                    // Check if it starts with "e:" (first 2 bytes)
                     if (rawName[0] === 0x65 && rawName[1] === 0x3a) {
-                        // Contract v3.2: Box key is "e:" + raw_entity_id (no ARC-4 encoding)
                         const entityIdBytes = rawName.slice(2);
                         const entityId = decoder.decode(entityIdBytes);
 
-                        // Check if it's a blog post
                         if (entityId.startsWith('blog-')) {
                             try {
                                 const boxData = await algodClient.getApplicationBoxByName(APP_ID, rawName).do();
                                 const boxValue = boxData.value;
-
-                                // Box structure (v3.2): owner(32) + raw entity data
-                                // Contract uses .native.bytes which strips ARC4 encoding
-                                // Skip owner (first 32 bytes)
                                 const dataBytes = boxValue.slice(32);
-
-                                // Decode raw UTF-8 bytes (NO ARC4 prefix)
                                 const jsonData = decoder.decode(dataBytes);
                                 const post = JSON.parse(jsonData);
                                 post.id = `e:${entityId}`;
@@ -1084,29 +849,27 @@
                     }
                 }
 
-                // Sort by timestamp (newest first)
                 blogPosts.sort((a, b) => b.timestamp - a.timestamp);
 
-                // Display posts
                 if (blogPosts.length === 0) {
                     container.innerHTML = `
                         <div class="empty-state">
-                            <h3>No posts yet</h3>
-                            <p>Be the first to write a post on the blockchain!</p>
+                            <h3>NO POSTS YET</h3>
+                            <p>Be the first to write on the blockchain!</p>
                         </div>
                     `;
                 } else {
                     container.innerHTML = blogPosts.map(post => createPostCard(post)).join('');
                 }
 
-                showStatus(`✅ Loaded ${blogPosts.length} post(s) from blockchain`, 'success');
+                showToast('LOADED ' + blogPosts.length + ' POST(S)');
 
             } catch (error) {
                 console.error('Load error:', error);
-                showStatus(`Failed to load posts: ${error.message}`, 'error');
+                showToast('LOAD FAILED');
                 document.getElementById('postsContainer').innerHTML = `
                     <div class="empty-state">
-                        <h3>Error loading posts</h3>
+                        <h3>ERROR LOADING</h3>
                         <p>${error.message}</p>
                     </div>
                 `;
@@ -1118,33 +881,26 @@
             const date = new Date(post.timestamp);
             const isOwner = currentAccount && post.author === currentAccount.addr;
 
-            // Check if post was modified
             let modifiedHtml = '';
             if (post.modifiedAt) {
                 const modifiedDate = new Date(post.modifiedAt);
-                modifiedHtml = `
-                    <div class="post-modified">
-                        ✏️ Last modified: ${modifiedDate.toLocaleDateString()} ${modifiedDate.toLocaleTimeString()}
-                    </div>
-                `;
+                modifiedHtml = `<div class="post-modified">✏️ Modified: ${modifiedDate.toLocaleDateString()} ${modifiedDate.toLocaleTimeString()}</div>`;
             }
 
             return `
-                <div class="post-card">
-                    <div class="post-header">
-                        <h2 class="post-title">${escapeHtml(post.title)}</h2>
-                        <div class="post-meta">
-                            <span class="post-author">By: ${post.author.substring(0, 10)}...${post.author.substring(post.author.length - 8)}</span>
-                            <span style="margin: 0 10px;">•</span>
-                            <span>${date.toLocaleDateString()} ${date.toLocaleTimeString()}</span>
-                        </div>
-                        ${modifiedHtml}
+                <div class="card post-card">
+                    <div class="post-meta">
+                        BY: ${post.author.substring(0, 10)}...${post.author.substring(post.author.length - 8)}
+                        &nbsp;•&nbsp;
+                        ${date.toLocaleDateString()} ${date.toLocaleTimeString()}
                     </div>
+                    ${modifiedHtml}
+                    <h2>${escapeHtml(post.title)}</h2>
                     <div class="post-content">${escapeHtml(post.content)}</div>
                     ${isOwner ? `
                         <div class="post-actions">
-                            <button class="btn btn-secondary edit-post-btn" data-entity-id="${post.entityId}">✏️ Edit Post</button>
-                            <button class="btn btn-danger delete-post-btn" data-entity-id="${post.entityId}">🗑️ Delete Post</button>
+                            <button class="btn edit-post-btn" data-entity-id="${post.entityId}">✏️ EDIT</button>
+                            <button class="btn btn-danger delete-post-btn" data-entity-id="${post.entityId}">🗑️ DELETE</button>
                         </div>
                     ` : ''}
                 </div>
@@ -1153,12 +909,12 @@
 
         // Delete post
         async function deletePost(entityId) {
-            if (!confirm('Are you sure you want to delete this post from the blockchain?')) {
+            if (!confirm('Delete this post from the blockchain?')) {
                 return;
             }
 
             try {
-                showStatus('🗑️ Deleting post...', 'success');
+                showToast('DELETING...');
 
                 const params = await algodClient.getTransactionParams().do();
                 const contract = new algosdk.ABIContract(CONTRACT_ABI);
@@ -1166,11 +922,9 @@
                 const boxKey = createBlogBoxKey(entityId);
 
                 if (walletType === 'mnemonic') {
-                    // For mnemonic: use ATC
                     const atc = new algosdk.AtomicTransactionComposer();
                     const signer = algosdk.makeBasicAccountTransactionSigner(currentAccount);
 
-                    // delete_entity creates inner transaction for MBR refund - needs 2x fee
                     const deleteParams = { ...params };
                     deleteParams.flatFee = true;
                     deleteParams.fee = 2 * algosdk.ALGORAND_MIN_TX_FEE;
@@ -1187,11 +941,9 @@
 
                     await atc.execute(algodClient, 3);
                 } else {
-                    // For Pera/Defly: build transaction manually
                     const methodSelector = method.getSelector();
                     const enc = new TextEncoder();
 
-                    // ARC-4 encode string
                     const encodeARC4String = (str) => {
                         const bytes = enc.encode(str);
                         const len = bytes.length;
@@ -1204,7 +956,6 @@
 
                     const arg1 = encodeARC4String(entityId);
 
-                    // delete_entity creates inner transaction for MBR refund - needs 2x fee
                     const deleteParams = { ...params };
                     deleteParams.flatFee = true;
                     deleteParams.fee = 2 * algosdk.ALGORAND_MIN_TX_FEE;
@@ -1217,10 +968,8 @@
                         suggestedParams: deleteParams
                     });
 
-                    // Convert transaction to SignerTransaction format for wallet
                     const txnToSign = [{ txn }];
 
-                    // Sign with wallet - returns array of Uint8Array (signed txns)
                     let signedTxns;
                     if (walletType === 'pera') {
                         signedTxns = await peraWallet.signTransaction([txnToSign]);
@@ -1228,113 +977,92 @@
                         signedTxns = await deflyWallet.signTransaction([txnToSign]);
                     }
 
-                    // Flatten if nested and filter out null entries
                     const flatSignedTxns = signedTxns.flat().filter(txn => txn != null);
-
-                    // Submit
                     const { txId } = await algodClient.sendRawTransaction(flatSignedTxns).do();
                     await algosdk.waitForConfirmation(algodClient, txId, 3);
                 }
 
-                showStatus('✅ Post deleted successfully!', 'success');
-
-                // Reload posts
+                showToast('POST DELETED!');
                 setTimeout(() => loadAllPosts(), 2000);
 
             } catch (error) {
                 console.error('Delete error:', error);
-                showStatus(`Failed to delete: ${error.message}`, 'error');
+                showToast('DELETE FAILED: ' + error.message);
             }
         }
 
-        // Show status message
-        function showStatus(message, type) {
-            const statusEl = document.getElementById('statusMessage');
-            statusEl.textContent = message;
-            statusEl.className = `status-message ${type}`;
-
-            if (type === 'success') {
-                setTimeout(() => {
-                    statusEl.style.display = 'none';
-                }, 5000);
-            }
+        // Show toast message
+        function showToast(message) {
+            const statusEl = document.getElementById('statusToast');
+            statusEl.textContent = '! ' + message + ' !';
+            statusEl.style.display = 'block';
+            setTimeout(() => {
+                statusEl.style.display = 'none';
+            }, 4000);
         }
 
-        // Escape HTML to prevent XSS
+        // Escape HTML
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
 
-        // ===== THEME TOGGLE =====
-
-        function initTheme() {
-            const savedTheme = localStorage.getItem('blogTheme');
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            const theme = savedTheme || (prefersDark ? 'dark' : 'light');
-            setTheme(theme);
+        // Theme toggle
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            document.getElementById('modeLabel').textContent = newTheme === 'dark' ? 'NIGHT' : 'DAY';
+            document.getElementById('worldLabel').textContent = newTheme === 'dark' ? '1-4' : '1-1';
+            localStorage.setItem('blogTheme', newTheme);
         }
 
-        function setTheme(theme) {
-            document.documentElement.setAttribute('data-theme', theme);
-            localStorage.setItem('blogTheme', theme);
-            const toggleBtn = document.getElementById('themeToggle');
-            if (toggleBtn) {
-                toggleBtn.textContent = theme === 'dark' ? '☀️' : '🌙';
-                toggleBtn.title = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+        // Initialize theme
+        function initTheme() {
+            const savedTheme = localStorage.getItem('blogTheme');
+            if (savedTheme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.getElementById('modeLabel').textContent = 'NIGHT';
+                document.getElementById('worldLabel').textContent = '1-4';
             }
         }
 
-        function toggleTheme() {
-            const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            setTheme(newTheme);
-        }
+        // Character count
+        document.getElementById('postContent').addEventListener('input', (e) => {
+            const length = e.target.value.length;
+            document.getElementById('contentLength').textContent = length;
+            if (length > 3500) {
+                e.target.value = e.target.value.substring(0, 3500);
+                document.getElementById('contentLength').textContent = '3500';
+            }
+        });
 
-        // Initialize theme immediately
+        // Initialize
         initTheme();
-
-        // ===== INITIALIZATION AND EVENT LISTENERS =====
-
-        // Initialize with error handling
-        console.log('🚀 Initializing OnChain Blog...');
-        console.log('algosdk version:', typeof algosdk !== 'undefined' ? 'loaded' : 'NOT LOADED');
-
         const algodOk = initAlgod();
         const walletsOk = initWallets();
 
         if (algodOk && walletsOk) {
             console.log('✅ Initialization complete');
-            // Check for existing wallet sessions
             checkSessions();
-        } else {
-            console.error('❌ Initialization failed');
         }
 
-        // Theme toggle button
+        // Event listeners
         document.getElementById('themeToggle').addEventListener('click', toggleTheme);
-
-        // Wallet connection buttons
         document.getElementById('btn-pera').addEventListener('click', connectPeraWallet);
         document.getElementById('btn-defly').addEventListener('click', connectDeflyWallet);
         document.getElementById('btn-mnemonic').addEventListener('click', showMnemonicInput);
-
-        // Mnemonic UI buttons
         document.getElementById('btn-toggle-mnemonic').addEventListener('click', toggleMnemonicVisibility);
         document.getElementById('btn-connect-mnemonic').addEventListener('click', connectWithMnemonic);
         document.getElementById('btn-back').addEventListener('click', backToWalletSelection);
-
-        // Connected state buttons
         document.getElementById('btn-show-editor').addEventListener('click', () => showEditor());
         document.getElementById('btn-load-posts').addEventListener('click', loadAllPosts);
         document.getElementById('btn-disconnect').addEventListener('click', handleDisconnect);
-
-        // Editor buttons
         document.getElementById('btn-publish').addEventListener('click', publishPost);
         document.getElementById('btn-cancel-editor').addEventListener('click', cancelEditor);
 
-        // Event delegation for dynamically created edit and delete buttons
+        // Event delegation for edit and delete buttons
         document.getElementById('postsContainer').addEventListener('click', (e) => {
             if (e.target.classList.contains('edit-post-btn')) {
                 const entityId = e.target.getAttribute('data-entity-id');
