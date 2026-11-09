@@ -10366,6 +10366,7 @@ const sharedWorld = (() => {
     let saving = false;
     let saveTimer = 0;
     let saveRetryAt = 0;
+    let saveSentAt = 0; // rollup time of this page's last accepted save request
 
     function showStatus(text) {
         const detail = get('eb-shared-detail');
@@ -10837,6 +10838,7 @@ const sharedWorld = (() => {
                 {encoding:'base64',preflightCommitment:'confirmed'}],12000);
             console.info('EternalBliss: shared world save sent to Solana',SabhaSol.b58encode(signature));
             saveRetryAt = performance.now()+10000; // until the saved revision shows up in the next reads
+            if (clockSample) saveSentAt = presenceTime();
         } catch {
             // another player saved first or the rollup is busy: ask again in a while
             saveRetryAt = performance.now()+30000;
@@ -11117,7 +11119,8 @@ const sharedWorld = (() => {
             if (saveDue(presenceTime(),0)) saveWorld();
             else if (snapshot && clockSample && snapshot.revision !== snapshot.savedRevision) {
                 clearTimeout(saveTimer);
-                saveTimer = setTimeout(saveWorld,Math.max(0,snapshot.savedAt+saveSeconds-presenceTime())*1000+1500);
+                const last = Math.max(snapshot.savedAt,saveSentAt);
+                saveTimer = setTimeout(saveWorld,Math.max(0,last+saveSeconds-presenceTime())*1000+1500);
             }
         }
         finally {
