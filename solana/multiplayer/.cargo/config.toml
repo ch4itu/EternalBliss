@@ -1,0 +1,19 @@
+[unstable]
+build-std = ["core", "alloc"]
+
+[target.bpfel-unknown-none]
+rustflags = [
+    "-C", "linker=sbpf-linker",
+    "-C", "panic=abort",
+    "-C", "relocation-model=static",
+    "-C", "target-cpu=v2",
+    "-C", "target-feature=+allows-misaligned-mem-access",
+    "-C", "link-arg=--arch=v0",
+    "-C", "link-arg=--llvm-args=--bpf-stack-size=4096",
+    "-C", "link-arg=--llvm-args=--bpf-max-stores-per-memfunc=5",
+    "--cfg=target_os=\"solana\"",
+    "-A", "explicit_builtin_cfgs_in_flags"
+]
+
+[alias]
+build-bpf = "build --release --target bpfel-unknown-none"

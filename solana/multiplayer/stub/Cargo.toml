@@ -1,0 +1,16 @@
+[package]
+name = "magic_stub"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+solana-compiler-builtins = "=0.3.0"
+
+[profile.release]
+overflow-checks = true
+codegen-units = 1
+opt-level = 3
+lto = true
